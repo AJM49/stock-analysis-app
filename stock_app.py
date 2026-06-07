@@ -1,5 +1,6 @@
 import streamlit as st
 import yfinance as yf
+import pandas as pd
 
 st.set_page_config(
     page_title="Stock Analysis Dashboard",
@@ -7,6 +8,7 @@ st.set_page_config(
 )
 
 st.title("Stock Analysis Dashboard")
+st.caption("Sprint 2: Technical Analysis Dashboard")
 
 ticker = st.text_input(
     "Enter Stock Ticker",
@@ -20,13 +22,28 @@ if ticker:
 
         stock = yf.Ticker(ticker)
         info = stock.info
-        history = stock.history(period="30d")
+
+        history = stock.history(period="6mo")
 
         if history.empty:
 
-            st.error("Invalid ticker symbol.")
+            st.error(
+                "Invalid ticker symbol."
+            )
 
         else:
+
+            history["MA20"] = (
+                history["Close"]
+                .rolling(window=20)
+                .mean()
+            )
+
+            history["MA50"] = (
+                history["Close"]
+                .rolling(window=50)
+                .mean()
+            )
 
             current_price = history["Close"].iloc[-1]
             previous_close = history["Close"].iloc[-2]
@@ -39,6 +56,8 @@ if ticker:
             st.subheader(
                 info.get("longName", ticker)
             )
+
+            # Primary Metrics
 
             col1, col2, col3 = st.columns(3)
 
@@ -58,6 +77,8 @@ if ticker:
                 f"${info.get('fiftyTwoWeekLow', 0):.2f}"
             )
 
+            # Secondary Metrics
+
             col4, col5, col6 = st.columns(3)
 
             col4.metric(
@@ -74,6 +95,8 @@ if ticker:
                 "Average Volume",
                 f"{info.get('averageVolume', 0):,}"
             )
+
+            # Valuation Metrics
 
             col7, col8, col9 = st.columns(3)
 
@@ -120,20 +143,60 @@ if ticker:
                 )
             )
 
-            st.subheader(
-                "30-Day Closing Price Chart"
-            )
-
-            st.line_chart(
-                history["Close"]
-            )
+            st.divider()
 
             st.subheader(
-                "Recent Price Data"
+                "Price and Moving Averages"
+            )
+
+            chart_data = history[
+                [
+                    "Close",
+                    "MA20",
+                    "MA50"
+                ]
+            ]
+
+            st.line_chart(chart_data)
+
+            st.divider()
+
+            st.subheader(
+                "Technical Indicator Summary"
+            )
+
+            latest_ma20 = history["MA20"].iloc[-1]
+            latest_ma50 = history["MA50"].iloc[-1]
+
+            col10, col11 = st.columns(2)
+
+            col10.metric(
+                "20-Day Moving Average",
+                f"${latest_ma20:.2f}"
+            )
+
+            col11.metric(
+                "50-Day Moving Average",
+                f"${latest_ma50:.2f}"
+            )
+
+            if latest_ma20 > latest_ma50:
+                st.success(
+                    "Bullish Signal: MA20 is above MA50."
+                )
+            else:
+                st.warning(
+                    "Bearish Signal: MA20 is below MA50."
+                )
+
+            st.divider()
+
+            st.subheader(
+                "Recent Trading Data"
             )
 
             st.dataframe(
-                history.tail(10)
+                history.tail(15)
             )
 
     except Exception as e:
