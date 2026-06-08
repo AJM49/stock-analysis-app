@@ -1,5 +1,13 @@
 import streamlit as st
 
+from config import APP_CAPTION
+from config import APP_LAYOUT
+from config import APP_PAGE_TITLE
+from config import APP_TITLE
+from config import DEFAULT_COMPARISON_TICKER
+from config import DEFAULT_PERIOD
+from config import DEFAULT_PRIMARY_TICKER
+from config import PERIOD_OPTIONS
 from database import init_database
 from indicators import add_technical_indicators
 from market_data import calculate_price_change
@@ -18,33 +26,35 @@ from ui_components import render_watchlist_sidebar
 
 
 st.set_page_config(
-    page_title="Stock Analysis Dashboard",
-    layout="wide"
+    page_title=APP_PAGE_TITLE,
+    layout=APP_LAYOUT
 )
 
 init_database()
 
-st.title("Stock Analysis Dashboard")
-st.caption("Sprint 10: App Hardening")
+st.title(APP_TITLE)
+st.caption(APP_CAPTION)
 
 st.sidebar.header("Dashboard Controls")
 
 ticker = st.sidebar.text_input(
     "Primary Stock Ticker",
-    value="AAPL",
+    value=DEFAULT_PRIMARY_TICKER,
     key="primary_ticker_input"
 ).upper().strip()
 
 comparison_ticker = st.sidebar.text_input(
     "Comparison Stock Ticker",
-    value="MSFT",
+    value=DEFAULT_COMPARISON_TICKER,
     key="comparison_ticker_input"
 ).upper().strip()
 
+period_index = PERIOD_OPTIONS.index(DEFAULT_PERIOD)
+
 period = st.sidebar.selectbox(
     "Select Time Period",
-    options=["1mo", "3mo", "6mo", "1y", "2y", "5y"],
-    index=2,
+    options=PERIOD_OPTIONS,
+    index=period_index,
     key="period_selector"
 )
 

@@ -1,0 +1,2 @@
+2026-06-08 04:49:43,631 - ERROR - HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: GOOGLE"}}}
+2026-06-08 04:49:44,348 - ERROR - $GOOGLE: possibly delisted; no price data found  (period=1y) (Yahoo error = "No data found, symbol may be delisted")

@@ -4,6 +4,8 @@ import re
 import streamlit as st
 import yfinance as yf
 
+from config import MARKET_DATA_CACHE_TTL
+
 
 logging.basicConfig(
     filename="app.log",
@@ -30,7 +32,7 @@ def validate_ticker(symbol):
     return True, clean_symbol
 
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=MARKET_DATA_CACHE_TTL)
 def load_stock_data(symbol, selected_period):
     is_valid, result = validate_ticker(symbol)
 
@@ -45,8 +47,11 @@ def load_stock_data(symbol, selected_period):
         history = stock.history(period=selected_period)
 
         if history is None or history.empty:
-           return {}, None, "No market data found for " + clean_symbol + "."
-
+            return (
+                {},
+                None,
+                "No market data found for " + clean_symbol + "."
+            )
 
         return info, history, None
 
@@ -56,10 +61,14 @@ def load_stock_data(symbol, selected_period):
             clean_symbol,
             str(error)
         )
-        return {}, None, "Unable to retrieve data for " + clean_symbol + "."
+        return (
+            {},
+            None,
+            "Unable to retrieve data for " + clean_symbol + "."
+        )
 
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=MARKET_DATA_CACHE_TTL)
 def get_latest_price(symbol):
     is_valid, result = validate_ticker(symbol)
 
@@ -87,7 +96,7 @@ def get_latest_price(symbol):
         return None
 
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=MARKET_DATA_CACHE_TTL)
 def get_stock_volatility(symbol):
     is_valid, result = validate_ticker(symbol)
 
