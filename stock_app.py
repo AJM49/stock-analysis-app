@@ -19,7 +19,7 @@ st.set_page_config(
 init_database()
 
 st.title("Stock Analysis Dashboard")
-st.caption("Sprint 5: Portfolio Tracker")
+st.caption("Sprint 6: Portfolio Analytics")
 
 st.sidebar.header("Dashboard Controls")
 
@@ -79,6 +79,83 @@ def get_latest_price(symbol):
 
     latest_price = history["Close"].iloc[-1]
     return float(latest_price)
+
+
+def build_portfolio_dataframe(portfolio_positions):
+    portfolio_rows = []
+
+    for position in portfolio_positions:
+        current_price = get_latest_price(position.ticker)
+
+        if current_price is None:
+            current_price = 0.0
+
+        cost_basis = position.shares * position.buy_price
+        current_value = position.shares * current_price
+        gain_loss = current_value - cost_basis
+
+        if cost_basis > 0:
+            gain_loss_pct = (gain_loss / cost_basis) * 100
+        else:
+            gain_loss_pct = 0.0
+
+        portfolio_rows.append(
+            {
+                "Ticker": position.ticker,
+                "Shares": position.shares,
+                "Buy Price": position.buy_price,
+                "Current Price": current_price,
+                "Cost Basis": cost_basis,
+                "Current Value": current_value,
+                "Gain/Loss": gain_loss,
+                "Gain/Loss %": gain_loss_pct
+            }
+        )
+
+    portfolio_df = pd.DataFrame(portfolio_rows)
+
+    if portfolio_df.empty:
+        return portfolio_df
+
+    total_current_value = portfolio_df["Current Value"].sum()
+
+    if total_current_value > 0:
+        portfolio_df["Allocation %"] = (
+            portfolio_df["Current Value"] / total_current_value
+        ) * 100
+    else:
+        portfolio_df["Allocation %"] = 0.0
+
+    return portfolio_df
+
+
+def format_portfolio_dataframe(portfolio_df):
+    formatted_df = portfolio_df.copy()
+
+    money_columns = [
+        "Buy Price",
+        "Current Price",
+        "Cost Basis",
+        "Current Value",
+        "Gain/Loss"
+    ]
+
+    for column in money_columns:
+        formatted_df[column] = formatted_df[column].map(
+            lambda value: f"${value:,.2f}"
+        )
+
+    percent_columns = [
+        "Gain/Loss %",
+        "Allocation %"
+    ]
+
+    for column in percent_columns:
+        formatted_df[column] = formatted_df[column].map(
+            lambda value: f"{value:.2f}%"
+        )
+
+    return formatted_df
 
 
 st.sidebar.divider()
@@ -197,46 +274,14 @@ else:
     st.sidebar.info("No portfolio positions yet.")
 
 
-st.subheader("Portfolio Summary")
+st.subheader("Portfolio Analytics")
 
-if portfolio_positions:
-    portfolio_rows = []
+portfolio_df = build_portfolio_dataframe(portfolio_positions)
 
-    total_cost_basis = 0.0
-    total_current_value = 0.0
-    total_gain_loss = 0.0
-
-    for position in portfolio_positions:
-        current_price = get_latest_price(position.ticker)
-
-        if current_price is None:
-            current_price = 0.0
-
-        cost_basis = position.shares * position.buy_price
-        current_value = position.shares * current_price
-        gain_loss = current_value - cost_basis
-
-        if cost_basis > 0:
-            gain_loss_pct = (gain_loss / cost_basis) * 100
-        else:
-            gain_loss_pct = 0.0
-
-        total_cost_basis += cost_basis
-        total_current_value += current_value
-        total_gain_loss += gain_loss
-
-        portfolio_rows.append(
-            {
-                "Ticker": position.ticker,
-                "Shares": position.shares,
-                "Buy Price": position.buy_price,
-                "Current Price": current_price,
-                "Cost Basis": cost_basis,
-                "Current Value": current_value,
-                "Gain/Loss": gain_loss,
-                "Gain/Loss %": gain_loss_pct
-            }
-        )
+if not portfolio_df.empty:
+    total_cost_basis = portfolio_df["Cost Basis"].sum()
+    total_current_value = portfolio_df["Current Value"].sum()
+    total_gain_loss = portfolio_df["Gain/Loss"].sum()
 
     if total_cost_basis > 0:
         total_gain_loss_pct = (
@@ -244,6 +289,21 @@ if portfolio_positions:
         ) * 100
     else:
         total_gain_loss_pct = 0.0
+
+    best_position = portfolio_df.sort_values(
+        by="Gain/Loss %",
+        ascending=False
+    ).iloc[0]
+
+    worst_position = portfolio_df.sort_values(
+        by="Gain/Loss %",
+        ascending=True
+    ).iloc[0]
+
+    largest_position = portfolio_df.sort_values(
+        by="Allocation %",
+        ascending=False
+    ).iloc[0]
 
     summary_col1, summary_col2, summary_col3 = st.columns(3)
 
@@ -263,11 +323,96 @@ if portfolio_positions:
         f"{total_gain_loss_pct:.2f}%"
     )
 
-    portfolio_df = pd.DataFrame(portfolio_rows)
+    insight_col1, insight_col2, insight_col3 = st.columns(3)
+
+    insight_col1.metric(
+        "Best Performer",
+        best_position["Ticker"],
+        f"{best_position['Gain/Loss %']:.2f}%"
+    )
+
+    insight_col2.metric(
+        "Worst Performer",
+        worst_position["Ticker"],
+        f"{worst_position['Gain/Loss %']:.2f}%"
+    )
+
+    insight_col3.metric(
+        "Largest Allocation",
+        largest_position["Ticker"],
+        f"{largest_position['Allocation %']:.2f}%"
+    )
+
+    if largest_position["Allocation %"] >= 50:
+        st.warning(
+            largest_position["Ticker"]
+            + " represents more than 50% of the portfolio."
+        )
+    elif largest_position["Allocation %"] >= 35:
+        st.info(
+            largest_position["Ticker"]
+            + " is a major portfolio concentration."
+        )
+    else:
+        st.success("Portfolio concentration risk is moderate.")
+
+    st.subheader("Portfolio Allocation")
+
+    allocation_chart = portfolio_df.set_index("Ticker")[
+        ["Current Value"]
+    ]
+
+    st.bar_chart(allocation_chart)
+
+    st.subheader("Portfolio Performance Table")
+
+    sort_option = st.selectbox(
+        "Sort Portfolio By",
+        options=[
+            "Ticker",
+            "Current Value",
+            "Gain/Loss",
+            "Gain/Loss %",
+            "Allocation %"
+        ],
+        index=1,
+        key="portfolio_sort_option"
+    )
+
+    sort_direction = st.radio(
+        "Sort Direction",
+        options=[
+            "Descending",
+            "Ascending"
+        ],
+        horizontal=True,
+        key="portfolio_sort_direction"
+    )
+
+    ascending_sort = sort_direction == "Ascending"
+
+    sorted_portfolio_df = portfolio_df.sort_values(
+        by=sort_option,
+        ascending=ascending_sort
+    )
+
+    formatted_portfolio_df = format_portfolio_dataframe(
+        sorted_portfolio_df
+    )
 
     st.dataframe(
-        portfolio_df,
+        formatted_portfolio_df,
         use_container_width=True
+    )
+
+    portfolio_csv = portfolio_df.to_csv(index=False).encode("utf-8")
+
+    st.download_button(
+        label="Download Portfolio CSV",
+        data=portfolio_csv,
+        file_name="portfolio_analytics.csv",
+        mime="text/csv",
+        key="download_portfolio_csv"
     )
 
 else:
@@ -488,11 +633,11 @@ if ticker:
             csv_data = history.to_csv().encode("utf-8")
 
             st.download_button(
-                label="Download CSV",
+                label="Download Stock CSV",
                 data=csv_data,
                 file_name=ticker + "_" + period + "_stock_data.csv",
                 mime="text/csv",
-                key="download_csv"
+                key="download_stock_csv"
             )
 
             if show_recent_data:
