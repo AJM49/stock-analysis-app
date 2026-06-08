@@ -38,3 +38,4 @@ stock-analysis-app/
 ├── README.md
 ├── .gitignore
 └── stocks.db
+# stock-analysis-app
