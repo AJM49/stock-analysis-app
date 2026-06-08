@@ -19,7 +19,7 @@ st.set_page_config(
 init_database()
 
 st.title("Stock Analysis Dashboard")
-st.caption("Sprint 7: Technical Indicators")
+st.caption("Sprint 8: Risk Dashboard")
 
 st.sidebar.header("Dashboard Controls")
 
@@ -79,6 +79,22 @@ def get_latest_price(symbol):
 
     latest_price = history["Close"].iloc[-1]
     return float(latest_price)
+
+
+def get_stock_volatility(symbol):
+    stock = yf.Ticker(symbol)
+    history = stock.history(period="3mo")
+
+    if history.empty:
+        return 0.0
+
+    daily_returns = history["Close"].pct_change()
+    volatility = daily_returns.std() * 100
+
+    if pd.isna(volatility):
+        return 0.0
+
+    return float(volatility)
 
 
 def calculate_rsi(history, window=14):
@@ -176,6 +192,7 @@ def build_portfolio_dataframe(portfolio_positions):
         cost_basis = position.shares * position.buy_price
         current_value = position.shares * current_price
         gain_loss = current_value - cost_basis
+        holding_volatility = get_stock_volatility(position.ticker)
 
         if cost_basis > 0:
             gain_loss_pct = (gain_loss / cost_basis) * 100
@@ -191,7 +208,8 @@ def build_portfolio_dataframe(portfolio_positions):
                 "Cost Basis": cost_basis,
                 "Current Value": current_value,
                 "Gain/Loss": gain_loss,
-                "Gain/Loss %": gain_loss_pct
+                "Gain/Loss %": gain_loss_pct,
+                "Volatility %": holding_volatility
             }
         )
 
@@ -230,7 +248,8 @@ def format_portfolio_dataframe(portfolio_df):
 
     percent_columns = [
         "Gain/Loss %",
-        "Allocation %"
+        "Allocation %",
+        "Volatility %"
     ]
 
     for column in percent_columns:
@@ -239,6 +258,65 @@ def format_portfolio_dataframe(portfolio_df):
         )
 
     return formatted_df
+
+
+def calculate_portfolio_risk_score(portfolio_df):
+    if portfolio_df.empty:
+        return 0, "No portfolio data"
+
+    max_allocation = portfolio_df["Allocation %"].max()
+    average_volatility = portfolio_df["Volatility %"].mean()
+    position_count = len(portfolio_df)
+
+    score = 0
+
+    if max_allocation >= 50:
+        score += 40
+    elif max_allocation >= 35:
+        score += 25
+    elif max_allocation >= 20:
+        score += 10
+
+    if average_volatility >= 3:
+        score += 40
+    elif average_volatility >= 2:
+        score += 25
+    elif average_volatility >= 1:
+        score += 10
+
+    if position_count <= 2:
+        score += 20
+    elif position_count <= 4:
+        score += 10
+
+    if score >= 70:
+        label = "High Risk"
+    elif score >= 40:
+        label = "Moderate Risk"
+    else:
+        label = "Lower Risk"
+
+    return score, label
+
+
+def calculate_stop_loss(current_price, stop_loss_pct):
+    stop_price = current_price * (1 - stop_loss_pct / 100)
+    return stop_price
+
+
+def calculate_target_price(current_price, target_gain_pct):
+    target_price = current_price * (1 + target_gain_pct / 100)
+    return target_price
+
+
+def calculate_risk_reward(current_price, stop_price, target_price):
+    downside_risk = current_price - stop_price
+    upside_reward = target_price - current_price
+
+    if downside_risk <= 0:
+        return 0.0
+
+    return upside_reward / downside_risk
 
 
 st.sidebar.divider()
@@ -426,18 +504,87 @@ if not portfolio_df.empty:
         f"{largest_position['Allocation %']:.2f}%"
     )
 
-    if largest_position["Allocation %"] >= 50:
+    st.subheader("Portfolio Risk Dashboard")
+
+    risk_score, risk_label = calculate_portfolio_risk_score(
+        portfolio_df
+    )
+
+    average_volatility = portfolio_df["Volatility %"].mean()
+    max_allocation = portfolio_df["Allocation %"].max()
+    position_count = len(portfolio_df)
+
+    risk_col1, risk_col2, risk_col3 = st.columns(3)
+
+    risk_col1.metric(
+        "Portfolio Risk Score",
+        str(risk_score) + "/100",
+        risk_label
+    )
+
+    risk_col2.metric(
+        "Average Volatility",
+        f"{average_volatility:.2f}%"
+    )
+
+    risk_col3.metric(
+        "Number of Positions",
+        position_count
+    )
+
+    risk_col4, risk_col5, risk_col6 = st.columns(3)
+
+    risk_col4.metric(
+        "Largest Allocation",
+        largest_position["Ticker"],
+        f"{max_allocation:.2f}%"
+    )
+
+    risk_col5.metric(
+        "Highest Volatility",
+        portfolio_df.sort_values(
+            by="Volatility %",
+            ascending=False
+        ).iloc[0]["Ticker"]
+    )
+
+    risk_col6.metric(
+        "Risk Label",
+        risk_label
+    )
+
+    if risk_label == "High Risk":
+        st.warning(
+            "Portfolio risk is high. Review concentration, volatility, "
+            "and position count."
+        )
+    elif risk_label == "Moderate Risk":
+        st.info(
+            "Portfolio risk is moderate. Review oversized positions."
+        )
+    else:
+        st.success("Portfolio risk appears lower based on current inputs.")
+
+    if max_allocation >= 50:
         st.warning(
             largest_position["Ticker"]
             + " represents more than 50% of the portfolio."
         )
-    elif largest_position["Allocation %"] >= 35:
+    elif max_allocation >= 35:
         st.info(
             largest_position["Ticker"]
             + " is a major portfolio concentration."
         )
     else:
         st.success("Portfolio concentration risk is moderate.")
+
+    st.subheader("Volatility by Holding")
+
+    volatility_chart = portfolio_df.set_index("Ticker")[
+        ["Volatility %"]
+    ]
+
+    st.bar_chart(volatility_chart)
 
     st.subheader("Portfolio Allocation")
 
@@ -446,6 +593,85 @@ if not portfolio_df.empty:
     ]
 
     st.bar_chart(allocation_chart)
+
+    st.subheader("Stop-Loss and Target Calculator")
+
+    calculator_col1, calculator_col2, calculator_col3 = st.columns(3)
+
+    calculator_ticker = calculator_col1.selectbox(
+        "Select Position",
+        options=portfolio_df["Ticker"].tolist(),
+        key="risk_calculator_ticker"
+    )
+
+    stop_loss_pct = calculator_col2.number_input(
+        "Stop-Loss %",
+        min_value=1.0,
+        max_value=90.0,
+        value=10.0,
+        step=1.0,
+        key="stop_loss_pct_input"
+    )
+
+    target_gain_pct = calculator_col3.number_input(
+        "Target Gain %",
+        min_value=1.0,
+        max_value=500.0,
+        value=20.0,
+        step=1.0,
+        key="target_gain_pct_input"
+    )
+
+    selected_position_row = portfolio_df[
+        portfolio_df["Ticker"] == calculator_ticker
+    ].iloc[0]
+
+    calculator_current_price = selected_position_row["Current Price"]
+
+    stop_price = calculate_stop_loss(
+        calculator_current_price,
+        stop_loss_pct
+    )
+
+    target_price = calculate_target_price(
+        calculator_current_price,
+        target_gain_pct
+    )
+
+    risk_reward_ratio = calculate_risk_reward(
+        calculator_current_price,
+        stop_price,
+        target_price
+    )
+
+    calc_col1, calc_col2, calc_col3, calc_col4 = st.columns(4)
+
+    calc_col1.metric(
+        "Current Price",
+        f"${calculator_current_price:,.2f}"
+    )
+
+    calc_col2.metric(
+        "Stop-Loss Price",
+        f"${stop_price:,.2f}"
+    )
+
+    calc_col3.metric(
+        "Target Price",
+        f"${target_price:,.2f}"
+    )
+
+    calc_col4.metric(
+        "Risk/Reward Ratio",
+        f"{risk_reward_ratio:.2f}"
+    )
+
+    if risk_reward_ratio >= 2:
+        st.success("Risk/reward profile is favorable.")
+    elif risk_reward_ratio >= 1:
+        st.info("Risk/reward profile is balanced.")
+    else:
+        st.warning("Risk/reward profile is weak.")
 
     st.subheader("Portfolio Performance Table")
 
@@ -456,7 +682,8 @@ if not portfolio_df.empty:
             "Current Value",
             "Gain/Loss",
             "Gain/Loss %",
-            "Allocation %"
+            "Allocation %",
+            "Volatility %"
         ],
         index=1,
         key="portfolio_sort_option"
@@ -493,7 +720,7 @@ if not portfolio_df.empty:
     st.download_button(
         label="Download Portfolio CSV",
         data=portfolio_csv,
-        file_name="portfolio_analytics.csv",
+        file_name="portfolio_risk_dashboard.csv",
         mime="text/csv",
         key="download_portfolio_csv"
     )
