@@ -2,6 +2,7 @@ from datetime import datetime
 
 from sqlalchemy import Column
 from sqlalchemy import DateTime
+from sqlalchemy import Float
 from sqlalchemy import Integer
 from sqlalchemy import String
 from sqlalchemy import create_engine
@@ -27,6 +28,16 @@ class WatchlistStock(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     ticker = Column(String, unique=True, nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class PortfolioPosition(Base):
+    __tablename__ = "portfolio_positions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    ticker = Column(String, unique=True, nullable=False, index=True)
+    shares = Column(Float, nullable=False)
+    buy_price = Column(Float, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -103,6 +114,95 @@ def remove_from_watchlist(ticker):
         session.commit()
 
         message = clean_ticker + " removed from watchlist."
+        return True, message
+
+    except Exception as error:
+        session.rollback()
+        return False, "Database error: " + str(error)
+
+    finally:
+        session.close()
+
+
+def get_portfolio_positions():
+    session = SessionLocal()
+
+    try:
+        positions = (
+            session.query(PortfolioPosition)
+            .order_by(PortfolioPosition.ticker.asc())
+            .all()
+        )
+        return positions
+    finally:
+        session.close()
+
+
+def add_portfolio_position(ticker, shares, buy_price):
+    clean_ticker = ticker.upper().strip()
+
+    if not clean_ticker:
+        return False, "Ticker cannot be empty."
+
+    if shares <= 0:
+        return False, "Shares must be greater than zero."
+
+    if buy_price <= 0:
+        return False, "Buy price must be greater than zero."
+
+    session = SessionLocal()
+
+    try:
+        existing_position = (
+            session.query(PortfolioPosition)
+            .filter(PortfolioPosition.ticker == clean_ticker)
+            .first()
+        )
+
+        if existing_position:
+            message = clean_ticker + " is already in your portfolio."
+            return False, message
+
+        position = PortfolioPosition(
+            ticker=clean_ticker,
+            shares=shares,
+            buy_price=buy_price
+        )
+
+        session.add(position)
+        session.commit()
+
+        message = clean_ticker + " added to portfolio."
+        return True, message
+
+    except Exception as error:
+        session.rollback()
+        return False, "Database error: " + str(error)
+
+    finally:
+        session.close()
+
+
+def remove_portfolio_position(ticker):
+    clean_ticker = ticker.upper().strip()
+
+    session = SessionLocal()
+
+    try:
+        position = (
+            session.query(PortfolioPosition)
+            .filter(PortfolioPosition.ticker == clean_ticker)
+            .first()
+        )
+
+        if not position:
+            message = clean_ticker + " was not found."
+            return False, message
+
+        session.delete(position)
+        session.commit()
+
+        message = clean_ticker + " removed from portfolio."
         return True, message
 
     except Exception as error:

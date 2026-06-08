@@ -2,9 +2,12 @@ import pandas as pd
 import streamlit as st
 import yfinance as yf
 
+from database import add_portfolio_position
 from database import add_to_watchlist
+from database import get_portfolio_positions
 from database import get_watchlist
 from database import init_database
+from database import remove_portfolio_position
 from database import remove_from_watchlist
 
 
@@ -16,7 +19,7 @@ st.set_page_config(
 init_database()
 
 st.title("Stock Analysis Dashboard")
-st.caption("Sprint 4: SQLite Watchlist Foundation")
+st.caption("Sprint 5: Portfolio Tracker")
 
 st.sidebar.header("Dashboard Controls")
 
@@ -67,10 +70,24 @@ def calculate_price_change(history):
     return current_price, change_pct
 
 
+def get_latest_price(symbol):
+    stock = yf.Ticker(symbol)
+    history = stock.history(period="5d")
+
+    if history.empty:
+        return None
+
+    latest_price = history["Close"].iloc[-1]
+    return float(latest_price)
+
+
 st.sidebar.divider()
 st.sidebar.header("Saved Watchlist")
 
-if st.sidebar.button("Save Primary Ticker"):
+if st.sidebar.button(
+    "Save Primary Ticker",
+    key="save_primary_ticker"
+):
     success, message = add_to_watchlist(ticker)
 
     if success:
@@ -89,7 +106,10 @@ if watchlist_items:
         key="saved_tickers_select"
     )
 
-    if st.sidebar.button("Remove Selected Ticker"):
+    if st.sidebar.button(
+        "Remove Selected Ticker",
+        key="remove_selected_ticker"
+    ):
         success, message = remove_from_watchlist(
             selected_watchlist_ticker
         )
@@ -101,6 +121,159 @@ if watchlist_items:
             st.sidebar.warning(message)
 else:
     st.sidebar.info("No saved tickers yet.")
+
+
+st.sidebar.divider()
+st.sidebar.header("Portfolio Tracker")
+
+with st.sidebar.form("add_portfolio_position_form"):
+    portfolio_ticker = st.text_input(
+        "Portfolio Ticker",
+        value="AAPL",
+        key="portfolio_ticker_input"
+    ).upper().strip()
+
+    portfolio_shares = st.number_input(
+        "Shares",
+        min_value=0.0,
+        value=1.0,
+        step=1.0,
+        format="%.4f",
+        key="portfolio_shares_input"
+    )
+
+    portfolio_buy_price = st.number_input(
+        "Buy Price",
+        min_value=0.0,
+        value=100.0,
+        step=1.0,
+        format="%.2f",
+        key="portfolio_buy_price_input"
+    )
+
+    submitted_position = st.form_submit_button(
+        "Add Position"
+    )
+
+    if submitted_position:
+        success, message = add_portfolio_position(
+            portfolio_ticker,
+            portfolio_shares,
+            portfolio_buy_price
+        )
+
+        if success:
+            st.success(message)
+        else:
+            st.warning(message)
+
+portfolio_positions = get_portfolio_positions()
+
+if portfolio_positions:
+    portfolio_tickers = [
+        position.ticker for position in portfolio_positions
+    ]
+
+    selected_position_ticker = st.sidebar.selectbox(
+        "Portfolio Positions",
+        options=portfolio_tickers,
+        key="portfolio_positions_select"
+    )
+
+    if st.sidebar.button(
+        "Remove Portfolio Position",
+        key="remove_portfolio_position"
+    ):
+        success, message = remove_portfolio_position(
+            selected_position_ticker
+        )
+
+        if success:
+            st.sidebar.success(message)
+            st.rerun()
+        else:
+            st.sidebar.warning(message)
+else:
+    st.sidebar.info("No portfolio positions yet.")
+
+
+st.subheader("Portfolio Summary")
+
+if portfolio_positions:
+    portfolio_rows = []
+
+    total_cost_basis = 0.0
+    total_current_value = 0.0
+    total_gain_loss = 0.0
+
+    for position in portfolio_positions:
+        current_price = get_latest_price(position.ticker)
+
+        if current_price is None:
+            current_price = 0.0
+
+        cost_basis = position.shares * position.buy_price
+        current_value = position.shares * current_price
+        gain_loss = current_value - cost_basis
+
+        if cost_basis > 0:
+            gain_loss_pct = (gain_loss / cost_basis) * 100
+        else:
+            gain_loss_pct = 0.0
+
+        total_cost_basis += cost_basis
+        total_current_value += current_value
+        total_gain_loss += gain_loss
+
+        portfolio_rows.append(
+            {
+                "Ticker": position.ticker,
+                "Shares": position.shares,
+                "Buy Price": position.buy_price,
+                "Current Price": current_price,
+                "Cost Basis": cost_basis,
+                "Current Value": current_value,
+                "Gain/Loss": gain_loss,
+                "Gain/Loss %": gain_loss_pct
+            }
+        )
+
+    if total_cost_basis > 0:
+        total_gain_loss_pct = (
+            total_gain_loss / total_cost_basis
+        ) * 100
+    else:
+        total_gain_loss_pct = 0.0
+
+    summary_col1, summary_col2, summary_col3 = st.columns(3)
+
+    summary_col1.metric(
+        "Total Current Value",
+        f"${total_current_value:,.2f}"
+    )
+
+    summary_col2.metric(
+        "Total Cost Basis",
+        f"${total_cost_basis:,.2f}"
+    )
+
+    summary_col3.metric(
+        "Total Gain/Loss",
+        f"${total_gain_loss:,.2f}",
+        f"{total_gain_loss_pct:.2f}%"
+    )
+
+    portfolio_df = pd.DataFrame(portfolio_rows)
+
+    st.dataframe(
+        portfolio_df,
+        use_container_width=True
+    )
+
+else:
+    st.info("Add a portfolio position from the sidebar.")
+
+st.divider()
 
 
 if ticker:
