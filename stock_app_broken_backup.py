@@ -1,14 +1,23 @@
+cat > stock_app.py <<'PY'
+import pandas as pd
 import streamlit as st
 import yfinance as yf
-import pandas as pd
+
+from database import add_to_watchlist
+from database import get_watchlist
+from database import init_database
+from database import remove_from_watchlist
+
 
 st.set_page_config(
     page_title="Stock Analysis Dashboard",
     layout="wide"
 )
 
+init_database()
+
 st.title("Stock Analysis Dashboard")
-st.caption("Sprint 3.5: Stock Comparison")
+st.caption("Sprint 4: SQLite Watchlist Foundation")
 
 st.sidebar.header("Dashboard Controls")
 
@@ -54,8 +63,49 @@ def load_stock_data(symbol, selected_period):
 def calculate_price_change(history):
     current_price = history["Close"].iloc[-1]
     previous_close = history["Close"].iloc[-2]
-    price_change_pct = ((current_price - previous_close) / previous_close)* 100
+    price_change_pct = ((current_price - previous_close) / previous_close) 
+* 100
     return current_price, price_change_pct
+
+
+st.sidebar.divider()
+st.sidebar.header("Saved Watchlist")
+
+if st.sidebar.button(
+    "Save Primary Ticker",
+    key="save_primary_ticker"
+):
+    success, message = add_to_watchlist(ticker)
+
+    if success:
+        st.sidebar.success(message)
+    else:
+        st.sidebar.warning(message)
+
+watchlist_items = get_watchlist()
+
+if watchlist_items:
+    selected_watchlist_ticker = st.sidebar.selectbox(
+        "Saved Tickers",
+        options=[stock.ticker for stock in watchlist_items],
+        key="saved_tickers_select"
+    )
+
+    if st.sidebar.button(
+        "Remove Selected Ticker",
+        key="remove_selected_ticker"
+    ):
+        success, message = 
+remove_from_watchlist(selected_watchlist_ticker)
+
+        if success:
+            st.sidebar.success(message)
+            st.rerun()
+        else:
+            st.sidebar.warning(message)
+
+else:
+    st.sidebar.info("No saved tickers yet.")
 
 
 if ticker:
@@ -68,7 +118,8 @@ if ticker:
             history["MA20"] = history["Close"].rolling(window=20).mean()
             history["MA50"] = history["Close"].rolling(window=50).mean()
 
-            current_price, price_change_pct = calculate_price_change(history)
+            current_price, price_change_pct = 
+calculate_price_change(history)
 
             st.subheader(info.get("longName", ticker))
 
@@ -189,21 +240,11 @@ if ticker:
                 if comparison_history.empty:
                     st.error("Invalid comparison ticker symbol.")
                 else:
-                   comparison_current_price, comparison_change_pct = (calculate_price_change(comparison_history)
+                    comparison_current_price, comparison_change_pct = (
+                        calculate_price_change(comparison_history)
                     )
 
-                   st.subheader(f"{ticker} vs {comparison_ticker}")
-
-                   compare_col1, compare_col2 = st.columns(2)
-
-           compare_col1.metric(
-                f"{ticker} Current Price",
-                f"${current_price:.2f}",
-                f"{price_change_pct:.2f}%" 
-                    )
-
-                      st.subheader(f"{ticker} vs 
-{comparison_ticker}")
+                    st.subheader(f"{ticker} vs {comparison_ticker}")
 
                     compare_col1, compare_col2 = st.columns(2)
 
@@ -284,3 +325,4 @@ if ticker:
 
     except Exception as e:
         st.error(f"Error retrieving data: {e}")
+PY

@@ -1,14 +1,22 @@
+import pandas as pd
 import streamlit as st
 import yfinance as yf
-import pandas as pd
+
+from database import add_to_watchlist
+from database import get_watchlist
+from database import init_database
+from database import remove_from_watchlist
+
 
 st.set_page_config(
     page_title="Stock Analysis Dashboard",
     layout="wide"
 )
 
+init_database()
+
 st.title("Stock Analysis Dashboard")
-st.caption("Sprint 3.5: Stock Comparison")
+st.caption("Sprint 4: SQLite Watchlist Foundation")
 
 st.sidebar.header("Dashboard Controls")
 
@@ -54,8 +62,45 @@ def load_stock_data(symbol, selected_period):
 def calculate_price_change(history):
     current_price = history["Close"].iloc[-1]
     previous_close = history["Close"].iloc[-2]
-    price_change_pct = ((current_price - previous_close) / previous_close) * 100
-    return current_price, price_change_pct
+    change = current_price - previous_close
+    change_pct = (change / previous_close) * 100
+    return current_price, change_pct
+
+
+st.sidebar.divider()
+st.sidebar.header("Saved Watchlist")
+
+if st.sidebar.button("Save Primary Ticker"):
+    success, message = add_to_watchlist(ticker)
+
+    if success:
+        st.sidebar.success(message)
+    else:
+        st.sidebar.warning(message)
+
+watchlist_items = get_watchlist()
+
+if watchlist_items:
+    saved_tickers = [stock.ticker for stock in watchlist_items]
+
+    selected_watchlist_ticker = st.sidebar.selectbox(
+        "Saved Tickers",
+        options=saved_tickers,
+        key="saved_tickers_select"
+    )
+
+    if st.sidebar.button("Remove Selected Ticker"):
+        success, message = remove_from_watchlist(
+            selected_watchlist_ticker
+        )
+
+        if success:
+            st.sidebar.success(message)
+            st.rerun()
+        else:
+            st.sidebar.warning(message)
+else:
+    st.sidebar.info("No saved tickers yet.")
 
 
 if ticker:
@@ -65,10 +110,16 @@ if ticker:
         if history.empty:
             st.error("Invalid primary ticker symbol.")
         else:
-            history["MA20"] = history["Close"].rolling(window=20).mean()
-            history["MA50"] = history["Close"].rolling(window=50).mean()
+            history["MA20"] = (
+                history["Close"].rolling(window=20).mean()
+            )
+            history["MA50"] = (
+                history["Close"].rolling(window=50).mean()
+            )
 
-            current_price, price_change_pct = calculate_price_change(history)
+            current_price, price_change_pct = calculate_price_change(
+                history
+            )
 
             st.subheader(info.get("longName", ticker))
 
@@ -120,7 +171,8 @@ if ticker:
 
             col8.metric(
                 "Dividend Yield",
-                f"{dividend_yield * 100:.2f}%" if dividend_yield else "N/A"
+                f"{dividend_yield * 100:.2f}%"
+                if dividend_yield else "N/A"
             )
 
             col9.metric(
@@ -136,12 +188,11 @@ if ticker:
 
             if show_company_overview:
                 st.subheader("Company Overview")
-                st.write(
-                    info.get(
-                        "longBusinessSummary",
-                        "No company description available."
-                    )
+                overview = info.get(
+                    "longBusinessSummary",
+                    "No company description available."
                 )
+                st.write(overview)
 
             st.divider()
 
@@ -161,12 +212,14 @@ if ticker:
 
             col10.metric(
                 "20-Day Moving Average",
-                f"${latest_ma20:.2f}" if pd.notna(latest_ma20) else "N/A"
+                f"${latest_ma20:.2f}"
+                if pd.notna(latest_ma20) else "N/A"
             )
 
             col11.metric(
                 "50-Day Moving Average",
-                f"${latest_ma50:.2f}" if pd.notna(latest_ma50) else "N/A"
+                f"${latest_ma50:.2f}"
+                if pd.notna(latest_ma50) else "N/A"
             )
 
             if pd.notna(latest_ma20) and pd.notna(latest_ma50):
@@ -188,34 +241,36 @@ if ticker:
                 if comparison_history.empty:
                     st.error("Invalid comparison ticker symbol.")
                 else:
-                    comparison_current_price, comparison_change_pct = (
-                        calculate_price_change(comparison_history)
+                    comp_price, comp_change_pct = calculate_price_change(
+                        comparison_history
                     )
 
-                    st.subheader(f"{ticker} vs {comparison_ticker}")
+                    st.subheader(ticker + " vs " + comparison_ticker)
 
                     compare_col1, compare_col2 = st.columns(2)
 
                     compare_col1.metric(
-                        f"{ticker} Current Price",
+                        ticker + " Current Price",
                         f"${current_price:.2f}",
                         f"{price_change_pct:.2f}%"
                     )
 
                     compare_col2.metric(
-                        f"{comparison_ticker} Current Price",
-                        f"${comparison_current_price:.2f}",
-                        f"{comparison_change_pct:.2f}%"
+                        comparison_ticker + " Current Price",
+                        f"${comp_price:.2f}",
+                        f"{comp_change_pct:.2f}%"
                     )
 
                     comparison_chart = history[["Close"]].rename(
                         columns={"Close": ticker}
                     )
 
+                    second_chart = comparison_history[["Close"]].rename(
+                        columns={"Close": comparison_ticker}
+                    )
+
                     comparison_chart = comparison_chart.join(
-                        comparison_history[["Close"]].rename(
-                            columns={"Close": comparison_ticker}
-                        ),
+                        second_chart,
                         how="inner"
                     )
 
@@ -242,7 +297,8 @@ if ticker:
                                     "longName",
                                     comparison_ticker
                                 ),
-                                f"${comparison_info.get('marketCap', 0):,}",
+                                f"${comparison_info.get('marketCap', 
+0):,}",
                                 comparison_info.get("trailingPE", "N/A"),
                                 f"{comparison_info.get('volume', 0):,}",
                                 comparison_info.get("sector", "N/A")
@@ -261,7 +317,7 @@ if ticker:
             st.download_button(
                 label="Download CSV",
                 data=csv_data,
-                file_name=f"{ticker}_{period}_stock_data.csv",
+                file_name=ticker + "_" + period + "_stock_data.csv",
                 mime="text/csv",
                 key="download_csv"
             )
@@ -270,5 +326,5 @@ if ticker:
                 st.subheader("Recent Trading Data")
                 st.dataframe(history.tail(15))
 
-    except Exception as e:
-        st.error(f"Error retrieving data: {e}")
+    except Exception as error:
+        st.error("Error retrieving data: " + str(error))
