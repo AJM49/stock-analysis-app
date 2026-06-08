@@ -19,7 +19,7 @@ st.set_page_config(
 init_database()
 
 st.title("Stock Analysis Dashboard")
-st.caption("Sprint 6: Portfolio Analytics")
+st.caption("Sprint 7: Technical Indicators")
 
 st.sidebar.header("Dashboard Controls")
 
@@ -79,6 +79,89 @@ def get_latest_price(symbol):
 
     latest_price = history["Close"].iloc[-1]
     return float(latest_price)
+
+
+def calculate_rsi(history, window=14):
+    delta = history["Close"].diff()
+
+    gains = delta.clip(lower=0)
+    losses = -delta.clip(upper=0)
+
+    average_gain = gains.rolling(window=window).mean()
+    average_loss = losses.rolling(window=window).mean()
+
+    relative_strength = average_gain / average_loss
+    rsi = 100 - (100 / (1 + relative_strength))
+
+    return rsi
+
+
+def calculate_macd(history):
+    ema_12 = history["Close"].ewm(
+        span=12,
+        adjust=False
+    ).mean()
+
+    ema_26 = history["Close"].ewm(
+        span=26,
+        adjust=False
+    ).mean()
+
+    macd_line = ema_12 - ema_26
+
+    signal_line = macd_line.ewm(
+        span=9,
+        adjust=False
+    ).mean()
+
+    macd_histogram = macd_line - signal_line
+
+    return macd_line, signal_line, macd_histogram
+
+
+def calculate_volatility(history):
+    daily_returns = history["Close"].pct_change()
+    volatility = daily_returns.std() * 100
+    return daily_returns, volatility
+
+
+def get_rsi_signal(rsi_value):
+    if pd.isna(rsi_value):
+        return "Not enough data"
+
+    if rsi_value >= 70:
+        return "Overbought"
+
+    if rsi_value <= 30:
+        return "Oversold"
+
+    return "Neutral"
+
+
+def get_macd_signal(macd_value, signal_value):
+    if pd.isna(macd_value) or pd.isna(signal_value):
+        return "Not enough data"
+
+    if macd_value > signal_value:
+        return "Bullish momentum"
+
+    if macd_value < signal_value:
+        return "Bearish momentum"
+
+    return "Neutral momentum"
+
+
+def get_volatility_signal(volatility_value):
+    if pd.isna(volatility_value):
+        return "Not enough data"
+
+    if volatility_value >= 3:
+        return "High volatility"
+
+    if volatility_value >= 1.5:
+        return "Moderate volatility"
+
+    return "Low volatility"
 
 
 def build_portfolio_dataframe(portfolio_positions):
@@ -435,9 +518,32 @@ if ticker:
                 history["Close"].rolling(window=50).mean()
             )
 
+            history["RSI"] = calculate_rsi(history)
+
+            macd_line, signal_line, macd_histogram = calculate_macd(
+                history
+            )
+
+            history["MACD"] = macd_line
+            history["Signal Line"] = signal_line
+            history["MACD Histogram"] = macd_histogram
+
+            daily_returns, volatility = calculate_volatility(history)
+
+            history["Daily Return %"] = daily_returns * 100
+
             current_price, price_change_pct = calculate_price_change(
                 history
             )
+
+            latest_rsi = history["RSI"].iloc[-1]
+            latest_macd = history["MACD"].iloc[-1]
+            latest_signal = history["Signal Line"].iloc[-1]
+            latest_daily_return = history["Daily Return %"].iloc[-1]
+
+            rsi_signal = get_rsi_signal(latest_rsi)
+            macd_signal = get_macd_signal(latest_macd, latest_signal)
+            volatility_signal = get_volatility_signal(volatility)
 
             st.subheader(info.get("longName", ticker))
 
@@ -523,21 +629,47 @@ if ticker:
 
             st.subheader("Technical Indicator Summary")
 
+            tech_col1, tech_col2, tech_col3 = st.columns(3)
+
+            tech_col1.metric(
+                "RSI",
+                f"{latest_rsi:.2f}" if pd.notna(latest_rsi) else "N/A",
+                rsi_signal
+            )
+
+            tech_col2.metric(
+                "MACD",
+                f"{latest_macd:.4f}" if pd.notna(latest_macd) else "N/A",
+                macd_signal
+            )
+
+            tech_col3.metric(
+                "Volatility",
+                f"{volatility:.2f}%",
+                volatility_signal
+            )
+
+            tech_col4, tech_col5, tech_col6 = st.columns(3)
+
             latest_ma20 = history["MA20"].iloc[-1]
             latest_ma50 = history["MA50"].iloc[-1]
 
-            col10, col11 = st.columns(2)
-
-            col10.metric(
+            tech_col4.metric(
                 "20-Day Moving Average",
                 f"${latest_ma20:.2f}"
                 if pd.notna(latest_ma20) else "N/A"
             )
 
-            col11.metric(
+            tech_col5.metric(
                 "50-Day Moving Average",
                 f"${latest_ma50:.2f}"
                 if pd.notna(latest_ma50) else "N/A"
+            )
+
+            tech_col6.metric(
+                "Latest Daily Return",
+                f"{latest_daily_return:.2f}%"
+                if pd.notna(latest_daily_return) else "N/A"
             )
 
             if pd.notna(latest_ma20) and pd.notna(latest_ma50):
@@ -547,6 +679,42 @@ if ticker:
                     st.warning("Bearish Signal: MA20 is below MA50.")
             else:
                 st.info("Not enough data for moving average signal.")
+
+            if rsi_signal == "Overbought":
+                st.warning("RSI suggests the stock may be overbought.")
+            elif rsi_signal == "Oversold":
+                st.info("RSI suggests the stock may be oversold.")
+            else:
+                st.success("RSI is currently neutral.")
+
+            if macd_signal == "Bullish momentum":
+                st.success("MACD suggests bullish momentum.")
+            elif macd_signal == "Bearish momentum":
+                st.warning("MACD suggests bearish momentum.")
+            else:
+                st.info("MACD is neutral.")
+
+            st.subheader("RSI Chart")
+
+            rsi_chart = history[["RSI"]]
+            st.line_chart(rsi_chart)
+
+            st.subheader("MACD Chart")
+
+            macd_chart = history[
+                [
+                    "MACD",
+                    "Signal Line",
+                    "MACD Histogram"
+                ]
+            ]
+
+            st.line_chart(macd_chart)
+
+            st.subheader("Daily Return Chart")
+
+            return_chart = history[["Daily Return %"]]
+            st.line_chart(return_chart)
 
             st.divider()
 
