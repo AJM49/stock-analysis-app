@@ -54,7 +54,7 @@ def load_stock_data(symbol, selected_period):
 def calculate_price_change(history):
     current_price = history["Close"].iloc[-1]
     previous_close = history["Close"].iloc[-2]
-    price_change_pct = ((current_price - previous_close) / previous_close) * 100
+    price_change_pct = ((current_price - previous_close) / previous_close)* 100
     return current_price, price_change_pct
 
 
@@ -120,7 +120,8 @@ if ticker:
 
             col8.metric(
                 "Dividend Yield",
-                f"{dividend_yield * 100:.2f}%" if dividend_yield else "N/A"
+                f"{dividend_yield * 100:.2f}%" if dividend_yield else 
+"N/A"
             )
 
             col9.metric(
@@ -188,11 +189,21 @@ if ticker:
                 if comparison_history.empty:
                     st.error("Invalid comparison ticker symbol.")
                 else:
-                    comparison_current_price, comparison_change_pct = (
-                        calculate_price_change(comparison_history)
+                   comparison_current_price, comparison_change_pct = (calculate_price_change(comparison_history)
                     )
 
-                    st.subheader(f"{ticker} vs {comparison_ticker}")
+                   st.subheader(f"{ticker} vs {comparison_ticker}")
+
+                   compare_col1, compare_col2 = st.columns(2)
+
+           compare_col1.metric(
+                f"{ticker} Current Price",
+                f"${current_price:.2f}",
+                f"{price_change_pct:.2f}%" 
+                    )
+
+                      st.subheader(f"{ticker} vs 
+{comparison_ticker}")
 
                     compare_col1, compare_col2 = st.columns(2)
 
@@ -242,7 +253,8 @@ if ticker:
                                     "longName",
                                     comparison_ticker
                                 ),
-                                f"${comparison_info.get('marketCap', 0):,}",
+                                f"${comparison_info.get('marketCap', 
+0):,}",
                                 comparison_info.get("trailingPE", "N/A"),
                                 f"{comparison_info.get('volume', 0):,}",
                                 comparison_info.get("sector", "N/A")
