@@ -1,5 +1,7 @@
+import os
 from datetime import datetime
 
+import streamlit as st
 from sqlalchemy import Column
 from sqlalchemy import DateTime
 from sqlalchemy import Float
@@ -10,9 +12,58 @@ from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 
-DATABASE_URL = "sqlite:///stocks.db"
+LOCAL_DATABASE_URL = "sqlite:///stocks.db"
 
-engine = create_engine(DATABASE_URL, echo=False)
+
+def normalize_database_url(database_url):
+    if database_url.startswith("postgres://"):
+        return database_url.replace(
+            "postgres://",
+            "postgresql://",
+            1
+        )
+
+    return database_url
+
+
+def get_database_url():
+    environment_url = os.getenv("DATABASE_URL")
+
+    if environment_url:
+        return normalize_database_url(environment_url)
+
+    try:
+        secrets_url = st.secrets.get("DATABASE_URL")
+    except Exception:
+        secrets_url = None
+
+    if secrets_url:
+        return normalize_database_url(secrets_url)
+
+    return LOCAL_DATABASE_URL
+
+
+def create_database_engine():
+    database_url = get_database_url()
+
+    if database_url.startswith("sqlite"):
+        return create_engine(
+            database_url,
+            echo=False,
+            connect_args={
+                "check_same_thread": False
+            }
+        )
+
+    return create_engine(
+        database_url,
+        echo=False,
+        pool_pre_ping=True,
+        pool_recycle=300
+    )
+
+
+engine = create_database_engine()
 
 SessionLocal = sessionmaker(
     bind=engine,
@@ -45,8 +96,12 @@ def init_database():
     Base.metadata.create_all(bind=engine)
 
 
+def get_database_session():
+    return SessionLocal()
+
+
 def get_watchlist():
-    session = SessionLocal()
+    session = get_database_session()
 
     try:
         stocks = (
@@ -55,6 +110,7 @@ def get_watchlist():
             .all()
         )
         return stocks
+
     finally:
         session.close()
 
@@ -65,7 +121,7 @@ def add_to_watchlist(ticker):
     if not clean_ticker:
         return False, "Ticker cannot be empty."
 
-    session = SessionLocal()
+    session = get_database_session()
 
     try:
         existing_stock = (
@@ -97,7 +153,7 @@ def add_to_watchlist(ticker):
 def remove_from_watchlist(ticker):
     clean_ticker = ticker.upper().strip()
 
-    session = SessionLocal()
+    session = get_database_session()
 
     try:
         stock = (
@@ -125,7 +181,7 @@ def remove_from_watchlist(ticker):
 
 
 def get_portfolio_positions():
-    session = SessionLocal()
+    session = get_database_session()
 
     try:
         positions = (
@@ -134,6 +190,7 @@ def get_portfolio_positions():
             .all()
         )
         return positions
+
     finally:
         session.close()
 
@@ -150,7 +207,7 @@ def add_portfolio_position(ticker, shares, buy_price):
     if buy_price <= 0:
         return False, "Buy price must be greater than zero."
 
-    session = SessionLocal()
+    session = get_database_session()
 
     try:
         existing_position = (
@@ -186,7 +243,7 @@ def add_portfolio_position(ticker, shares, buy_price):
 def remove_portfolio_position(ticker):
     clean_ticker = ticker.upper().strip()
 
-    session = SessionLocal()
+    session = get_database_session()
 
     try:
         position = (

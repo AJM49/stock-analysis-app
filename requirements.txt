@@ -66,3 +66,8 @@ pandas
 streamlit
 sqlalchemy
 yfinance
+pandas
+streamlit
+sqlalchemy
+yfinance
+psycopg2-binary
