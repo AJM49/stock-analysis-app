@@ -37,8 +37,7 @@ st.title(APP_TITLE)
 st.caption(APP_CAPTION)
 
 database_status = get_database_status()
-st.sidebar.caption("Database: " + database_status)
-
+st.sidebar.info("Database: " + database_status)
 st.sidebar.header("Dashboard Controls")
 
 ticker = st.sidebar.text_input(
