@@ -43,6 +43,18 @@ def get_database_url():
     return LOCAL_DATABASE_URL
 
 
+def get_database_status():
+    database_url = get_database_url()
+
+    if database_url.startswith("sqlite"):
+        return "SQLite local fallback"
+
+    if database_url.startswith("postgresql"):
+        return "Cloud Postgres"
+
+    return "Unknown database"
+
+
 def create_database_engine():
     database_url = get_database_url()
 

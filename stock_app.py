@@ -8,6 +8,7 @@ from config import DEFAULT_COMPARISON_TICKER
 from config import DEFAULT_PERIOD
 from config import DEFAULT_PRIMARY_TICKER
 from config import PERIOD_OPTIONS
+from database import get_database_status
 from database import init_database
 from indicators import add_technical_indicators
 from market_data import calculate_price_change
@@ -34,6 +35,9 @@ init_database()
 
 st.title(APP_TITLE)
 st.caption(APP_CAPTION)
+
+database_status = get_database_status()
+st.sidebar.caption("Database: " + database_status)
 
 st.sidebar.header("Dashboard Controls")
 
