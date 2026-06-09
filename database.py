@@ -46,13 +46,40 @@ def get_database_url():
 def get_database_status():
     database_url = get_database_url()
 
+    try:
+        has_secret = "DATABASE_URL" in st.secrets
+    except Exception:
+        has_secret = False
+
+    has_environment = os.getenv("DATABASE_URL") is not None
+
     if database_url.startswith("sqlite"):
-        return "SQLite local fallback"
+        return (
+            "SQLite local fallback | "
+            + "Secret: "
+            + str(has_secret)
+            + " | Env: "
+            + str(has_environment)
+        )
 
     if database_url.startswith("postgresql"):
-        return "Cloud Postgres"
+        return (
+            "Cloud Postgres | "
+            + "Secret: "
+            + str(has_secret)
+            + " | Env: "
+            + str(has_environment)
+        )
 
-    return "Unknown database"
+    return (
+        "Unknown database | "
+        + "Secret: "
+        + str(has_secret)
+        + " | Env: "
+        + str(has_environment)
+    )
+
+
 
 
 def create_database_engine():
