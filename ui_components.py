@@ -16,7 +16,14 @@ from portfolio import calculate_stop_loss
 from portfolio import calculate_target_price
 from portfolio import format_portfolio_dataframe
 
+def make_arrow_safe(dataframe):
+    safe_dataframe = dataframe.copy()
 
+    for column in safe_dataframe.columns:
+        if safe_dataframe[column].dtype == "object":
+            safe_dataframe[column] = safe_dataframe[column].astype(str)
+
+    return safe_dataframe
 def render_watchlist_sidebar(ticker):
     st.sidebar.divider()
     st.sidebar.header("Saved Watchlist")
