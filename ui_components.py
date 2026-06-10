@@ -3,6 +3,7 @@ import streamlit as st
 
 from database import add_portfolio_position
 from database import add_to_watchlist
+from market_data import validate_ticker
 from database import get_portfolio_positions
 from database import get_watchlist
 from database import remove_portfolio_position
@@ -66,7 +67,6 @@ def render_watchlist_sidebar(ticker):
     else:
         st.sidebar.info("No saved tickers yet.")
 
-
 def render_portfolio_sidebar():
     st.sidebar.divider()
     st.sidebar.header("Portfolio Tracker")
@@ -74,41 +74,53 @@ def render_portfolio_sidebar():
     with st.sidebar.form("add_portfolio_position_form"):
         portfolio_ticker = st.text_input(
             "Portfolio Ticker",
-            value="AAPL",
+            value="",
+            placeholder="Example: AAPL, MSFT, NVDA",
             key="portfolio_ticker_input"
         ).upper().strip()
 
         portfolio_shares = st.number_input(
             "Shares",
             min_value=0.0,
-            value=1.0,
             step=1.0,
-            format="%.4f",
             key="portfolio_shares_input"
         )
 
         portfolio_buy_price = st.number_input(
             "Buy Price",
             min_value=0.0,
-            value=100.0,
             step=1.0,
-            format="%.2f",
             key="portfolio_buy_price_input"
         )
 
-        submitted_position = st.form_submit_button("Add Position")
+        auto_add_to_watchlist = st.checkbox(
+            "Also add to watchlist",
+            value=True,
+            key="auto_add_portfolio_to_watchlist"
+        )
 
-        if submitted_position:
-            success, message = add_portfolio_position(
-                portfolio_ticker,
-                portfolio_shares,
-                portfolio_buy_price
-            )
+        submitted = st.form_submit_button("Add Portfolio Position")
 
-            if success:
-                st.success(message)
+        if submitted:
+            is_valid, validation_result = validate_ticker(portfolio_ticker)
+
+            if not is_valid:
+                st.sidebar.error(validation_result)
             else:
-                st.warning(message)
+                success, message = add_portfolio_position(
+                    validation_result,
+                    portfolio_shares,
+                    portfolio_buy_price
+                )
+
+                if success:
+                    if auto_add_to_watchlist:
+                        add_to_watchlist(validation_result)
+
+                    st.sidebar.success(message)
+                    st.rerun()
+                else:
+                    st.sidebar.warning(message)
 
     portfolio_positions = get_portfolio_positions()
 
@@ -117,18 +129,18 @@ def render_portfolio_sidebar():
             position.ticker for position in portfolio_positions
         ]
 
-        selected_position_ticker = st.sidebar.selectbox(
+        selected_portfolio_ticker = st.sidebar.selectbox(
             "Portfolio Positions",
             options=portfolio_tickers,
             key="portfolio_positions_select"
         )
 
         if st.sidebar.button(
-            "Remove Portfolio Position",
-            key="remove_portfolio_position"
+            "Remove Selected Position",
+            key="remove_selected_position"
         ):
             success, message = remove_portfolio_position(
-                selected_position_ticker
+                selected_portfolio_ticker
             )
 
             if success:
@@ -137,9 +149,7 @@ def render_portfolio_sidebar():
             else:
                 st.sidebar.warning(message)
     else:
-        st.sidebar.info("No portfolio positions yet.")
-
-    return portfolio_positions
+        st.sidebar.info("Add a portfolio position from the sidebar.")
 
 
 def render_portfolio_dashboard(portfolio_df):
