@@ -406,14 +406,7 @@ def render_portfolio_table(portfolio_df):
         ascending=ascending_sort
     )
 
-    formatted_portfolio_df = format_portfolio_dataframe(
-        sorted_portfolio_df
-    )
-
-    st.dataframe(
-        formatted_portfolio_df,
-        use_container_width=True
-    )
+    st.dataframe(formatted_portfolio_df),
 
     portfolio_csv = portfolio_df.to_csv(index=False).encode("utf-8")
 
@@ -673,7 +666,7 @@ def render_stock_comparison(
         }
     )
 
-    st.dataframe(make_arrow_safe(comparison_table)))
+    st.dataframe(make_arrow_safe(comparison_table))
 
 
 def render_stock_export(history, ticker, period, show_recent_data):
