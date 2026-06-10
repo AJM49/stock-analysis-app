@@ -371,10 +371,17 @@ def render_stop_loss_calculator(portfolio_df):
     else:
         st.warning("Risk/reward profile is weak.")
 
-
 def render_portfolio_table(portfolio_df):
-    st.subheader("Portfolio Performance Table")
+    if portfolio_df.empty:
+        st.info("No portfolio positions saved yet.")
+        return
 
+    formatted_portfolio_df = format_portfolio_dataframe(portfolio_df)
+
+    st.dataframe(
+        make_arrow_safe(formatted_portfolio_df),
+        use_container_width=True
+    )
     sort_option = st.selectbox(
         "Sort Portfolio By",
         options=[
