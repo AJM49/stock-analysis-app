@@ -673,7 +673,7 @@ def render_stock_comparison(
         }
     )
 
-    st.dataframe(comparison_table)
+    st.dataframe(make_arrow_safe(comparison_table)))
 
 
 def render_stock_export(history, ticker, period, show_recent_data):
@@ -692,4 +692,4 @@ def render_stock_export(history, ticker, period, show_recent_data):
 
     if show_recent_data:
         st.subheader("Recent Trading Data")
-        st.dataframe(history.tail(15))
+        st.dataframe(make_arrow_safe(history.tail(15)))
