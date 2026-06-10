@@ -71,3 +71,4 @@ streamlit
 sqlalchemy
 yfinance
 psycopg2-binary
+psycopg2-binary
