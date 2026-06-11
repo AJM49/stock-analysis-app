@@ -21,8 +21,3 @@ app.log
 .streamlit/secrets.toml
 
 .ipynb_checkpoints/
-
-
-__pycache__/
-*.pyc
-app.log
