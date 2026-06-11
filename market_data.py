@@ -51,6 +51,12 @@ def validate_ticker(ticker):
     if not is_valid_format:
         return False, format_result
 
+    return True, clean_ticker
+    is_valid_format, format_result = is_valid_ticker_format(clean_ticker)
+
+    if not is_valid_format:
+        return False, format_result
+
     api_key = get_alpha_vantage_key()
 
     if not api_key:
@@ -105,7 +111,7 @@ def validate_ticker(ticker):
         return False, "Ticker validation error: " + str(error)
 
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=21600)
 def get_stock_data(ticker, period="6mo"):
     clean_ticker = clean_ticker_symbol(ticker)
 
