@@ -1,12 +1,29 @@
+from __future__ import annotations
+
+from typing import Any
+
 import pandas as pd
 import requests
 import streamlit as st
 
+from database import get_cached_market_data
+from database import save_market_data_cache
+
 
 BASE_URL = "https://www.alphavantage.co/query"
 
+CACHE_TTL_SECONDS = 21600
 
-def get_alpha_vantage_key():
+PERIOD_ROW_LIMITS = {
+    "1mo": 22,
+    "3mo": 66,
+    "6mo": 132,
+    "1y": 252,
+    "5y": 1260,
+}
+
+
+def get_alpha_vantage_key() -> str | None:
     try:
         api_key = st.secrets.get("ALPHA_VANTAGE_API_KEY")
     except Exception:
@@ -18,14 +35,14 @@ def get_alpha_vantage_key():
     return str(api_key).strip()
 
 
-def clean_ticker_symbol(ticker):
+def clean_ticker_symbol(ticker: Any) -> str:
     if ticker is None:
         return ""
 
     return str(ticker).upper().strip()
 
 
-def is_valid_ticker_format(ticker):
+def is_valid_ticker_format(ticker: Any) -> tuple[bool, str]:
     clean_ticker = clean_ticker_symbol(ticker)
 
     if not clean_ticker:
@@ -43,83 +60,151 @@ def is_valid_ticker_format(ticker):
     return True, clean_ticker
 
 
-def validate_ticker(ticker):
-    clean_ticker = clean_ticker_symbol(ticker)
+def validate_ticker(ticker: Any) -> tuple[bool, str]:
+    """
+    Local validation only.
 
-    is_valid_format, format_result = is_valid_ticker_format(clean_ticker)
+    First principle:
+    Validation should not burn market-data API calls.
+    Market data lookup will prove whether the symbol has usable data.
+    """
+    return is_valid_ticker_format(ticker)
 
-    if not is_valid_format:
-        return False, format_result
 
-    return True, clean_ticker
-    is_valid_format, format_result = is_valid_ticker_format(clean_ticker)
+def apply_period_filter(history: pd.DataFrame, period: str) -> pd.DataFrame:
+    if history is None or history.empty:
+        return pd.DataFrame()
 
-    if not is_valid_format:
-        return False, format_result
+    row_limit = PERIOD_ROW_LIMITS.get(period)
 
-    api_key = get_alpha_vantage_key()
+    if row_limit:
+        return history.tail(row_limit).reset_index(drop=True)
 
-    if not api_key:
-        return False, "Missing Alpha Vantage API key."
+    return history.reset_index(drop=True)
 
-    params = {
-        "function": "SYMBOL_SEARCH",
-        "keywords": clean_ticker,
-        "apikey": api_key
-    }
 
-    try:
-        response = requests.get(
-            BASE_URL,
-            params=params,
-            timeout=15
+def normalize_market_dataframe(history: pd.DataFrame) -> pd.DataFrame:
+    if history is None or history.empty:
+        return pd.DataFrame()
+
+    normalized = history.copy()
+
+    required_columns = [
+        "Date",
+        "Open",
+        "High",
+        "Low",
+        "Close",
+        "Adjusted Close",
+        "Volume",
+    ]
+
+    for column in required_columns:
+        if column not in normalized.columns:
+            normalized[column] = None
+
+    normalized = normalized[required_columns]
+
+    normalized["Date"] = pd.to_datetime(
+        normalized["Date"],
+        errors="coerce"
+    )
+
+    numeric_columns = [
+        "Open",
+        "High",
+        "Low",
+        "Close",
+        "Adjusted Close",
+        "Volume",
+    ]
+
+    for column in numeric_columns:
+        normalized[column] = pd.to_numeric(
+            normalized[column],
+            errors="coerce"
         )
 
-        response.raise_for_status()
-        data = response.json()
+    normalized = normalized.dropna(subset=["Date", "Close"])
+    normalized = normalized.sort_values("Date")
+    normalized = normalized.reset_index(drop=True)
 
-        if "Information" in data:
-            return False, data["Information"]
-
-        if "Note" in data:
-            return False, data["Note"]
-
-        if "Error Message" in data:
-            return False, data["Error Message"]
-
-        matches = data.get("bestMatches", [])
-
-        for match in matches:
-            symbol = match.get("1. symbol", "").upper().strip()
-
-            if symbol == clean_ticker:
-                return True, clean_ticker
-
-        # Fallback validation:
-        # Some valid symbols may not return exact SYMBOL_SEARCH matches.
-        history, error = get_stock_data(clean_ticker)
-
-        if error:
-            return False, error
-
-        if history.empty:
-            return False, "No market data found for " + clean_ticker
-
-        return True, clean_ticker
-
-    except Exception as error:
-        return False, "Ticker validation error: " + str(error)
+    return normalized
 
 
-@st.cache_data(ttl=21600)
-def get_stock_data(ticker, period="6mo"):
-    clean_ticker = clean_ticker_symbol(ticker)
+def cached_rows_to_dataframe(cached_rows: list[Any]) -> pd.DataFrame:
+    if not cached_rows:
+        return pd.DataFrame()
 
-    is_valid_format, format_result = is_valid_ticker_format(clean_ticker)
+    rows = []
 
-    if not is_valid_format:
-        return pd.DataFrame(), format_result
+    for row in cached_rows:
+        rows.append(
+            {
+                "Date": row.price_date,
+                "Open": row.open_price,
+                "High": row.high_price,
+                "Low": row.low_price,
+                "Close": row.close_price,
+                "Adjusted Close": row.close_price,
+                "Volume": row.volume,
+            }
+        )
 
+    return normalize_market_dataframe(pd.DataFrame(rows))
+
+
+def parse_alpha_vantage_error(data: dict[str, Any]) -> str | None:
+    if "Information" in data:
+        return str(data["Information"])
+
+    if "Note" in data:
+        return str(data["Note"])
+
+    if "Error Message" in data:
+        return str(data["Error Message"])
+
+    return None
+
+
+def parse_alpha_vantage_daily_response(
+    ticker: str,
+    data: dict[str, Any]
+) -> tuple[pd.DataFrame, str | None]:
+    provider_error = parse_alpha_vantage_error(data)
+
+    if provider_error:
+        return pd.DataFrame(), provider_error
+
+    time_series = data.get("Time Series (Daily)")
+
+    if not time_series:
+        return pd.DataFrame(), "No market data found for " + ticker
+
+    rows = []
+
+    for date, values in time_series.items():
+        rows.append(
+            {
+                "Date": date,
+                "Open": values.get("1. open"),
+                "High": values.get("2. high"),
+                "Low": values.get("3. low"),
+                "Close": values.get("4. close"),
+                "Adjusted Close": values.get("4. close"),
+                "Volume": values.get("5. volume"),
+            }
+        )
+
+    history = normalize_market_dataframe(pd.DataFrame(rows))
+
+    if history.empty:
+        return pd.DataFrame(), "No usable close price data found for " + ticker
+
+    return history, None
+
+
+def fetch_alpha_vantage_daily_data(ticker: str) -> tuple[pd.DataFrame, str | None]:
     api_key = get_alpha_vantage_key()
 
     if not api_key:
@@ -127,9 +212,9 @@ def get_stock_data(ticker, period="6mo"):
 
     params = {
         "function": "TIME_SERIES_DAILY",
-        "symbol": clean_ticker,
+        "symbol": ticker,
         "outputsize": "compact",
-        "apikey": api_key
+        "apikey": api_key,
     }
 
     try:
@@ -142,97 +227,91 @@ def get_stock_data(ticker, period="6mo"):
         response.raise_for_status()
         data = response.json()
 
-        if "Information" in data:
-            return pd.DataFrame(), data["Information"]
-
-        if "Note" in data:
-            return pd.DataFrame(), data["Note"]
-
-        if "Error Message" in data:
-            return pd.DataFrame(), data["Error Message"]
-
-        time_series = data.get("Time Series (Daily)")
-
-        if not time_series:
-            return pd.DataFrame(), "No market data found for " + clean_ticker
-
-        rows = []
-
-        for date, values in time_series.items():
-            rows.append(
-                {
-                    "Date": date,
-                    "Open": values.get("1. open"),
-                    "High": values.get("2. high"),
-                    "Low": values.get("3. low"),
-                    "Close": values.get("4. close"),
-                    "Adjusted Close": values.get("4. close"),
-                    "Volume": values.get("5. volume")
-                }
-            )
-
-        history = pd.DataFrame(rows)
-
-        if history.empty:
-            return pd.DataFrame(), "No market data found for " + clean_ticker
-
-        history["Date"] = pd.to_datetime(
-            history["Date"],
-            errors="coerce"
-        )
-
-        numeric_columns = [
-            "Open",
-            "High",
-            "Low",
-            "Close",
-            "Adjusted Close",
-            "Volume"
-        ]
-
-        for column in numeric_columns:
-            history[column] = pd.to_numeric(
-                history[column],
-                errors="coerce"
-            )
-
-        history = history.dropna(subset=["Date", "Close"])
-        history = history.sort_values("Date")
-
-        if period == "1mo":
-            history = history.tail(22)
-        elif period == "3mo":
-            history = history.tail(66)
-        elif period == "6mo":
-            history = history.tail(132)
-        elif period == "1y":
-            history = history.tail(252)
-        elif period == "5y":
-            history = history.tail(1260)
-
-        history = history.reset_index(drop=True)
-
-        if history.empty:
-            return pd.DataFrame(), "No usable close price data found for " + clean_ticker
-
-        return history, None
+        return parse_alpha_vantage_daily_response(ticker, data)
 
     except requests.exceptions.Timeout:
-        return pd.DataFrame(), "Market data request timed out for " + clean_ticker
+        return pd.DataFrame(), "Market data request timed out for " + ticker
 
     except requests.exceptions.RequestException as error:
-        return pd.DataFrame(), "Market data request error for " + clean_ticker + ": " + str(error)
+        return (
+            pd.DataFrame(),
+            "Market data request error for " + ticker + ": " + str(error)
+        )
 
     except Exception as error:
-        return pd.DataFrame(), "Market data error for " + clean_ticker + ": " + str(error)
+        return (
+            pd.DataFrame(),
+            "Market data error for " + ticker + ": " + str(error)
+        )
 
 
-def load_stock_data(ticker, period="6mo"):
-    history, error = get_stock_data(ticker, period)
+@st.cache_data(ttl=CACHE_TTL_SECONDS)
+def get_stock_data(
+    ticker: Any,
+    period: str = "6mo",
+    force_refresh: bool = False
+) -> tuple[pd.DataFrame, str | None]:
+    clean_ticker = clean_ticker_symbol(ticker)
+
+    is_valid_format, format_result = is_valid_ticker_format(clean_ticker)
+
+    if not is_valid_format:
+        return pd.DataFrame(), format_result
+
+    if not force_refresh:
+        cached_rows = get_cached_market_data(clean_ticker)
+        cached_history = cached_rows_to_dataframe(cached_rows)
+
+        if not cached_history.empty:
+            filtered_history = apply_period_filter(
+                cached_history,
+                period
+            )
+
+            if not filtered_history.empty:
+                return filtered_history, None
+
+    fresh_history, error = fetch_alpha_vantage_daily_data(clean_ticker)
+
+    if error:
+        return pd.DataFrame(), error
+
+    save_success, cache_message = save_market_data_cache(
+        clean_ticker,
+        fresh_history
+    )
+
+    if not save_success:
+        # Do not fail the app because cache saving failed.
+        # The fresh market data is still usable.
+        pass
+
+    filtered_history = apply_period_filter(
+        fresh_history,
+        period
+    )
+
+    if filtered_history.empty:
+        return pd.DataFrame(), "No usable market data found for " + clean_ticker
+
+    return filtered_history, None
+
+
+def load_stock_data(
+    ticker: Any,
+    period: str = "6mo",
+    force_refresh: bool = False
+) -> tuple[dict[str, Any], pd.DataFrame, str | None]:
+    history, error = get_stock_data(
+        ticker,
+        period,
+        force_refresh=force_refresh
+    )
 
     info = {
         "ticker": clean_ticker_symbol(ticker),
-        "source": "Alpha Vantage"
+        "source": "Neon Cache / Alpha Vantage",
+        "period": period,
     }
 
     if error:
@@ -241,8 +320,8 @@ def load_stock_data(ticker, period="6mo"):
     return info, history, None
 
 
-@st.cache_data(ttl=900)
-def get_current_price(ticker):
+@st.cache_data(ttl=CACHE_TTL_SECONDS)
+def get_current_price(ticker: Any) -> float | None:
     clean_ticker = clean_ticker_symbol(ticker)
 
     is_valid_format, _ = is_valid_ticker_format(clean_ticker)
@@ -250,58 +329,27 @@ def get_current_price(ticker):
     if not is_valid_format:
         return None
 
-    api_key = get_alpha_vantage_key()
+    history, error = get_stock_data(clean_ticker, period="1mo")
 
-    if not api_key:
+    if error or history.empty:
         return None
 
-    params = {
-        "function": "GLOBAL_QUOTE",
-        "symbol": clean_ticker,
-        "apikey": api_key
-    }
-
-    try:
-        response = requests.get(
-            BASE_URL,
-            params=params,
-            timeout=15
-        )
-
-        response.raise_for_status()
-        data = response.json()
-
-        if "Information" in data:
-            return None
-
-        if "Note" in data:
-            return None
-
-        if "Error Message" in data:
-            return None
-
-        quote = data.get("Global Quote", {})
-        price = quote.get("05. price")
-
-        if not price:
-            history, error = get_stock_data(clean_ticker)
-
-            if error or history.empty:
-                return None
-
-            return float(history["Close"].iloc[-1])
-
-        return float(price)
-
-    except Exception:
+    if "Close" not in history.columns:
         return None
 
+    latest_close = history["Close"].dropna()
 
-def get_latest_price(ticker):
+    if latest_close.empty:
+        return None
+
+    return float(latest_close.iloc[-1])
+
+
+def get_latest_price(ticker: Any) -> float | None:
     return get_current_price(ticker)
 
 
-def calculate_price_change(history):
+def calculate_price_change(history: pd.DataFrame) -> tuple[float, float]:
     if history is None or history.empty:
         return 0, 0
 
@@ -313,8 +361,8 @@ def calculate_price_change(history):
     if len(close_prices) < 2:
         return 0, 0
 
-    first_price = close_prices.iloc[0]
-    last_price = close_prices.iloc[-1]
+    first_price = float(close_prices.iloc[0])
+    last_price = float(close_prices.iloc[-1])
 
     price_change = last_price - first_price
 
@@ -326,8 +374,8 @@ def calculate_price_change(history):
     return price_change, percent_change
 
 
-def get_stock_volatility(ticker):
-    history, error = get_stock_data(ticker)
+def get_stock_volatility(ticker: Any) -> float:
+    history, error = get_stock_data(ticker, period="6mo")
 
     if error or history.empty:
         return 0
@@ -345,10 +393,10 @@ def get_stock_volatility(ticker):
     if pd.isna(volatility):
         return 0
 
-    return volatility
+    return float(volatility)
 
 
-def clear_market_data_cache():
+def clear_market_data_cache() -> None:
     try:
         get_stock_data.clear()
     except Exception:
