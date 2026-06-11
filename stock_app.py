@@ -99,7 +99,25 @@ render_portfolio_dashboard(portfolio_df)
 st.divider()
 
 try:
-    info, history, error_message = load_stock_data(ticker, period)
+    refresh_market_data = st.button(
+        "Refresh Market Data",
+        help="Uses one Alpha Vantage API request and updates the Neon cache."
+    )
+
+    info, history, error_message = load_stock_data(
+        ticker,
+        period,
+        force_refresh=refresh_market_data
+    )
+
+    if refresh_market_data and error_message is None:
+        clear_market_data_cache()
+        st.success("Market data refreshed and saved to Neon.")
+
+    if refresh_market_data:
+        st.info("Data source: Alpha Vantage refresh.")
+    else:
+        st.info("Data source: Neon cache when available.")
 
     if error_message:
         st.error(error_message)
@@ -152,46 +170,24 @@ try:
                 st.warning(comparison_error)
             elif comparison_history is None or comparison_history.empty:
                 st.warning(
-                    "No comparison data found for "
+                    "No comparison data is available for "
                     + comparison_ticker
                     + "."
                 )
             else:
-                comp_price, comp_change_pct = calculate_price_change(
-                    comparison_history
+                render_comparison_chart(
+                    history,
+                    comparison_history,
+                    ticker,
+                    comparison_ticker
                 )
 
-                if comp_price is None:
-                    st.warning(
-                        "Not enough comparison data for "
-                        + comparison_ticker
-                        + "."
-                    )
-                else:
-                    render_stock_comparison(
-                        ticker,
-                        comparison_ticker,
-                        history,
-                        comparison_history,
-                        info,
-                        comparison_info,
-                        current_price,
-                        price_change_pct,
-                        comp_price,
-                        comp_change_pct
-                    )
+    render_price_chart(history, ticker)
 
-    render_stock_export(
-        history,
-        ticker,
-        period,
-        show_recent_data
-    )
+    render_risk_dashboard(history, ticker)
 
 except Exception as error:
-    st.error(
-        "The app hit an unexpected issue. Check app.log for details."
-    )
+    st.error("Unexpected app error: " + str(error))
 
     with open("app.log", "a", encoding="utf-8") as log_file:
         log_file.write("Unexpected app error: " + str(error) + "\n")

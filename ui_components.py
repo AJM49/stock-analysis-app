@@ -703,3 +703,50 @@ def render_stock_export(history, ticker, period, show_recent_data):
     if show_recent_data:
         st.subheader("Recent Trading Data")
         st.dataframe(make_arrow_safe(history.tail(15)))
+
+
+def render_price_chart(history, ticker):
+    st.subheader("Price History")
+
+    if history is None or history.empty:
+        st.info("No price history available.")
+        return
+
+    if "Date" not in history.columns or "Close" not in history.columns:
+        st.info("Price chart requires Date and Close columns.")
+        return
+
+    chart_data = history[["Date", "Close"]].copy()
+    chart_data["Date"] = pd.to_datetime(
+        chart_data["Date"],
+        errors="coerce"
+    )
+    chart_data["Close"] = pd.to_numeric(
+        chart_data["Close"],
+        errors="coerce"
+    )
+
+    chart_data = chart_data.dropna(subset=["Date", "Close"])
+    chart_data = chart_data.sort_values("Date")
+
+    if chart_data.empty:
+        st.info("No usable price history available.")
+        return
+
+    chart_data = chart_data.set_index("Date")
+
+    st.line_chart(chart_data["Close"])
+
+
+def render_comparison_chart(
+    history,
+    comparison_history,
+    ticker,
+    comparison_ticker
+):
+    render_stock_comparison(
+        history,
+        comparison_history,
+        ticker,
+        comparison_ticker
+    )
