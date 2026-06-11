@@ -118,8 +118,16 @@ try:
         st.info("Data source: Alpha Vantage refresh.")
     else:
         st.info("Data source: Neon cache when available.")
-
     if error_message:
+        if "provider limit reached" in error_message.lower():
+            st.warning(error_message)
+            st.info(
+                "This ticker is not cached in Neon yet. "
+                "Try a ticker already saved in market_data_cache, "
+                "or refresh again tomorrow when the API quota resets."
+            )
+            st.stop()
+
         st.error(error_message)
         st.stop()
 
