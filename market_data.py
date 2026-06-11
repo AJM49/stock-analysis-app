@@ -154,16 +154,30 @@ def cached_rows_to_dataframe(cached_rows: list[Any]) -> pd.DataFrame:
     return normalize_market_dataframe(pd.DataFrame(rows))
 
 
+
+def clean_provider_error_message(message):
+    text = str(message)
+    lowered = text.lower()
+
+    if (
+        "rate limit" in lowered
+        or "premium" in lowered
+        or "25 requests per day" in lowered
+    ):
+        return "Market data provider limit reached. Use cached tickers today or refresh again tomorrow."
+
+    return text
+
+
 def parse_alpha_vantage_error(data: dict[str, Any]) -> str | None:
     if "Information" in data:
-        return str(data["Information"])
+        return clean_provider_error_message(data["Information"])
 
     if "Note" in data:
-        return str(data["Note"])
+        return clean_provider_error_message(data["Note"])
 
     if "Error Message" in data:
-        return str(data["Error Message"])
-
+        return clean_provider_error_message(data["Error Message"])
     return None
 
 
