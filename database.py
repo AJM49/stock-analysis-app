@@ -331,10 +331,6 @@ def get_cached_market_data(ticker):
     except Exception:
         return []
 
-    finally:
-        session.close()
-
-
 def save_market_data_cache(ticker, market_dataframe):
     clean_ticker = ticker.upper().strip()
 
@@ -401,6 +397,51 @@ def clear_market_data_cache_for_ticker(ticker):
     except Exception as error:
         session.rollback()
         return False, "Database cache error: " + str(error)
+
+    finally:
+        session.close()
+def get_market_data_cache_summary():
+    session = get_database_session()
+
+    try:
+        rows = session.query(MarketDataCache).all()
+
+        if not rows:
+            return []
+
+        summary = {}
+
+        for row in rows:
+            ticker = row.ticker
+
+            if ticker not in summary:
+                summary[ticker] = {
+                    "ticker": ticker,
+                    "row_count": 0,
+                    "oldest_date": row.price_date,
+                    "newest_date": row.price_date,
+                    "last_fetched": row.fetched_at,
+                }
+
+            summary[ticker]["row_count"] += 1
+
+            if row.price_date < summary[ticker]["oldest_date"]:
+                summary[ticker]["oldest_date"] = row.price_date
+
+            if row.price_date > summary[ticker]["newest_date"]:
+                summary[ticker]["newest_date"] = row.price_date
+
+            current_last_fetched = summary[ticker]["last_fetched"]
+
+            if current_last_fetched is None:
+                summary[ticker]["last_fetched"] = row.fetched_at
+            elif row.fetched_at and row.fetched_at > current_last_fetched:
+                summary[ticker]["last_fetched"] = row.fetched_at
+
+        return list(summary.values())
+
+    except Exception:
+        return []
 
     finally:
         session.close()

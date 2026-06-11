@@ -11,6 +11,7 @@ from database import remove_from_watchlist
 from indicators import get_macd_signal
 from indicators import get_rsi_signal
 from indicators import get_volatility_signal
+from database import get_market_data_cache_summary
 from portfolio import calculate_portfolio_risk_score
 from portfolio import calculate_risk_reward
 from portfolio import calculate_stop_loss
@@ -227,101 +228,100 @@ def render_portfolio_dashboard(portfolio_df):
     render_portfolio_table(portfolio_df)
 
 
-def render_risk_dashboard(portfolio_df, largest_position):
+def render_risk_dashboard(portfolio_df, largest_position=None):
     st.subheader("Portfolio Risk Dashboard")
 
-    risk_score, risk_label = calculate_portfolio_risk_score(
-        portfolio_df
-    )
+    if portfolio_df is None or portfolio_df.empty:
+        st.info("Add portfolio positions to view risk analytics.")
+        return
 
-    average_volatility = portfolio_df["Volatility %"].mean()
+    required_columns = [
+        "Ticker",
+        "Current Value",
+        "Allocation %",
+        "Volatility %",
+    ]
+
+    for column in required_columns:
+        if column not in portfolio_df.columns:
+            portfolio_df[column] = 0
+
+    total_value = portfolio_df["Current Value"].sum()
+
+    if total_value > 0:
+        portfolio_df["Allocation %"] = (
+            portfolio_df["Current Value"] / total_value
+        ) * 100
+    else:
+        portfolio_df["Allocation %"] = 0
+
     max_allocation = portfolio_df["Allocation %"].max()
-    position_count = len(portfolio_df)
+    average_volatility = portfolio_df["Volatility %"].mean()
 
-    risk_col1, risk_col2, risk_col3 = st.columns(3)
+    if largest_position is None:
+        largest_position = portfolio_df.sort_values(
+            by="Allocation %",
+            ascending=False
+        ).iloc[0]
 
-    risk_col1.metric(
-        "Portfolio Risk Score",
-        str(risk_score) + "/100",
-        risk_label
+    col1, col2, col3 = st.columns(3)
+
+    col1.metric(
+        "Largest Allocation",
+        f"{max_allocation:.2f}%"
     )
 
-    risk_col2.metric(
+    col2.metric(
         "Average Volatility",
         f"{average_volatility:.2f}%"
     )
 
-    risk_col3.metric(
-        "Number of Positions",
-        position_count
+    col3.metric(
+        "Risk Level",
+        "High" if max_allocation > 50 else "Moderate"
     )
 
-    risk_col4, risk_col5, risk_col6 = st.columns(3)
-
-    highest_volatility = portfolio_df.sort_values(
-        by="Volatility %",
-        ascending=False
-    ).iloc[0]["Ticker"]
-
-    risk_col4.metric(
-        "Largest Allocation",
-        largest_position["Ticker"],
-        f"{max_allocation:.2f}%"
-    )
-
-    risk_col5.metric(
-        "Highest Volatility",
-        highest_volatility
-    )
-
-    risk_col6.metric(
-        "Risk Label",
-        risk_label
-    )
-
-    if risk_label == "High Risk":
+    if max_allocation > 50:
         st.warning(
-            "Portfolio risk is high. Review concentration, volatility, "
-            "and position count."
-        )
-    elif risk_label == "Moderate Risk":
-        st.info("Portfolio risk is moderate.")
-    else:
-        st.success(
-            "Portfolio risk appears lower based on current inputs."
-        )
-
-    if max_allocation >= 50:
-        st.warning(
-            largest_position["Ticker"]
-            + " represents more than 50% of the portfolio."
-        )
-    elif max_allocation >= 35:
-        st.info(
-            largest_position["Ticker"]
-            + " is a major portfolio concentration."
+            "Portfolio concentration risk is high. "
+            "One position is more than 50% of portfolio value."
         )
     else:
-        st.success("Portfolio concentration risk is moderate.")
+        st.success("Portfolio concentration risk is within a moderate range.")
+def render_market_cache_panel():
+    st.sidebar.divider()
+    st.sidebar.header("Market Data Cache")
 
-    st.subheader("Volatility by Holding")
+    cache_summary = get_market_data_cache_summary()
 
-    volatility_chart = portfolio_df.set_index("Ticker")[
-        ["Volatility %"]
+    if not cache_summary:
+        st.sidebar.info("No cached market data yet.")
+        return
+
+    cached_tickers = [
+        item["ticker"] for item in cache_summary
     ]
 
-    st.bar_chart(volatility_chart)
+    selected_ticker = st.sidebar.selectbox(
+        "Cached Tickers",
+        cached_tickers,
+        key="cached_ticker_select"
+    )
 
-    st.subheader("Portfolio Allocation")
+    selected_summary = None
 
-    allocation_chart = portfolio_df.set_index("Ticker")[
-        ["Current Value"]
-    ]
+    for item in cache_summary:
+        if item["ticker"] == selected_ticker:
+            selected_summary = item
+            break
 
-    st.bar_chart(allocation_chart)
+    if selected_summary is None:
+        return
 
-    render_stop_loss_calculator(portfolio_df)
-
+    st.sidebar.write("Rows:", selected_summary["row_count"])
+    st.sidebar.write("Oldest:", selected_summary["oldest_date"])
+    st.sidebar.write("Newest:", selected_summary["newest_date"])
+    st.sidebar.write("Fetched:", selected_summary["last_fetched"])
 
 def render_stop_loss_calculator(portfolio_df):
     st.subheader("Stop-Loss and Target Calculator")
@@ -737,16 +737,80 @@ def render_price_chart(history, ticker):
 
     st.line_chart(chart_data["Close"])
 
-
 def render_comparison_chart(
     history,
     comparison_history,
     ticker,
     comparison_ticker
 ):
-    render_stock_comparison(
-        history,
-        comparison_history,
-        ticker,
-        comparison_ticker
+    st.subheader("Stock Comparison")
+
+    if history is None or history.empty:
+        st.info("Primary stock history is not available.")
+        return
+
+    if comparison_history is None or comparison_history.empty:
+        st.info("Comparison stock history is not available.")
+        return
+
+    required_columns = ["Date", "Close"]
+
+    for column in required_columns:
+        if column not in history.columns:
+            st.info("Primary stock comparison requires Date and Close columns.")
+            return
+
+        if column not in comparison_history.columns:
+            st.info("Comparison stock requires Date and Close columns.")
+            return
+
+    primary = history[["Date", "Close"]].copy()
+    comparison = comparison_history[["Date", "Close"]].copy()
+
+    primary["Date"] = pd.to_datetime(
+        primary["Date"],
+        errors="coerce"
     )
+
+    comparison["Date"] = pd.to_datetime(
+        comparison["Date"],
+        errors="coerce"
+    )
+
+    primary["Close"] = pd.to_numeric(
+        primary["Close"],
+        errors="coerce"
+    )
+
+    comparison["Close"] = pd.to_numeric(
+        comparison["Close"],
+        errors="coerce"
+    )
+
+    primary = primary.dropna(subset=["Date", "Close"])
+    comparison = comparison.dropna(subset=["Date", "Close"])
+
+    if primary.empty or comparison.empty:
+        st.info("Not enough clean data to render comparison chart.")
+        return
+
+    primary = primary.sort_values("Date")
+    comparison = comparison.sort_values("Date")
+
+    primary = primary.rename(columns={"Close": ticker})
+    comparison = comparison.rename(columns={"Close": comparison_ticker})
+
+    chart_data = primary.merge(
+        comparison,
+        on="Date",
+        how="inner"
+    )
+
+    if chart_data.empty:
+        st.info("No overlapping dates available for comparison.")
+        return
+
+    chart_data = chart_data.set_index("Date")
+
+    st.line_chart(chart_data[[ticker, comparison_ticker]])
+

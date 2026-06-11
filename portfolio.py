@@ -4,9 +4,29 @@ from market_data import get_latest_price
 from market_data import get_stock_volatility
 
 
+PORTFOLIO_COLUMNS = [
+    "Ticker",
+    "Shares",
+    "Buy Price",
+    "Current Price",
+    "Cost Basis",
+    "Current Value",
+    "Gain/Loss",
+    "Gain/Loss %",
+    "Volatility %",
+    "Allocation %",
+]
+
+
+def empty_portfolio_dataframe():
+    return pd.DataFrame(columns=PORTFOLIO_COLUMNS)
+
+
+
+
 def build_portfolio_dataframe(portfolio_positions):
     if not portfolio_positions:
-        return pd.DataFrame()
+        return empty_portfolio_dataframe()
     
     rows = [] 
     

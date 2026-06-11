@@ -19,12 +19,14 @@ from portfolio import build_portfolio_dataframe
 from ui_components import render_company_profile
 from ui_components import render_portfolio_dashboard
 from ui_components import render_portfolio_sidebar
-from ui_components import render_stock_comparison
+from ui_components import render_comparison_chart
 from ui_components import render_stock_export
 from ui_components import render_stock_header
 from ui_components import render_technical_indicators
 from ui_components import render_watchlist_sidebar
-
+from ui_components import render_market_cache_panel
+from ui_components import render_price_chart
+from ui_components import render_risk_dashboard
 
 st.set_page_config(
     page_title=APP_PAGE_TITLE,
@@ -90,6 +92,7 @@ if not primary_is_valid:
 ticker = primary_result
 
 render_watchlist_sidebar(ticker)
+render_market_cache_panel()
 
 portfolio_positions = render_portfolio_sidebar()
 portfolio_df = build_portfolio_dataframe(portfolio_positions)
