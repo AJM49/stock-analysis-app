@@ -228,11 +228,17 @@ def get_portfolio_positions():
             .order_by(PortfolioPosition.ticker.asc())
             .all()
         )
+
+        if positions is None:
+            return []
+
         return positions
+
+    except Exception:
+        return []
 
     finally:
         session.close()
-
 
 def add_portfolio_position(ticker, shares, buy_price):
     clean_ticker = ticker.upper().strip()

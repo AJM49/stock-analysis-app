@@ -5,8 +5,11 @@ from market_data import get_stock_volatility
 
 
 def build_portfolio_dataframe(portfolio_positions):
-    portfolio_rows = []
-
+    if not portfolio_positions:
+        return pd.DataFrame()
+    
+    rows = [] 
+    
     for position in portfolio_positions:
         current_price = get_latest_price(position.ticker)
 
