@@ -310,6 +310,97 @@ def remove_portfolio_position(ticker):
     except Exception as error:
         session.rollback()
         return False, "Database error: " + str(error)
+def get_cached_market_data(ticker):
+    clean_ticker = ticker.upper().strip()
+
+    session = get_database_session()
+
+    try:
+        rows = (
+            session.query(MarketDataCache)
+            .filter(MarketDataCache.ticker == clean_ticker)
+            .order_by(MarketDataCache.price_date.asc())
+            .all()
+        )
+
+        if rows is None:
+            return []
+
+        return rows
+
+    except Exception:
+        return []
+
+    finally:
+        session.close()
+
+
+def save_market_data_cache(ticker, market_dataframe):
+    clean_ticker = ticker.upper().strip()
+
+    if market_dataframe is None or market_dataframe.empty:
+        return False, "No market data to cache."
+
+    session = get_database_session()
+
+    try:
+        existing_rows = (
+            session.query(MarketDataCache)
+            .filter(MarketDataCache.ticker == clean_ticker)
+            .all()
+        )
+
+        for row in existing_rows:
+            session.delete(row)
+
+        for _, row in market_dataframe.iterrows():
+            cached_row = MarketDataCache(
+                ticker=clean_ticker,
+                price_date=row["Date"],
+                open_price=row.get("Open"),
+                high_price=row.get("High"),
+                low_price=row.get("Low"),
+                close_price=row.get("Close"),
+                volume=row.get("Volume"),
+                fetched_at=datetime.utcnow()
+            )
+
+            session.add(cached_row)
+
+        session.commit()
+
+        return True, clean_ticker + " market data cached."
+
+    except Exception as error:
+        session.rollback()
+        return False, "Database cache error: " + str(error)
+
+    finally:
+        session.close()
+
+
+def clear_market_data_cache_for_ticker(ticker):
+    clean_ticker = ticker.upper().strip()
+
+    session = get_database_session()
+
+    try:
+        rows = (
+            session.query(MarketDataCache)
+            .filter(MarketDataCache.ticker == clean_ticker)
+            .all()
+        )
+
+        for row in rows:
+            session.delete(row)
+
+        session.commit()
+
+        return True, clean_ticker + " market cache cleared."
+
+    except Exception as error:
+        session.rollback()
+        return False, "Database cache error: " + str(error)
 
     finally:
         session.close()
