@@ -115,3 +115,89 @@ def render_comparison_chart(
     chart_data = chart_data.set_index("Date")
 
     st.line_chart(chart_data[[ticker, comparison_ticker]])
+
+def make_arrow_safe(dataframe):
+    safe_dataframe = dataframe.copy()
+
+    for column in safe_dataframe.columns:
+        if safe_dataframe[column].dtype == "object":
+            safe_dataframe[column] = safe_dataframe[column].astype(str)
+
+    return safe_dataframe
+
+
+def render_stock_comparison(
+    ticker,
+    comparison_ticker,
+    history,
+    comparison_history,
+    info,
+    comparison_info,
+    current_price,
+    price_change_pct,
+    comp_price,
+    comp_change_pct
+):
+    st.divider()
+    st.subheader(ticker + " vs " + comparison_ticker)
+
+    compare_col1, compare_col2 = st.columns(2)
+
+    compare_col1.metric(
+        ticker + " Current Price",
+        f"${current_price:.2f}",
+        f"{price_change_pct:.2f}%"
+    )
+
+    compare_col2.metric(
+        comparison_ticker + " Current Price",
+        f"${comp_price:.2f}",
+        f"{comp_change_pct:.2f}%"
+    )
+
+    comparison_chart = history[["Close"]].rename(
+        columns={"Close": ticker}
+    )
+
+    second_chart = comparison_history[["Close"]].rename(
+        columns={"Close": comparison_ticker}
+    )
+
+    comparison_chart = comparison_chart.join(
+        second_chart,
+        how="inner"
+    )
+
+    st.line_chart(comparison_chart)
+
+    comparison_table = pd.DataFrame(
+        {
+            "Metric": [
+                "Company",
+                "Market Cap",
+                "P/E Ratio",
+                "Volume",
+                "Sector"
+            ],
+            ticker: [
+                info.get("longName", ticker),
+                f"${info.get('marketCap', 0):,}",
+                info.get("trailingPE", "N/A"),
+                f"{info.get('volume', 0):,}",
+                info.get("sector", "N/A")
+            ],
+            comparison_ticker: [
+                comparison_info.get(
+                    "longName",
+                    comparison_ticker
+                ),
+                f"${comparison_info.get('marketCap', 0):,}",
+                comparison_info.get("trailingPE", "N/A"),
+                f"{comparison_info.get('volume', 0):,}",
+                comparison_info.get("sector", "N/A")
+            ]
+        }
+    )
+
+    st.dataframe(make_arrow_safe(comparison_table))
+
