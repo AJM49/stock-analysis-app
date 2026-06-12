@@ -27,6 +27,7 @@ from ui_components import render_stock_header
 from ui_components import render_technical_indicators
 from ui_components import render_watchlist_sidebar
 from ui_components import render_developer_status_panel
+from ui_components import render_app_diagnostics_page
 from ui_components import render_market_cache_panel
 from ui_components import render_release_notes_panel
 from ui_components import render_price_chart
@@ -116,6 +117,16 @@ try:
     )
 
     render_developer_status_panel(cache_only_mode)
+
+    show_diagnostics_page = st.sidebar.checkbox(
+        "Show Diagnostics Page",
+        value=False,
+        help="Display app health, runtime, cache, and database diagnostics.",
+    )
+
+    if show_diagnostics_page:
+        render_app_diagnostics_page(cache_only_mode)
+        st.stop()
 
     refresh_market_data = st.button(
         "Refresh Market Data",
