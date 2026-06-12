@@ -288,6 +288,7 @@ def render_risk_dashboard(portfolio_df, largest_position=None):
         )
     else:
         st.success("Portfolio concentration risk is within a moderate range.")
+
 def render_market_cache_panel():
     st.sidebar.divider()
     st.sidebar.header("Market Data Cache")
@@ -322,6 +323,20 @@ def render_market_cache_panel():
     st.sidebar.write("Oldest:", selected_summary["oldest_date"])
     st.sidebar.write("Newest:", selected_summary["newest_date"])
     st.sidebar.write("Fetched:", selected_summary["last_fetched"])
+
+    if st.sidebar.button(
+        "Clear Selected Cache",
+        key="clear_selected_market_cache"
+    ):
+        success, message = clear_market_data_cache_for_ticker(
+            selected_ticker
+        )
+
+        if success:
+            st.sidebar.success(message)
+            st.rerun()
+        else:
+            st.sidebar.error(message)
 
 def render_stop_loss_calculator(portfolio_df):
     st.subheader("Stop-Loss and Target Calculator")
