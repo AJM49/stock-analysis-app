@@ -268,6 +268,7 @@ def get_stock_data(
     ticker: object,
     period: str = "6mo",
     force_refresh: bool = False,
+    cache_only: bool = False,
 ) -> tuple[pd.DataFrame, str | None]:
     clean_ticker = clean_ticker_symbol(ticker)
 
@@ -285,13 +286,33 @@ def get_stock_data(
         if not cached_history.empty:
             return cached_history, None
 
+        if cache_only:
+            message = (
+                f"{clean_ticker} is not cached in Neon yet. "
+                "Turn off cache-only mode after your API quota resets, "
+                "or seed this ticker into market_data_cache."
+            )
+
+            return pd.DataFrame(columns=REQUIRED_MARKET_COLUMNS), message
+
+    if cache_only:
+        message = (
+            f"{clean_ticker} is not cached in Neon yet. "
+            "Cache-only mode prevents Alpha Vantage requests."
+        )
+
+        return pd.DataFrame(columns=REQUIRED_MARKET_COLUMNS), message
+
     fresh_history, fresh_error = fetch_alpha_vantage_daily_data(clean_ticker)
 
     if fresh_error:
         return pd.DataFrame(columns=REQUIRED_MARKET_COLUMNS), fresh_error
 
     if fresh_history.empty:
-        return pd.DataFrame(columns=REQUIRED_MARKET_COLUMNS), "No market data found for " + clean_ticker
+        return (
+            pd.DataFrame(columns=REQUIRED_MARKET_COLUMNS),
+            "No market data found for " + clean_ticker,
+        )
 
     save_market_data_cache(clean_ticker, fresh_history)
 
@@ -307,11 +328,13 @@ def load_stock_data(
     ticker: object,
     period: str = "6mo",
     force_refresh: bool = False,
+    cache_only: bool = False,
 ):
     history, error = get_stock_data(
         ticker,
         period,
         force_refresh=force_refresh,
+        cache_only=cache_only,
     )
 
     info = {
@@ -323,6 +346,7 @@ def load_stock_data(
         return info, history, error
 
     return info, history, None
+
 
 
 @st.cache_data(ttl=21600)

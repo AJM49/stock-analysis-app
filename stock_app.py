@@ -104,15 +104,23 @@ render_portfolio_dashboard(portfolio_df)
 st.divider()
 
 try:
+    cache_only_mode = st.checkbox(
+        "Use cached data only",
+        value=True,
+        help="Prevents Alpha Vantage API calls and only reads from Neon cache.",
+    )
+
     refresh_market_data = st.button(
         "Refresh Market Data",
-        help="Uses one Alpha Vantage API request and updates the Neon cache."
+        help="Uses one Alpha Vantage API request and updates the Neon cache.",
+        disabled=cache_only_mode,
     )
 
     stock_result = load_stock_dashboard_data(
         ticker,
         period,
         force_refresh=refresh_market_data,
+        cache_only=cache_only_mode,
     )
 
     info = stock_result.info
@@ -125,10 +133,13 @@ try:
         clear_market_data_cache()
         st.success("Market data refreshed and saved to Neon.")
 
-    if refresh_market_data:
+    if cache_only_mode:
+        st.info("Data source: Neon cache only.")
+    elif refresh_market_data:
         st.info("Data source: Alpha Vantage refresh.")
     else:
         st.info("Data source: Neon cache when available.")
+
     if error_message:
         if stock_result.is_quota_error:
             st.warning(error_message)

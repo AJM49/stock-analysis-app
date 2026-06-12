@@ -32,11 +32,13 @@ def load_stock_dashboard_data(
     ticker: str,
     period: str,
     force_refresh: bool = False,
+    cache_only: bool = False,
 ) -> StockLoadResult:
     info, history, error_message = load_stock_data(
         ticker,
         period,
         force_refresh=force_refresh,
+        cache_only=cache_only,
     )
 
     is_quota_error = is_provider_quota_error(error_message)
