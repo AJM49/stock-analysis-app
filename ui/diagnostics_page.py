@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import platform
 import sys
@@ -273,12 +274,89 @@ def render_admin_action_guard() -> bool:
     )
 
 
-def render_database_admin_tools():
+
+def build_diagnostics_report(cache_only_mode: bool) -> dict:
+    cache_summary = get_market_data_cache_summary()
+    portfolio_positions = get_portfolio_positions()
+
+    cached_ticker_count = len(cache_summary) if cache_summary else 0
+    portfolio_position_count = (
+        len(portfolio_positions) if portfolio_positions else 0
+    )
+
+    return {
+        "app_name": APP_NAME,
+        "build": BUILD_LABEL,
+        "version": APP_VERSION,
+        "sprint": SPRINT_LABEL,
+        "python": sys.version.split()[0],
+        "platform": platform.platform(),
+        "database_secret": get_secret_status("DATABASE_URL"),
+        "database_env": get_env_status("DATABASE_URL"),
+        "alpha_vantage_secret": get_secret_status("ALPHA_VANTAGE_API_KEY"),
+        "cache_only_mode": cache_only_mode,
+        "provider_quota_locked": is_market_data_quota_limited(),
+        "cached_ticker_count": cached_ticker_count,
+        "portfolio_position_count": portfolio_position_count,
+    }
+
+
+def render_database_export_tools(cache_only_mode: bool):
+    st.subheader("Database Export Tools")
+
+    cache_summary = get_market_data_cache_summary()
+    portfolio_positions = get_portfolio_positions()
+
+    if cache_summary:
+        cache_df = pd.DataFrame(cache_summary)
+    else:
+        cache_df = pd.DataFrame(
+            columns=[
+                "ticker",
+                "row_count",
+                "oldest_date",
+                "newest_date",
+                "last_fetched",
+            ]
+        )
+
+    portfolio_rows = portfolio_positions_to_rows(portfolio_positions)
+    portfolio_df = pd.DataFrame(portfolio_rows)
+
+    diagnostics_report = build_diagnostics_report(cache_only_mode)
+
+    st.download_button(
+        "Export Cached Ticker Summary CSV",
+        data=cache_df.to_csv(index=False),
+        file_name="market_data_cache_summary.csv",
+        mime="text/csv",
+        key="export_cache_summary_csv",
+    )
+
+    st.download_button(
+        "Export Portfolio Positions CSV",
+        data=portfolio_df.to_csv(index=False),
+        file_name="portfolio_positions.csv",
+        mime="text/csv",
+        key="export_portfolio_positions_csv",
+    )
+
+    st.download_button(
+        "Export Diagnostics Report JSON",
+        data=json.dumps(diagnostics_report, indent=2),
+        file_name="diagnostics_report.json",
+        mime="application/json",
+        key="export_diagnostics_report_json",
+    )
+
+
+def render_database_admin_tools(cache_only_mode: bool):
     st.header("Database Admin Tools")
 
     admin_actions_enabled = render_admin_action_guard()
 
     render_table_count_summary()
+    render_database_export_tools(cache_only_mode)
     render_seed_cache_admin_tools(admin_actions_enabled)
     render_cache_admin_tools(admin_actions_enabled)
     render_portfolio_admin_tools()
@@ -295,4 +373,4 @@ def render_app_diagnostics_page(cache_only_mode: bool):
 
     st.divider()
 
-    render_database_admin_tools()
+    render_database_admin_tools(cache_only_mode)
