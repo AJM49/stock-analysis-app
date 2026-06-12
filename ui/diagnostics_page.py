@@ -89,7 +89,7 @@ def render_application_state(cache_only_mode: bool):
     st.write("Portfolio position count:", portfolio_position_count)
 
 
-def render_cache_admin_tools():
+def render_cache_admin_tools(admin_actions_enabled: bool):
     st.subheader("Market Data Cache Admin")
 
     cache_summary = get_market_data_cache_summary()
@@ -116,6 +116,7 @@ def render_cache_admin_tools():
     if st.button(
         "Clear Selected Cached Ticker",
         key="diagnostics_clear_selected_cached_ticker",
+        disabled=not admin_actions_enabled,
     ):
         success, message = clear_market_data_cache_for_ticker(selected_ticker)
 
@@ -141,7 +142,7 @@ def render_portfolio_admin_tools():
     st.dataframe(portfolio_df, use_container_width=True)
 
 
-def render_quota_admin_tools():
+def render_quota_admin_tools(admin_actions_enabled: bool):
     st.subheader("Provider Quota Admin")
 
     quota_locked = is_market_data_quota_limited()
@@ -150,6 +151,7 @@ def render_quota_admin_tools():
     if st.button(
         "Reset Provider Quota Lock",
         key="diagnostics_reset_provider_quota_lock",
+        disabled=not admin_actions_enabled,
     ):
         clear_market_data_quota_limited()
         st.success("Provider quota lock reset.")
@@ -186,7 +188,7 @@ def render_table_count_summary():
 
 
 
-def render_seed_cache_admin_tools():
+def render_seed_cache_admin_tools(admin_actions_enabled: bool):
     st.subheader("Seed Market Data Cache")
 
     st.write(
@@ -226,7 +228,7 @@ def render_seed_cache_admin_tools():
     if st.button(
         "Seed Selected Ticker",
         key="diagnostics_seed_selected_ticker",
-        disabled=quota_locked,
+        disabled=quota_locked or not admin_actions_enabled,
     ):
         history, error = fetch_alpha_vantage_daily_data(ticker_to_seed)
 
@@ -255,14 +257,32 @@ def render_seed_cache_admin_tools():
         st.error(message)
 
 
+
+def render_admin_action_guard() -> bool:
+    st.subheader("Admin Safety Guard")
+
+    st.warning(
+        "Admin actions can modify cached market data or quota lock state. "
+        "Enable this only when you intentionally want to make changes."
+    )
+
+    return st.checkbox(
+        "Enable Admin Actions",
+        value=False,
+        key="diagnostics_enable_admin_actions",
+    )
+
+
 def render_database_admin_tools():
     st.header("Database Admin Tools")
 
+    admin_actions_enabled = render_admin_action_guard()
+
     render_table_count_summary()
-    render_seed_cache_admin_tools()
-    render_cache_admin_tools()
+    render_seed_cache_admin_tools(admin_actions_enabled)
+    render_cache_admin_tools(admin_actions_enabled)
     render_portfolio_admin_tools()
-    render_quota_admin_tools()
+    render_quota_admin_tools(admin_actions_enabled)
 
 
 def render_app_diagnostics_page(cache_only_mode: bool):
