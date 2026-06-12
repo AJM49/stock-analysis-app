@@ -1,15 +1,13 @@
 from __future__ import annotations
 
 # Compatibility facade.
-# stock_app.py can keep importing from ui_components.py while the real UI
-# implementation moves into smaller modules.
+# stock_app.py keeps importing from ui_components.py.
+# Real UI code is gradually moving into smaller ui/ modules.
 
 from ui.cache_panel import render_market_cache_panel
 from ui.charts import render_comparison_chart
 from ui.charts import render_price_chart
 
-# Legacy functions still live in the backup during migration.
-# We import them from the old module copy so product behavior remains unchanged.
 from ui_components_legacy_backup import make_arrow_safe
 from ui_components_legacy_backup import render_company_profile
 from ui_components_legacy_backup import render_portfolio_dashboard
