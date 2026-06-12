@@ -1,6 +1,10 @@
 import pandas as pd
 import streamlit as st
 
+
+from market_data import fetch_alpha_vantage_daily_data
+from market_data import clear_market_data_cache
+from database import save_market_data_cache
 from database import add_portfolio_position
 from database import add_to_watchlist
 from market_data import validate_ticker
@@ -26,6 +30,7 @@ def make_arrow_safe(dataframe):
             safe_dataframe[column] = safe_dataframe[column].astype(str)
 
     return safe_dataframe
+
 def render_watchlist_sidebar(ticker):
     st.sidebar.divider()
     st.sidebar.header("Saved Watchlist")
@@ -325,6 +330,30 @@ def render_market_cache_panel():
     st.sidebar.write("Fetched:", selected_summary["last_fetched"])
 
     if st.sidebar.button(
+        "Refresh Selected Cache",
+        key="refresh_selected_market_cache"
+    ):
+        history, error = fetch_alpha_vantage_daily_data(selected_ticker)
+
+        if error:
+            st.sidebar.error(error)
+        elif history is None or history.empty:
+            st.sidebar.warning("No market data returned for " + 
+selected_ticker)
+        else:
+            success, message = save_market_data_cache(
+                selected_ticker,
+                history
+            )
+
+            if success:
+                clear_market_data_cache()
+                st.sidebar.success(message)
+                st.rerun()
+            else:
+                st.sidebar.error(message)
+
+    if st.sidebar.button(
         "Clear Selected Cache",
         key="clear_selected_market_cache"
     ):
@@ -333,6 +362,7 @@ def render_market_cache_panel():
         )
 
         if success:
+            clear_market_data_cache()
             st.sidebar.success(message)
             st.rerun()
         else:
