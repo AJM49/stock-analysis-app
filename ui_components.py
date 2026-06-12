@@ -21,3 +21,5 @@ from ui.portfolio_views import render_stop_loss_calculator
 from ui.stock_views import render_technical_indicators
 from ui.sidebar import render_watchlist_sidebar
 from ui.dev_status import render_developer_status_panel
+
+from ui.release_notes_panel import render_release_notes_panel
