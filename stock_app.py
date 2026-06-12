@@ -1,4 +1,6 @@
 import streamlit as st
+from controllers.stock_controller import load_stock_dashboard_data
+from controllers.stock_controller import should_stop_for_error
 
 from config import APP_CAPTION
 from config import APP_LAYOUT
@@ -107,11 +109,17 @@ try:
         help="Uses one Alpha Vantage API request and updates the Neon cache."
     )
 
-    info, history, error_message = load_stock_data(
+    stock_result = load_stock_dashboard_data(
         ticker,
         period,
-        force_refresh=refresh_market_data
+        force_refresh=refresh_market_data,
     )
+
+    info = stock_result.info
+    history = stock_result.history
+    error_message = stock_result.error_message
+    price_change = stock_result.price_change
+    price_change_pct = stock_result.price_change_pct
 
     if refresh_market_data and error_message is None:
         clear_market_data_cache()
@@ -122,7 +130,7 @@ try:
     else:
         st.info("Data source: Neon cache when available.")
     if error_message:
-        if "provider limit reached" in error_message.lower():
+        if stock_result.is_quota_error:
             st.warning(error_message)
             st.info(
                 "This ticker is not cached in Neon yet. "
