@@ -13,6 +13,42 @@ from market_data import is_provider_quota_error
 from market_data import set_market_data_quota_limited
 
 
+def render_empty_cache_help_panel():
+    with st.sidebar.expander("How to load cached market data"):
+        st.write(
+            "Cache-only mode protects your Alpha Vantage quota. "
+            "Charts need saved rows in the Neon market_data_cache table."
+        )
+
+        st.code(
+            "python3 scripts/seed_market_cache.py AAPL",
+            language="bash",
+        )
+
+        st.write("Recommended starter tickers:")
+
+        st.code(
+            "python3 scripts/seed_market_cache.py AAPL\n"
+            "python3 scripts/seed_market_cache.py GOOGL\n"
+            "python3 scripts/seed_market_cache.py CVNA\n"
+            "python3 scripts/seed_market_cache.py DASH",
+            language="bash",
+        )
+
+
+def render_existing_cache_help_panel(selected_ticker):
+    with st.sidebar.expander("Cache help"):
+        st.write(
+            "Cached tickers load from Neon without using Alpha Vantage. "
+            "Use Refresh Selected Cache only when your API quota is available."
+        )
+
+        st.code(
+            "python3 scripts/seed_market_cache.py " + selected_ticker,
+            language="bash",
+        )
+
+
 def render_market_cache_panel():
     st.sidebar.divider()
     st.sidebar.header("Market Data Cache")
@@ -21,6 +57,7 @@ def render_market_cache_panel():
 
     if not cache_summary:
         st.sidebar.info("No cached market data yet.")
+        render_empty_cache_help_panel()
         return
 
     cached_tickers = [
@@ -30,7 +67,7 @@ def render_market_cache_panel():
     selected_ticker = st.sidebar.selectbox(
         "Cached Tickers",
         cached_tickers,
-        key="cached_ticker_select"
+        key="cached_ticker_select",
     )
 
     selected_summary = None
@@ -48,6 +85,8 @@ def render_market_cache_panel():
     st.sidebar.write("Newest:", selected_summary["newest_date"])
     st.sidebar.write("Fetched:", selected_summary["last_fetched"])
 
+    render_existing_cache_help_panel(selected_ticker)
+
     quota_limited = is_market_data_quota_limited()
 
     if quota_limited:
@@ -57,7 +96,7 @@ def render_market_cache_panel():
 
         if st.sidebar.button(
             "Reset Quota Lock",
-            key="reset_market_quota_lock"
+            key="reset_market_quota_lock",
         ):
             clear_market_data_quota_limited()
             st.sidebar.success("Quota lock reset.")
@@ -66,7 +105,7 @@ def render_market_cache_panel():
     if st.sidebar.button(
         "Refresh Selected Cache",
         key="refresh_selected_market_cache",
-        disabled=quota_limited
+        disabled=quota_limited,
     ):
         history, error = fetch_alpha_vantage_daily_data(selected_ticker)
 
@@ -88,7 +127,7 @@ def render_market_cache_panel():
 
         success, message = save_market_data_cache(
             selected_ticker,
-            history
+            history,
         )
 
         if success:
@@ -101,7 +140,7 @@ def render_market_cache_panel():
 
     if st.sidebar.button(
         "Clear Selected Cache",
-        key="clear_selected_market_cache"
+        key="clear_selected_market_cache",
     ):
         success, message = clear_market_data_cache_for_ticker(
             selected_ticker
