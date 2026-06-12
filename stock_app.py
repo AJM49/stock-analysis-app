@@ -17,7 +17,7 @@ from market_data import calculate_price_change
 from market_data import clear_market_data_cache
 from market_data import load_stock_data
 from market_data import validate_ticker
-from portfolio import build_portfolio_dataframe
+from controllers.portfolio_controller import build_portfolio_dashboard_data
 from ui_components import render_company_profile
 from ui_components import render_portfolio_dashboard
 from ui_components import render_portfolio_sidebar
@@ -97,7 +97,7 @@ render_watchlist_sidebar(ticker)
 render_market_cache_panel()
 
 portfolio_positions = render_portfolio_sidebar()
-portfolio_df = build_portfolio_dataframe(portfolio_positions)
+portfolio_df = build_portfolio_dashboard_data(portfolio_positions)
 
 render_portfolio_dashboard(portfolio_df)
 
