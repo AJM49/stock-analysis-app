@@ -30,6 +30,7 @@ from ui_components import render_developer_status_panel
 from ui_components import render_market_cache_panel
 from ui_components import render_price_chart
 from ui_components import render_risk_dashboard
+from app_metadata import APP_NAME, BUILD_LABEL, SPRINT_LABEL
 
 st.set_page_config(
     page_title=APP_PAGE_TITLE,
@@ -96,6 +97,7 @@ ticker = primary_result
 
 render_watchlist_sidebar(ticker)
 render_market_cache_panel()
+st.sidebar.caption(BUILD_LABEL)
 
 portfolio_positions = render_portfolio_sidebar()
 portfolio_df = build_portfolio_dashboard_data(portfolio_positions)
