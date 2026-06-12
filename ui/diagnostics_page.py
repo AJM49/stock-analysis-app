@@ -130,7 +130,7 @@ def render_cache_admin_tools(admin_actions_enabled: bool):
         st.error(message)
 
 
-def render_portfolio_admin_tools():
+def render_portfolio_admin_tools(admin_actions_enabled: bool):
     st.subheader("Portfolio Positions")
 
     portfolio_positions = get_portfolio_positions()
