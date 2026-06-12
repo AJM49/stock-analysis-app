@@ -26,6 +26,7 @@ from ui_components import render_stock_export
 from ui_components import render_stock_header
 from ui_components import render_technical_indicators
 from ui_components import render_watchlist_sidebar
+from ui_components import render_developer_status_panel
 from ui_components import render_market_cache_panel
 from ui_components import render_price_chart
 from ui_components import render_risk_dashboard
@@ -109,6 +110,8 @@ try:
         value=True,
         help="Prevents Alpha Vantage API calls and only reads from Neon cache.",
     )
+
+    render_developer_status_panel(cache_only_mode)
 
     refresh_market_data = st.button(
         "Refresh Market Data",
