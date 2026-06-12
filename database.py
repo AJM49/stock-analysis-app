@@ -445,3 +445,34 @@ def get_market_data_cache_summary():
 
     finally:
         session.close()
+
+
+def delete_portfolio_position(position_id):
+    session = get_database_session()
+
+    if session is None:
+        return False, "Database session unavailable."
+
+    try:
+        position = (
+            session.query(PortfolioPosition)
+            .filter(PortfolioPosition.id == position_id)
+            .first()
+        )
+
+        if position is None:
+            return False, "Portfolio position not found."
+
+        ticker = position.ticker
+        session.delete(position)
+        session.commit()
+
+        return True, "Deleted portfolio position for " + ticker + "."
+
+    except Exception as error:
+        session.rollback()
+        return False, "Failed to delete portfolio position: " + str(error)
+
+    finally:
+        session.close()
+

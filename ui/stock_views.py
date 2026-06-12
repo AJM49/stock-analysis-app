@@ -3,6 +3,60 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
+
+def get_rsi_signal(rsi_value):
+    if rsi_value is None:
+        return "Neutral"
+
+    try:
+        rsi_value = float(rsi_value)
+    except (TypeError, ValueError):
+        return "Neutral"
+
+    if rsi_value >= 70:
+        return "Overbought"
+    if rsi_value <= 30:
+        return "Oversold"
+
+    return "Neutral"
+
+
+def get_macd_signal(macd_value, signal_value):
+    if macd_value is None or signal_value is None:
+        return "Neutral"
+
+    try:
+        macd_value = float(macd_value)
+        signal_value = float(signal_value)
+    except (TypeError, ValueError):
+        return "Neutral"
+
+    if macd_value > signal_value:
+        return "Bullish"
+    if macd_value < signal_value:
+        return "Bearish"
+
+    return "Neutral"
+
+
+def get_moving_average_signal(current_price, moving_average):
+    if current_price is None or moving_average is None:
+        return "Neutral"
+
+    try:
+        current_price = float(current_price)
+        moving_average = float(moving_average)
+    except (TypeError, ValueError):
+        return "Neutral"
+
+    if current_price > moving_average:
+        return "Bullish"
+    if current_price < moving_average:
+        return "Bearish"
+
+    return "Neutral"
+
+
 def render_stock_header(info, ticker, current_price, price_change_pct):
     st.subheader(info.get("longName", ticker))
 

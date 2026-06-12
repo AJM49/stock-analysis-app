@@ -42,6 +42,7 @@ def portfolio_positions_to_rows(portfolio_positions):
     for position in portfolio_positions or []:
         rows.append(
             {
+                "id": getattr(position, "id", ""),
                 "ticker": getattr(position, "ticker", ""),
                 "shares": getattr(position, "shares", 0),
                 "average_cost": getattr(position, "average_cost", 0),
@@ -359,9 +360,8 @@ def render_database_admin_tools(cache_only_mode: bool):
     render_database_export_tools(cache_only_mode)
     render_seed_cache_admin_tools(admin_actions_enabled)
     render_cache_admin_tools(admin_actions_enabled)
-    render_portfolio_admin_tools()
+    render_portfolio_admin_tools(admin_actions_enabled)
     render_quota_admin_tools(admin_actions_enabled)
-
 
 def render_app_diagnostics_page(cache_only_mode: bool):
     st.header("App Diagnostics")
