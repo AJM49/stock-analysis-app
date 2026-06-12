@@ -10,6 +10,7 @@ import streamlit as st
 
 from app_metadata import APP_NAME, APP_VERSION, BUILD_LABEL, SPRINT_LABEL
 from database import clear_market_data_cache_for_ticker
+from database import delete_portfolio_position
 from database import save_market_data_cache
 from database import get_market_data_cache_summary
 from database import get_portfolio_positions
@@ -143,6 +144,64 @@ def render_portfolio_admin_tools(admin_actions_enabled: bool):
     portfolio_df = pd.DataFrame(portfolio_rows)
     st.dataframe(portfolio_df, use_container_width=True)
 
+    selectable_rows = []
+
+    for row in portfolio_rows:
+        position_id = row.get("id")
+        ticker = row.get("ticker", "")
+        shares = row.get("shares", 0)
+        average_cost = row.get("average_cost", 0)
+
+        label = (
+            str(position_id)
+            + " | "
+            + str(ticker)
+            + " | "
+            + str(shares)
+            + " shares @ "
+            + str(average_cost)
+        )
+
+        selectable_rows.append(
+            {
+                "label": label,
+                "id": position_id,
+            }
+        )
+
+    if not selectable_rows:
+        return
+
+    selected_label = st.selectbox(
+        "Select portfolio position to delete",
+        [item["label"] for item in selectable_rows],
+        key="diagnostics_delete_portfolio_position_select",
+    )
+
+    selected_position_id = None
+
+    for item in selectable_rows:
+        if item["label"] == selected_label:
+            selected_position_id = item["id"]
+            break
+
+    st.warning(
+        "Deleting a portfolio position removes it from the database. "
+        "This does not affect market data cache."
+    )
+
+    if st.button(
+        "Delete Selected Portfolio Position",
+        key="diagnostics_delete_selected_portfolio_position",
+        disabled=not admin_actions_enabled,
+    ):
+        success, message = delete_portfolio_position(selected_position_id)
+
+        if success:
+            st.success(message)
+            st.rerun()
+
+        st.error(message)
 
 def render_quota_admin_tools(admin_actions_enabled: bool):
     st.subheader("Provider Quota Admin")
