@@ -646,6 +646,79 @@ def render_migration_status_panel():
 
 
 
+
+def get_cache_freshness_rows():
+    with engine.connect() as connection:
+        result = connection.execute(
+            text(
+                """
+                SELECT
+                    ticker,
+                    COUNT(*) AS row_count,
+                    MAX(price_date) AS newest_date,
+                    CASE
+                        WHEN MAX(price_date) >= CURRENT_DATE - INTERVAL '5 days'
+                        THEN 'Fresh'
+                        ELSE 'Stale'
+                    END AS freshness_status
+                FROM market_data_cache
+                GROUP BY ticker
+                ORDER BY ticker
+                """
+            )
+        )
+
+        rows = []
+
+        for row in result:
+            rows.append(
+                {
+                    "ticker": row.ticker,
+                    "row_count": row.row_count,
+                    "newest_date": str(row.newest_date),
+                    "freshness_status": row.freshness_status,
+                }
+            )
+
+    return rows
+
+
+def render_cache_freshness_policy_panel():
+    st.subheader("Cache Freshness Policy")
+
+    st.write(
+        "Cached market data is considered fresh when the newest price_date "
+        "is within the last 5 calendar days."
+    )
+
+    try:
+        freshness_rows = get_cache_freshness_rows()
+    except Exception as error:
+        st.error("Could not load cache freshness status: " + str(error))
+        return
+
+    if not freshness_rows:
+        st.info("No cached ticker rows available yet.")
+        return
+
+    freshness_df = pd.DataFrame(freshness_rows)
+    st.dataframe(freshness_df, use_container_width=True)
+
+    stale_tickers = [
+        row["ticker"]
+        for row in freshness_rows
+        if row["freshness_status"] == "Stale"
+    ]
+
+    if stale_tickers:
+        st.warning(
+            "Stale cached tickers: " + ", ".join(stale_tickers)
+        )
+        return
+
+    st.success("All cached tickers are fresh.")
+
+
 def render_data_repair_tools_panel(admin_actions_enabled: bool):
     st.subheader("Data Repair Tools")
 
@@ -791,6 +864,7 @@ def render_database_admin_tools(cache_only_mode: bool):
     render_table_count_summary()
     render_migration_status_panel()
     render_data_quality_checks_panel()
+    render_cache_freshness_policy_panel()
     render_data_repair_tools_panel(admin_actions_enabled)
     render_database_export_tools(cache_only_mode)
     render_seed_cache_admin_tools(admin_actions_enabled)
