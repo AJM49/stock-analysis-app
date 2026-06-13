@@ -4,6 +4,7 @@ from datetime import datetime
 import streamlit as st
 from sqlalchemy import Column
 from sqlalchemy import DateTime
+from sqlalchemy import Date
 from sqlalchemy import Float
 from sqlalchemy import Integer
 from sqlalchemy import String
@@ -129,6 +130,24 @@ class PortfolioPosition(Base):
     shares = Column(Float, nullable=False)
     buy_price = Column(Float, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+
+class MarketDataCache(Base):
+    __tablename__ = "market_data_cache"
+
+    id = Column(Integer, primary_key=True, index=True)
+    ticker = Column(String, nullable=False, index=True)
+    price_date = Column(Date, nullable=False, index=True)
+    open_price = Column(Float)
+    high_price = Column(Float)
+    low_price = Column(Float)
+    close_price = Column(Float)
+    volume = Column(Integer)
+    fetched_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
 
 
 def init_database():
