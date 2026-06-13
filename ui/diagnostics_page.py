@@ -472,6 +472,152 @@ def get_database_migration_status():
     return rows
 
 
+
+def get_market_data_quality_checks():
+    checks = []
+
+    with engine.connect() as connection:
+        total_rows = connection.execute(
+            text("SELECT COUNT(*) AS count FROM market_data_cache")
+        ).scalar() or 0
+
+        missing_close_rows = connection.execute(
+            text(
+                """
+                SELECT COUNT(*) AS count
+                FROM market_data_cache
+                WHERE close_price IS NULL
+                """
+            )
+        ).scalar() or 0
+
+        invalid_volume_rows = connection.execute(
+            text(
+                """
+                SELECT COUNT(*) AS count
+                FROM market_data_cache
+                WHERE volume IS NULL OR volume < 0
+                """
+            )
+        ).scalar() or 0
+
+        duplicate_rows = connection.execute(
+            text(
+                """
+                SELECT COUNT(*) AS count
+                FROM (
+                    SELECT ticker, price_date, COUNT(*) AS row_count
+                    FROM market_data_cache
+                    GROUP BY ticker, price_date
+                    HAVING COUNT(*) > 1
+                ) duplicates
+                """
+            )
+        ).scalar() or 0
+
+        old_rows = connection.execute(
+            text(
+                """
+                SELECT COUNT(*) AS count
+                FROM market_data_cache
+                WHERE price_date < CURRENT_DATE - INTERVAL '30 days'
+                """
+            )
+        ).scalar() or 0
+
+        ticker_rows = connection.execute(
+            text(
+                """
+                SELECT ticker, COUNT(*) AS row_count, MAX(price_date) AS newest_date
+                FROM market_data_cache
+                GROUP BY ticker
+                ORDER BY ticker
+                """
+            )
+        ).fetchall()
+
+    checks.append(
+        {
+            "check": "Cache table has rows",
+            "status": total_rows > 0,
+            "value": total_rows,
+        }
+    )
+
+    checks.append(
+        {
+            "check": "No missing close_price values",
+            "status": missing_close_rows == 0,
+            "value": missing_close_rows,
+        }
+    )
+
+    checks.append(
+        {
+            "check": "No duplicate ticker/date rows",
+            "status": duplicate_rows == 0,
+            "value": duplicate_rows,
+        }
+    )
+
+    checks.append(
+        {
+            "check": "No invalid volume values",
+            "status": invalid_volume_rows == 0,
+            "value": invalid_volume_rows,
+        }
+    )
+
+    checks.append(
+        {
+            "check": "Rows older than 30 days",
+            "status": True,
+            "value": old_rows,
+        }
+    )
+
+    ticker_summary = [
+        {
+            "ticker": row.ticker,
+            "row_count": row.row_count,
+            "newest_date": str(row.newest_date),
+        }
+        for row in ticker_rows
+    ]
+
+    return checks, ticker_summary
+
+
+def render_data_quality_checks_panel():
+    st.subheader("Data Quality Checks")
+
+    try:
+        checks, ticker_summary = get_market_data_quality_checks()
+    except Exception as error:
+        st.error("Could not load data quality checks: " + str(error))
+        return
+
+    checks_df = pd.DataFrame(checks)
+    st.dataframe(checks_df, use_container_width=True)
+
+    failed_checks = [
+        check for check in checks if not check["status"]
+    ]
+
+    if failed_checks:
+        st.warning("One or more data quality checks need attention.")
+    else:
+        st.success("Data quality checks passed.")
+
+    st.write("Rows per cached ticker")
+
+    if ticker_summary:
+        ticker_df = pd.DataFrame(ticker_summary)
+        st.dataframe(ticker_df, use_container_width=True)
+    else:
+        st.info("No cached ticker rows available yet.")
+
+
 def render_migration_status_panel():
     st.subheader("Migration Status")
 
@@ -555,6 +701,7 @@ def render_database_admin_tools(cache_only_mode: bool):
 
     render_table_count_summary()
     render_migration_status_panel()
+    render_data_quality_checks_panel()
     render_database_export_tools(cache_only_mode)
     render_seed_cache_admin_tools(admin_actions_enabled)
     render_cache_admin_tools(admin_actions_enabled)
