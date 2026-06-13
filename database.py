@@ -495,3 +495,62 @@ def delete_portfolio_position(position_id):
     finally:
         session.close()
 
+
+def get_market_data_freshness_for_ticker(ticker):
+    session = get_database_session()
+
+    if session is None:
+        return {
+            "ticker": ticker,
+            "has_cache": False,
+            "newest_date": None,
+            "is_fresh": False,
+            "message": "Database session unavailable.",
+        }
+
+    try:
+        clean_ticker = str(ticker).strip().upper()
+
+        newest_date = (
+            session.query(MarketDataCache.price_date)
+            .filter(MarketDataCache.ticker == clean_ticker)
+            .order_by(MarketDataCache.price_date.desc())
+            .first()
+        )
+
+        if newest_date is None:
+            return {
+                "ticker": clean_ticker,
+                "has_cache": False,
+                "newest_date": None,
+                "is_fresh": False,
+                "message": clean_ticker + " is not cached.",
+            }
+
+        newest_value = newest_date[0]
+
+        age_days = (datetime.utcnow().date() - newest_value).days
+        is_fresh = age_days <= 5
+
+        return {
+            "ticker": clean_ticker,
+            "has_cache": True,
+            "newest_date": newest_value,
+            "is_fresh": is_fresh,
+            "age_days": age_days,
+            "message": "Fresh" if is_fresh else "Stale",
+        }
+
+    except Exception as error:
+        return {
+            "ticker": ticker,
+            "has_cache": False,
+            "newest_date": None,
+            "is_fresh": False,
+            "message": "Freshness check failed: " + str(error),
+        }
+
+    finally:
+        session.close()
+
+

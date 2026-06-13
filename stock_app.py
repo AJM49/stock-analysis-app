@@ -30,6 +30,7 @@ from ui_components import render_developer_status_panel
 from ui_components import render_app_diagnostics_page
 from ui_components import render_market_cache_panel
 from ui_components import render_release_notes_panel
+from ui_components import render_selected_ticker_freshness
 from ui_components import render_price_chart
 from ui_components import render_risk_dashboard
 from app_metadata import APP_NAME, BUILD_LABEL, SPRINT_LABEL
@@ -157,6 +158,8 @@ try:
         st.info("Data source: Alpha Vantage refresh.")
     else:
         st.info("Data source: Neon cache when available.")
+
+    render_selected_ticker_freshness(ticker)
 
     if error_message:
         if stock_result.is_quota_error:

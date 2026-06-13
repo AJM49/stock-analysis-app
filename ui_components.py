@@ -25,3 +25,5 @@ from ui.dev_status import render_developer_status_panel
 from ui.release_notes_panel import render_release_notes_panel
 
 from ui.diagnostics_page import render_app_diagnostics_page
+from ui.cache_freshness import render_selected_ticker_freshness
+
