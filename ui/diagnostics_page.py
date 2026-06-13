@@ -8,12 +8,15 @@ import sys
 import pandas as pd
 import streamlit as st
 
+from sqlalchemy import text
+
 from app_metadata import APP_NAME, APP_VERSION, BUILD_LABEL, SPRINT_LABEL
 from database import clear_market_data_cache_for_ticker
 from database import delete_portfolio_position
 from database import save_market_data_cache
 from database import get_market_data_cache_summary
 from database import get_portfolio_positions
+from database import engine
 from market_data import clear_market_data_cache
 from market_data import clear_market_data_quota_limited
 from market_data import validate_ticker
@@ -361,6 +364,141 @@ def build_diagnostics_report(cache_only_mode: bool) -> dict:
     }
 
 
+
+def get_database_migration_status():
+    required_tables = [
+        "market_data_cache",
+        "portfolio_positions",
+        "watchlist_stocks",
+    ]
+
+    required_columns = {
+        "market_data_cache": [
+            "id",
+            "ticker",
+            "price_date",
+            "open_price",
+            "high_price",
+            "low_price",
+            "close_price",
+            "volume",
+            "fetched_at",
+            "created_at",
+            "updated_at",
+        ],
+        "portfolio_positions": [
+            "id",
+            "ticker",
+            "shares",
+            "buy_price",
+            "created_at",
+        ],
+        "watchlist_stocks": [
+            "id",
+            "ticker",
+            "created_at",
+        ],
+    }
+
+    rows = []
+
+    with engine.connect() as connection:
+        existing_tables_result = connection.execute(
+            text(
+                """
+                SELECT table_name
+                FROM information_schema.tables
+                WHERE table_schema = 'public'
+                """
+            )
+        )
+
+        existing_tables = {
+            row.table_name for row in existing_tables_result
+        }
+
+        for table_name in required_tables:
+            table_exists = table_name in existing_tables
+
+            rows.append(
+                {
+                    "object": table_name,
+                    "type": "table",
+                    "required": True,
+                    "exists": table_exists,
+                }
+            )
+
+            if not table_exists:
+                for column_name in required_columns.get(table_name, []):
+                    rows.append(
+                        {
+                            "object": table_name + "." + column_name,
+                            "type": "column",
+                            "required": True,
+                            "exists": False,
+                        }
+                    )
+
+                continue
+
+            columns_result = connection.execute(
+                text(
+                    """
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_name = :table_name
+                    """
+                ),
+                {
+                    "table_name": table_name,
+                },
+            )
+
+            existing_columns = {
+                row.column_name for row in columns_result
+            }
+
+            for column_name in required_columns.get(table_name, []):
+                rows.append(
+                    {
+                        "object": table_name + "." + column_name,
+                        "type": "column",
+                        "required": True,
+                        "exists": column_name in existing_columns,
+                    }
+                )
+
+    return rows
+
+
+def render_migration_status_panel():
+    st.subheader("Migration Status")
+
+    try:
+        migration_rows = get_database_migration_status()
+    except Exception as error:
+        st.error("Could not load migration status: " + str(error))
+        return
+
+    migration_df = pd.DataFrame(migration_rows)
+
+    st.dataframe(migration_df, use_container_width=True)
+
+    missing_items = [
+        row for row in migration_rows if not row["exists"]
+    ]
+
+    if missing_items:
+        st.warning(
+            "Database migration is incomplete. Run: "
+            "python3 scripts/run_database_migrations.py"
+        )
+        return
+
+    st.success("Database migration status is healthy.")
+
+
 def render_database_export_tools(cache_only_mode: bool):
     st.subheader("Database Export Tools")
 
@@ -416,6 +554,7 @@ def render_database_admin_tools(cache_only_mode: bool):
     admin_actions_enabled = render_admin_action_guard()
 
     render_table_count_summary()
+    render_migration_status_panel()
     render_database_export_tools(cache_only_mode)
     render_seed_cache_admin_tools(admin_actions_enabled)
     render_cache_admin_tools(admin_actions_enabled)
