@@ -645,6 +645,95 @@ def render_migration_status_panel():
     st.success("Database migration status is healthy.")
 
 
+
+def render_data_repair_tools_panel(admin_actions_enabled: bool):
+    st.subheader("Data Repair Tools")
+
+    st.warning(
+        "These tools modify the market_data_cache table. "
+        "Use them only when Data Quality Checks show a problem."
+    )
+
+    if st.button(
+        "Delete Rows Missing close_price",
+        key="repair_delete_missing_close_price",
+        disabled=not admin_actions_enabled,
+    ):
+        with engine.begin() as connection:
+            result = connection.execute(
+                text(
+                    """
+                    DELETE FROM market_data_cache
+                    WHERE close_price IS NULL
+                    """
+                )
+            )
+
+        clear_market_data_cache()
+        st.success("Deleted rows missing close_price: " + str(result.rowcount))
+        st.rerun()
+
+    if st.button(
+        "Delete Rows With Invalid Volume",
+        key="repair_delete_invalid_volume",
+        disabled=not admin_actions_enabled,
+    ):
+        with engine.begin() as connection:
+            result = connection.execute(
+                text(
+                    """
+                    DELETE FROM market_data_cache
+                    WHERE volume IS NULL OR volume < 0
+                    """
+                )
+            )
+
+        clear_market_data_cache()
+        st.success("Deleted rows with invalid volume: " + str(result.rowcount))
+        st.rerun()
+
+    if st.button(
+        "Delete Duplicate Ticker/Date Rows",
+        key="repair_delete_duplicate_ticker_date_rows",
+        disabled=not admin_actions_enabled,
+    ):
+        with engine.begin() as connection:
+            result = connection.execute(
+                text(
+                    """
+                    DELETE FROM market_data_cache a
+                    USING market_data_cache b
+                    WHERE a.id > b.id
+                    AND a.ticker = b.ticker
+                    AND a.price_date = b.price_date
+                    """
+                )
+            )
+
+        clear_market_data_cache()
+        st.success("Deleted duplicate ticker/date rows: " + str(result.rowcount))
+        st.rerun()
+
+    if st.button(
+        "Delete Cache Rows Older Than 30 Days",
+        key="repair_delete_stale_cache_rows",
+        disabled=not admin_actions_enabled,
+    ):
+        with engine.begin() as connection:
+            result = connection.execute(
+                text(
+                    """
+                    DELETE FROM market_data_cache
+                    WHERE price_date < CURRENT_DATE - INTERVAL '30 days'
+                    """
+                )
+            )
+
+        clear_market_data_cache()
+        st.success("Deleted stale cache rows: " + str(result.rowcount))
+        st.rerun()
+
+
 def render_database_export_tools(cache_only_mode: bool):
     st.subheader("Database Export Tools")
 
@@ -702,6 +791,7 @@ def render_database_admin_tools(cache_only_mode: bool):
     render_table_count_summary()
     render_migration_status_panel()
     render_data_quality_checks_panel()
+    render_data_repair_tools_panel(admin_actions_enabled)
     render_database_export_tools(cache_only_mode)
     render_seed_cache_admin_tools(admin_actions_enabled)
     render_cache_admin_tools(admin_actions_enabled)
