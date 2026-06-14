@@ -856,6 +856,52 @@ def render_database_export_tools(cache_only_mode: bool):
     )
 
 
+
+def render_production_health_panel():
+    st.subheader("Production Health Panel")
+
+    database_ok = False
+    cache_count = 0
+    last_fetch = "No cached fetch found"
+    database_error = ""
+
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+            database_ok = True
+
+            result = connection.execute(
+                text(
+                    "SELECT COUNT(*) AS cache_count, MAX(fetched_at) AS last_fetch "
+                    "FROM market_data_cache"
+                )
+            ).mappings().first()
+
+            if result:
+                cache_count = result.get("cache_count") or 0
+                last_fetch_value = result.get("last_fetch")
+                if last_fetch_value:
+                    last_fetch = str(last_fetch_value)
+    except Exception as exc:
+        database_error = str(exc)
+
+    quota_locked = is_market_data_quota_limited()
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("App version", APP_VERSION)
+    col2.metric("Market cache rows", cache_count)
+    col3.metric("Quota lock", "Locked" if quota_locked else "Open")
+
+    st.write("Sprint:", SPRINT_LABEL)
+    st.write("Database connection:", "Healthy" if database_ok else "Unavailable")
+    st.write("Last successful cached fetch:", last_fetch)
+
+    if database_error:
+        st.warning("Database health check failed. Review secrets, schema, or connection status.")
+        with st.expander("Database health error details"):
+            st.code(database_error)
+
+
 def render_database_admin_tools(cache_only_mode: bool):
     st.header("Database Admin Tools")
 
@@ -874,6 +920,9 @@ def render_database_admin_tools(cache_only_mode: bool):
 
 def render_app_diagnostics_page(cache_only_mode: bool):
     st.header("App Diagnostics")
+
+    render_production_health_panel()
+    st.divider()
 
     render_build_diagnostics()
     render_runtime_diagnostics()
