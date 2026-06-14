@@ -100,3 +100,35 @@ def get_volatility_signal(volatility_value):
         return "Moderate volatility"
 
     return "Low volatility"
+
+def get_volatility_signal(volatility_value):
+    if volatility_value is None:
+        return "Neutral"
+
+    try:
+        volatility_value = float(volatility_value)
+    except (TypeError, ValueError):
+        return "Neutral"
+
+    if volatility_value >= 40:
+        return "High Risk"
+    if volatility_value >= 20:
+        return "Moderate Risk"
+
+    return "Low Risk"
+
+def get_volatility_signal(volatility_value):
+    if volatility_value is None:
+        return "Neutral"
+
+    try:
+        volatility_value = float(volatility_value)
+    except (TypeError, ValueError):
+        return "Neutral"
+
+    if volatility_value >= 40:
+        return "High Risk"
+    if volatility_value >= 20:
+        return "Moderate Risk"
+
+    return "Low Risk"

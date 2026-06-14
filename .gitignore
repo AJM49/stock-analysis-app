@@ -21,4 +21,3 @@ app.log
 .streamlit/secrets.toml
 
 .ipynb_checkpoints/
-
