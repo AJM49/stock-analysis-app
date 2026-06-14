@@ -11,6 +11,7 @@ import streamlit as st
 from sqlalchemy import text
 
 from app_metadata import APP_NAME, APP_VERSION, BUILD_LABEL, SPRINT_LABEL
+from core.app_logging import log_error, log_info
 from database import clear_market_data_cache_for_ticker
 from database import delete_portfolio_position
 from database import save_market_data_cache
@@ -859,6 +860,7 @@ def render_database_export_tools(cache_only_mode: bool):
 
 def render_production_health_panel():
     st.subheader("Production Health Panel")
+    log_info("Rendering production health panel")
 
     database_ok = False
     cache_count = 0
@@ -884,6 +886,7 @@ def render_production_health_panel():
                     last_fetch = str(last_fetch_value)
     except Exception as exc:
         database_error = str(exc)
+        log_error("Production health database check failed", exc)
 
     quota_locked = is_market_data_quota_limited()
 
