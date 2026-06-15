@@ -6,6 +6,7 @@ import pandas as pd
 import requests
 import streamlit as st
 
+from core.app_logging import log_error, log_info, log_warning
 from core.provider_errors import clean_provider_error_message
 from core.provider_errors import is_provider_quota_error
 from core.ticker import clean_ticker_symbol
@@ -192,6 +193,7 @@ def fetch_alpha_vantage_daily_data(
     api_key = get_alpha_vantage_key()
 
     if not api_key:
+        log_warning("Missing Alpha Vantage API key")
         return pd.DataFrame(columns=REQUIRED_MARKET_COLUMNS), "Missing Alpha Vantage API key."
 
     params = {
@@ -210,16 +212,19 @@ def fetch_alpha_vantage_daily_data(
 
         response.raise_for_status()
         data = response.json()
+        log_info(f"Alpha Vantage response received for {clean_ticker}")
 
         return parse_alpha_vantage_daily_response(data, clean_ticker)
 
-    except requests.exceptions.Timeout:
+    except requests.exceptions.Timeout as error:
+        log_error(f"Alpha Vantage request timed out for {clean_ticker}", error)
         return (
             pd.DataFrame(columns=REQUIRED_MARKET_COLUMNS),
             "Market data request timed out for " + clean_ticker,
         )
 
     except requests.exceptions.RequestException as error:
+        log_error(f"Alpha Vantage request failed for {clean_ticker}", error)
         return (
             pd.DataFrame(columns=REQUIRED_MARKET_COLUMNS),
             "Market data request error for "
@@ -228,13 +233,15 @@ def fetch_alpha_vantage_daily_data(
             + str(error),
         )
 
-    except ValueError:
+    except ValueError as error:
+        log_error(f"Alpha Vantage JSON parse failed for {clean_ticker}", error)
         return (
             pd.DataFrame(columns=REQUIRED_MARKET_COLUMNS),
             "Market data response was not valid JSON for " + clean_ticker,
         )
 
     except Exception as error:
+        log_error(f"Unexpected market data error for {clean_ticker}", error)
         return (
             pd.DataFrame(columns=REQUIRED_MARKET_COLUMNS),
             "Market data error for " + clean_ticker + ": " + str(error),
@@ -252,11 +259,15 @@ def load_cached_stock_data(
         cached_history = cached_rows_to_dataframe(cached_rows)
 
         if cached_history.empty:
+            log_warning(f"No cached market data found for {clean_ticker}")
             return pd.DataFrame(columns=REQUIRED_MARKET_COLUMNS), "No cached market data."
 
+        log_info(f"Loaded cached market data for {clean_ticker}")
+        log_info(f"Loaded cached market data for {clean_ticker}")
         return apply_period_filter(cached_history, period), None
 
     except Exception as error:
+        log_error(f"Cache read failed for {clean_ticker}", error)
         return (
             pd.DataFrame(columns=REQUIRED_MARKET_COLUMNS),
             "Cache read error for " + clean_ticker + ": " + str(error),
@@ -293,6 +304,8 @@ def get_stock_data(
                 "or seed this ticker into market_data_cache."
             )
 
+            log_warning(f"Cache-only miss for {clean_ticker}")
+            log_warning(f"Cache-only miss for {clean_ticker}")
             return pd.DataFrame(columns=REQUIRED_MARKET_COLUMNS), message
 
     if cache_only:
@@ -301,21 +314,28 @@ def get_stock_data(
             "Cache-only mode prevents Alpha Vantage requests."
         )
 
+        log_warning(f"Cache-only prevented provider request for {clean_ticker}")
+        log_warning(f"Cache-only prevented provider request for {clean_ticker}")
         return pd.DataFrame(columns=REQUIRED_MARKET_COLUMNS), message
 
     fresh_history, fresh_error = fetch_alpha_vantage_daily_data(clean_ticker)
 
     if fresh_error:
+        log_warning(f"Fresh market data fetch failed for {clean_ticker}: {fresh_error}")
         return pd.DataFrame(columns=REQUIRED_MARKET_COLUMNS), fresh_error
 
     if fresh_history.empty:
+        log_warning(f"Fresh market data response was empty for {clean_ticker}")
         return (
             pd.DataFrame(columns=REQUIRED_MARKET_COLUMNS),
             "No market data found for " + clean_ticker,
         )
 
-    save_market_data_cache(clean_ticker, fresh_history)
-
+    try:
+        save_market_data_cache(clean_ticker, fresh_history)
+        log_info(f"Saved fresh market data cache for {clean_ticker}")
+    except Exception as error:
+        log_error(f"Failed to save market data cache for {clean_ticker}", error)
     filtered_history = apply_period_filter(
         fresh_history,
         period,
@@ -449,13 +469,13 @@ def get_stock_volatility(ticker: object) -> float:
 def clear_market_data_cache() -> None:
     try:
         get_stock_data.clear()
-    except Exception:
-        pass
+    except Exception as error:
+        log_error("Failed to clear get_stock_data cache", error)
 
     try:
         get_current_price.clear()
-    except Exception:
-        pass
+    except Exception as error:
+        log_error("Failed to clear get_current_price cache", error)
 
 
 fetch_stock_data = get_stock_data
