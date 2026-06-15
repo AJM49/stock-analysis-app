@@ -25,6 +25,7 @@ from market_data import set_market_data_quota_limited
 from market_data import is_provider_quota_error
 from market_data import fetch_alpha_vantage_daily_data
 from market_data import is_market_data_quota_limited
+from services.health_check_service import run_production_health_check
 
 
 def get_secret_status(secret_name: str) -> bool:
@@ -862,48 +863,28 @@ def render_production_health_panel():
     st.subheader("Production Health Panel")
     log_info("Rendering production health panel")
 
-    database_ok = False
-    cache_count = 0
-    last_fetch = "No cached fetch found"
-    database_error = ""
-
-    try:
-        with engine.connect() as connection:
-            connection.execute(text("SELECT 1"))
-            database_ok = True
-
-            result = connection.execute(
-                text(
-                    "SELECT COUNT(*) AS cache_count, MAX(fetched_at) AS last_fetch "
-                    "FROM market_data_cache"
-                )
-            ).mappings().first()
-
-            if result:
-                cache_count = result.get("cache_count") or 0
-                last_fetch_value = result.get("last_fetch")
-                if last_fetch_value:
-                    last_fetch = str(last_fetch_value)
-    except Exception as exc:
-        database_error = str(exc)
-        log_error("Production health database check failed", exc)
-
-    quota_locked = is_market_data_quota_limited()
+    health = run_production_health_check()
 
     col1, col2, col3 = st.columns(3)
-    col1.metric("App version", APP_VERSION)
-    col2.metric("Market cache rows", cache_count)
-    col3.metric("Quota lock", "Locked" if quota_locked else "Open")
+    col1.metric("App version", health.app_version)
+    col2.metric("Market cache rows", health.market_cache_rows)
+    col3.metric("Quota lock", "Locked" if health.provider_quota_locked else "Open")
 
-    st.write("Sprint:", SPRINT_LABEL)
-    st.write("Database connection:", "Healthy" if database_ok else "Unavailable")
-    st.write("Last successful cached fetch:", last_fetch)
+    st.write("Sprint:", health.sprint_label)
+    st.write("Database configured:", "Yes" if health.database_configured else "No")
+    st.write("Alpha Vantage configured:", "Yes" if health.alpha_vantage_configured else "No")
+    st.write("Database connection:", "Healthy" if health.database_connected else "Unavailable")
+    st.write("Last successful cached fetch:", health.latest_market_data_fetch)
 
-    if database_error:
-        st.warning("Database health check failed. Review secrets, schema, or connection status.")
-        with st.expander("Database health error details"):
-            st.code(database_error)
+    if health.is_healthy:
+        st.success("Production health check passed.")
+    else:
+        st.warning("Production health check needs attention. Review configuration, database, or cache status.")
 
+    if health.errors:
+        with st.expander("Production health check details"):
+            for item in health.errors:
+                st.write("- " + item)
 
 def render_database_admin_tools(cache_only_mode: bool):
     st.header("Database Admin Tools")
