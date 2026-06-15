@@ -1,6 +1,9 @@
 import streamlit as st
 from controllers.stock_controller import load_stock_dashboard_data
 from controllers.stock_controller import should_stop_for_error
+from core.user_messages import get_user_safe_app_error
+from core.user_messages import get_user_safe_market_data_error
+from core.app_logging import log_error, log_warning
 
 from config import APP_CAPTION
 from config import APP_LAYOUT
@@ -162,8 +165,14 @@ try:
     render_selected_ticker_freshness(ticker)
 
     if error_message:
+        safe_error_message = get_user_safe_market_data_error(
+            error_message,
+            stock_result.is_quota_error,
+        )
+        log_warning(f"Market data load issue for {ticker}: {error_message}")
+
         if stock_result.is_quota_error:
-            st.warning(error_message)
+            st.warning(safe_error_message)
             st.info(
                 "This ticker is not cached in Neon yet. "
                 "Try a ticker already saved in market_data_cache, "
@@ -171,7 +180,7 @@ try:
             )
             st.stop()
 
-        st.error(error_message)
+        st.error(safe_error_message)
         st.stop()
 
     if history is None or history.empty:
