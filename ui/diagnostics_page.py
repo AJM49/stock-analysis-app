@@ -859,6 +859,14 @@ def render_database_export_tools(cache_only_mode: bool):
 
 
 
+
+def render_health_badge(label: str, healthy: bool, healthy_text: str = "OK", unhealthy_text: str = "Needs attention") -> None:
+    if healthy:
+        st.success(f"{label}: {healthy_text}")
+    else:
+        st.warning(f"{label}: {unhealthy_text}")
+
+
 def render_production_health_panel():
     st.subheader("Production Health Panel")
     log_info("Rendering production health panel")
@@ -876,10 +884,22 @@ def render_production_health_panel():
     st.write("Database connection:", "Healthy" if health.database_connected else "Unavailable")
     st.write("Last successful cached fetch:", health.latest_market_data_fetch)
 
-    if health.is_healthy:
-        st.success("Production health check passed.")
-    else:
-        st.warning("Production health check needs attention. Review configuration, database, or cache status.")
+    st.markdown("#### Health Status Badges")
+    badge_col1, badge_col2 = st.columns(2)
+
+    with badge_col1:
+        render_health_badge("Database configured", health.database_configured)
+        render_health_badge("Database connected", health.database_connected)
+        render_health_badge("Overall health", health.is_healthy, "Healthy", "Needs attention")
+
+    with badge_col2:
+        render_health_badge("Alpha Vantage configured", health.alpha_vantage_configured)
+        render_health_badge(
+            "Provider quota",
+            not health.provider_quota_locked,
+            "Open",
+            "Locked",
+        )
 
     if health.errors:
         with st.expander("Production health check details"):
