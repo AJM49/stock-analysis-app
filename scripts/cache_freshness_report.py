@@ -3,6 +3,8 @@ from __future__ import annotations
 import sys
 from datetime import date, datetime
 from pathlib import Path
+from config.cache_policy import FRESH_CACHE_DAYS
+from config.cache_policy import STALE_CACHE_DAYS
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -12,9 +14,8 @@ if str(PROJECT_ROOT) not in sys.path:
 from database import get_market_data_cache_summary
 
 
-FRESH_DAYS = 3
-STALE_DAYS = 7
-
+FRESH_DAYS = FRESH_CACHE_DAYS
+STALE_DAYS = STALE_CACHE_DAYS
 
 def parse_last_fetched(value: object) -> datetime | None:
     if value is None:

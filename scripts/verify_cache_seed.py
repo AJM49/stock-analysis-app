@@ -10,14 +10,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from database import get_market_data_cache_summary
 
-
-REQUIRED_TICKERS = [
-    "AAPL",
-    "MSFT",
-    "GOOGL",
-    "AMD",
-    "MU",
-]
+from config.cache_policy import REQUIRED_CACHED_TICKERS
 
 
 def main() -> int:
@@ -34,7 +27,7 @@ def main() -> int:
     print("=======================")
     print("")
 
-    for ticker in REQUIRED_TICKERS:
+    for ticker in REQUIRED_CACHED_TICKERS:
         item = summary_by_ticker.get(ticker)
 
         if not item:
