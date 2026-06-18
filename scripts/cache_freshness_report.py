@@ -3,14 +3,14 @@ from __future__ import annotations
 import sys
 from datetime import date, datetime
 from pathlib import Path
-from core.cache_policy import FRESH_CACHE_DAYS
-from core.cache_policy import STALE_CACHE_DAYS
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from core.cache_policy import FRESH_CACHE_DAYS
+from core.cache_policy import STALE_CACHE_DAYS 
 from database import get_market_data_cache_summary
 
 
