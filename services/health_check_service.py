@@ -50,12 +50,37 @@ def _check_database_connection() -> tuple[bool, str | None]:
         return False, str(error)
 
 
-def _extract_cache_summary_value(summary: Any, *keys: str, default: Any = None) -> Any:
+def _summarize_market_cache(summary: Any) -> tuple[int, str]:
+    if not summary:
+        return 0, "No cached fetch found"
+
     if isinstance(summary, dict):
-        for key in keys:
-            if key in summary:
-                return summary.get(key)
-    return default
+        row_count = summary.get("total_rows") or summary.get("row_count") or summary.get("cache_count") or 0
+        latest_fetch = (
+            summary.get("latest_fetch")
+            or summary.get("latest_fetched_at")
+            or summary.get("last_fetch")
+            or summary.get("last_fetched")
+        )
+        return int(row_count or 0), str(latest_fetch or "No cached fetch found")
+
+    if isinstance(summary, list):
+        total_rows = 0
+        latest_fetch = None
+
+        for item in summary:
+            if not isinstance(item, dict):
+                continue
+
+            total_rows += int(item.get("row_count") or 0)
+            item_fetch = item.get("last_fetched") or item.get("latest_fetch")
+
+            if item_fetch and (latest_fetch is None or item_fetch > latest_fetch):
+                latest_fetch = item_fetch
+
+        return total_rows, str(latest_fetch or "No cached fetch found")
+
+    return 0, "No cached fetch found"
 
 
 def run_production_health_check() -> HealthCheckResult:
@@ -73,24 +98,7 @@ def run_production_health_check() -> HealthCheckResult:
 
     try:
         cache_summary = get_market_data_cache_summary()
-        cache_rows = int(
-            _extract_cache_summary_value(
-                cache_summary,
-                "total_rows",
-                "row_count",
-                "cache_count",
-                default=0,
-            ) or 0
-        )
-        latest_fetch_value = _extract_cache_summary_value(
-            cache_summary,
-            "latest_fetch",
-            "latest_fetched_at",
-            "last_fetch",
-            default=None,
-        )
-        if latest_fetch_value:
-            latest_fetch = str(latest_fetch_value)
+        cache_rows, latest_fetch = _summarize_market_cache(cache_summary)
     except Exception:
         errors.append("Market cache summary check failed.")
 
