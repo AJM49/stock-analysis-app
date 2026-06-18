@@ -10,7 +10,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from database import get_market_data_cache_summary
 
-from config.cache_policy import REQUIRED_CACHED_TICKERS
+from core.cache_policy import REQUIRED_CACHED_TICKERS
 
 
 def main() -> int:

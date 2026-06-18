@@ -3,8 +3,8 @@ from __future__ import annotations
 import sys
 from datetime import date, datetime
 from pathlib import Path
-from config.cache_policy import FRESH_CACHE_DAYS
-from config.cache_policy import STALE_CACHE_DAYS
+from core.cache_policy import FRESH_CACHE_DAYS
+from core.cache_policy import STALE_CACHE_DAYS
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
