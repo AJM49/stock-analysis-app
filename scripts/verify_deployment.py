@@ -25,6 +25,7 @@ FILES_TO_COMPILE = [
     "scripts/run_health_check.py",
     "scripts/verify_cache_seed.py",
     "scripts/cache_refresh_targets.py",
+    "scripts/cache_refresh_plan.py",
 ]
 
 
