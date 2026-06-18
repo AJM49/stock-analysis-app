@@ -58,7 +58,7 @@ def main() -> int:
             print("FAILED: " + ticker + " | " + error)
 
             if is_provider_quota_error(error):
-                set_market_data_quota_limited(True)
+                set_market_data_quota_limited()
                 print("Provider quota lock enabled.")
                 return 1
 
