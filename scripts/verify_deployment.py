@@ -23,6 +23,7 @@ FILES_TO_COMPILE = [
     "core/app_logging.py",
     "core/user_messages.py",
     "scripts/run_health_check.py",
+    "scripts/verify_cache_seed.py",
 ]
 
 
