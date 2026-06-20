@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 import streamlit as st
+import plotly.express as px
 
 def render_portfolio_dashboard(portfolio_df):
     st.subheader("Portfolio Analytics")
@@ -74,6 +75,7 @@ def render_portfolio_dashboard(portfolio_df):
         f"{largest_position['Allocation %']:.2f}%"
     )
 
+    render_portfolio_allocation_chart(portfolio_df)
     render_risk_dashboard(portfolio_df, largest_position)
     render_portfolio_table(portfolio_df)
 
@@ -196,6 +198,57 @@ def render_stop_loss_calculator(portfolio_df):
     else:
         st.warning("Risk/reward profile is weak.")
 
+def render_portfolio_allocation_chart(portfolio_df: pd.DataFrame) -> None:
+    """Render portfolio allocation chart by ticker."""
+    st.subheader("Portfolio Allocation")
+
+    if portfolio_df is None or portfolio_df.empty:
+        st.info("No portfolio allocation data available yet.")
+        return
+
+    required_columns = ["Ticker", "Current Value", "Allocation %"]
+
+    for column in required_columns:
+        if column not in portfolio_df.columns:
+            st.info("Portfolio allocation data is missing required columns.")
+            return
+
+    allocation_df = portfolio_df[
+        [
+            "Ticker",
+            "Current Value",
+            "Allocation %",
+        ]
+    ].copy()
+
+    allocation_df = allocation_df[allocation_df["Current Value"] > 0]
+
+    if allocation_df.empty:
+        st.info("No positive portfolio value available for allocation chart.")
+        return
+
+    fig = px.pie(
+        allocation_df,
+        names="Ticker",
+        values="Current Value",
+        title="Allocation by Current Value",
+        hole=0.35,
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+    display_df = allocation_df.copy()
+
+    display_df["Current Value"] = display_df["Current Value"].map(
+        lambda value: f"${value:,.2f}"
+    )
+
+    display_df["Allocation %"] = display_df["Allocation %"].map(
+        lambda value: f"{value:.2f}%"
+    )
+
+    st.dataframe(display_df, use_container_width=True)
+
 def render_portfolio_table(portfolio_df):
     if portfolio_df.empty:
         st.info("No portfolio positions saved yet.")
@@ -237,6 +290,7 @@ def render_portfolio_table(portfolio_df):
         by=sort_option,
         ascending=ascending_sort
     )
+
 
     st.dataframe(formatted_portfolio_df),
 
