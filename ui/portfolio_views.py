@@ -77,6 +77,7 @@ def render_portfolio_dashboard(portfolio_df):
 
     render_unrealized_gain_loss_summary(portfolio_df)
     render_portfolio_allocation_chart(portfolio_df)
+    render_position_weight_summary(portfolio_df)
     render_risk_dashboard(portfolio_df, largest_position)
     render_portfolio_table(portfolio_df)
 
@@ -201,6 +202,110 @@ def render_unrealized_gain_loss_summary(portfolio_df: pd.DataFrame) -> None:
     )
 
     st.dataframe(formatted_df, use_container_width=True)
+
+
+def get_position_weight_status(allocation_pct: float) -> tuple[str, str]:
+    """Return position weight label and risk note."""
+    if allocation_pct >= 50:
+        return (
+            "Concentrated risk",
+            "This position is more than half of the portfolio.",
+        )
+
+    if allocation_pct >= 25:
+        return (
+            "Heavy position",
+            "This position has meaningful concentration risk.",
+        )
+
+    if allocation_pct >= 10:
+        return (
+            "Moderate position",
+            "This position is within a normal active range.",
+        )
+
+    return (
+        "Small position",
+        "This position has limited portfolio impact.",
+    )
+
+
+def render_position_weight_summary(portfolio_df: pd.DataFrame) -> None:
+    """Render portfolio position weight by ticker."""
+    st.subheader("Position Weight by Ticker")
+
+    if portfolio_df is None or portfolio_df.empty:
+        st.info("No position weight data available yet.")
+        return
+
+    required_columns = [
+        "Ticker",
+        "Current Value",
+        "Allocation %",
+    ]
+
+    missing_columns = [
+        column for column in required_columns
+        if column not in portfolio_df.columns
+    ]
+
+    if missing_columns:
+        st.info(
+            "Position weight data is missing required columns: "
+            + ", ".join(missing_columns)
+        )
+        return
+
+    weight_df = portfolio_df[
+        [
+            "Ticker",
+            "Current Value",
+            "Allocation %",
+        ]
+    ].copy()
+
+    weight_df = weight_df.sort_values(
+        by="Allocation %",
+        ascending=False,
+    )
+
+    status_rows = weight_df["Allocation %"].apply(
+        lambda value: get_position_weight_status(float(value))
+    )
+
+    weight_df["Weight Status"] = status_rows.apply(lambda item: item[0])
+    weight_df["Risk Note"] = status_rows.apply(lambda item: item[1])
+
+    display_df = weight_df.copy()
+
+    display_df["Current Value"] = display_df["Current Value"].map(
+        lambda value: f"${value:,.2f}"
+    )
+
+    display_df["Allocation %"] = display_df["Allocation %"].map(
+        lambda value: f"{value:.2f}%"
+    )
+
+    st.dataframe(display_df, use_container_width=True)
+
+    largest_position = weight_df.iloc[0]
+    largest_allocation = float(largest_position["Allocation %"])
+    largest_ticker = str(largest_position["Ticker"])
+
+    if largest_allocation >= 50:
+        st.warning(
+            "Concentration risk detected: "
+            + largest_ticker
+            + " is more than 50% of the portfolio."
+        )
+    elif largest_allocation >= 25:
+        st.info(
+            "Largest position watch: "
+            + largest_ticker
+            + " is above 25% of the portfolio."
+        )
+    else:
+        st.success("No major single-position concentration risk detected.")
 
 
 def render_risk_dashboard(portfolio_df, largest_position=None):
