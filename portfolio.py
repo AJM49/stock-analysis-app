@@ -25,6 +25,7 @@ def empty_portfolio_dataframe():
 
 
 def build_portfolio_dataframe(portfolio_positions):
+    portfolio_rows = []
     if not portfolio_positions:
         return empty_portfolio_dataframe()
     

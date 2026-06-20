@@ -75,9 +75,133 @@ def render_portfolio_dashboard(portfolio_df):
         f"{largest_position['Allocation %']:.2f}%"
     )
 
+    render_unrealized_gain_loss_summary(portfolio_df)
     render_portfolio_allocation_chart(portfolio_df)
     render_risk_dashboard(portfolio_df, largest_position)
     render_portfolio_table(portfolio_df)
+
+def render_unrealized_gain_loss_summary(portfolio_df: pd.DataFrame) -> None:
+    """Render unrealized gain/loss portfolio summary."""
+    st.subheader("Unrealized Gain/Loss")
+
+    if portfolio_df is None or portfolio_df.empty:
+        st.info("No unrealized gain/loss data available yet.")
+        return
+
+    required_columns = [
+        "Ticker",
+        "Cost Basis",
+        "Current Value",
+        "Gain/Loss",
+        "Gain/Loss %",
+    ]
+
+    missing_columns = [
+        column for column in required_columns
+        if column not in portfolio_df.columns
+    ]
+
+    if missing_columns:
+        st.info(
+            "Portfolio gain/loss data is missing required columns: "
+            + ", ".join(missing_columns)
+        )
+        return
+
+    total_cost_basis = float(portfolio_df["Cost Basis"].sum())
+    total_current_value = float(portfolio_df["Current Value"].sum())
+    total_gain_loss = float(portfolio_df["Gain/Loss"].sum())
+
+    if total_cost_basis > 0:
+        portfolio_return_pct = (total_gain_loss / total_cost_basis) * 100
+    else:
+        portfolio_return_pct = 0.0
+
+    winning_positions = portfolio_df[portfolio_df["Gain/Loss"] > 0]
+    losing_positions = portfolio_df[portfolio_df["Gain/Loss"] < 0]
+
+    best_dollar_position = portfolio_df.sort_values(
+        by="Gain/Loss",
+        ascending=False,
+    ).iloc[0]
+
+    worst_dollar_position = portfolio_df.sort_values(
+        by="Gain/Loss",
+        ascending=True,
+    ).iloc[0]
+
+    gain_col1, gain_col2, gain_col3, gain_col4 = st.columns(4)
+
+    gain_col1.metric(
+        "Unrealized Gain/Loss",
+        f"${total_gain_loss:,.2f}",
+        f"{portfolio_return_pct:.2f}%",
+    )
+
+    gain_col2.metric(
+        "Current Value",
+        f"${total_current_value:,.2f}",
+    )
+
+    gain_col3.metric(
+        "Winning Positions",
+        str(len(winning_positions)),
+    )
+
+    gain_col4.metric(
+        "Losing Positions",
+        str(len(losing_positions)),
+    )
+
+    perf_col1, perf_col2 = st.columns(2)
+
+    best_gain_loss = float(best_dollar_position["Gain/Loss"])
+    worst_gain_loss = float(worst_dollar_position["Gain/Loss"])
+
+    perf_col1.metric(
+        "Best Dollar Performer",
+        str(best_dollar_position["Ticker"]),
+        f"${best_gain_loss:,.2f}",
+    )
+
+    perf_col2.metric(
+        "Worst Dollar Performer",
+        str(worst_dollar_position["Ticker"]),
+        f"${worst_gain_loss:,.2f}",
+    )
+
+    performance_df = portfolio_df[
+        [
+            "Ticker",
+            "Cost Basis",
+            "Current Value",
+            "Gain/Loss",
+            "Gain/Loss %",
+        ]
+    ].copy()
+
+    performance_df = performance_df.sort_values(
+        by="Gain/Loss",
+        ascending=False,
+    )
+
+    formatted_df = performance_df.copy()
+
+    formatted_df["Cost Basis"] = formatted_df["Cost Basis"].map(
+        lambda value: f"${value:,.2f}"
+    )
+    formatted_df["Current Value"] = formatted_df["Current Value"].map(
+        lambda value: f"${value:,.2f}"
+    )
+    formatted_df["Gain/Loss"] = formatted_df["Gain/Loss"].map(
+        lambda value: f"${value:,.2f}"
+    )
+    formatted_df["Gain/Loss %"] = formatted_df["Gain/Loss %"].map(
+        lambda value: f"{value:.2f}%"
+    )
+
+    st.dataframe(formatted_df, use_container_width=True)
+
 
 def render_risk_dashboard(portfolio_df, largest_position=None):
     st.subheader("Portfolio Risk Dashboard")
