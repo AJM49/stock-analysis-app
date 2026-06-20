@@ -161,6 +161,49 @@ def calculate_risk_reward(current_price, stop_price, target_price):
     upside_reward = target_price - current_price
 
     if downside_risk <= 0:
+        return 0
+
+    return upside_reward / downside_risk
+
+
+def calculate_portfolio_allocation(positions: list[dict]) -> list[dict]:
+    """Calculate portfolio allocation by ticker using market value."""
+    allocation_rows = []
+
+    total_market_value = 0.0
+
+    for position in positions:
+        shares = float(position.get("shares") or 0)
+        current_price = float(position.get("current_price") or 0)
+        market_value = shares * current_price
+
+        total_market_value += market_value
+
+        allocation_rows.append(
+            {
+                "ticker": position.get("ticker", ""),
+                "shares": shares,
+                "current_price": current_price,
+                "market_value": market_value,
+            }
+        )
+
+    if total_market_value <= 0:
+        return []
+
+    for row in allocation_rows:
+        row["allocation_percent"] = (
+            row["market_value"] / total_market_value
+        ) * 100
+
+    allocation_rows.sort(
+        key=lambda row: row["market_value"],
+        reverse=True,
+    )
+
+    return allocation_rows
+
+    if downside_risk <= 0:
         return 0.0
 
     return upside_reward / downside_risk
