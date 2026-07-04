@@ -1,21 +1,28 @@
 import pandas as pd
 
-from market_data import get_latest_price
-from market_data import get_stock_volatility
+def get_latest_price_for_ticker(ticker: str) -> float:
+    """Return latest cached close price for a ticker."""
+    from services.market_data_service import get_stock_data
 
+    result = get_stock_data(ticker, cache_only=True)
 
-PORTFOLIO_COLUMNS = [
-    "Ticker",
-    "Shares",
-    "Buy Price",
-    "Current Price",
-    "Cost Basis",
-    "Current Value",
-    "Gain/Loss",
-    "Gain/Loss %",
-    "Volatility %",
-    "Allocation %",
-]
+    if isinstance(result, tuple):
+        history = result[0]
+    else:
+        history = getattr(result, "history", None)
+
+    if history is None or history.empty:
+        return 0.0
+
+    if "Close" not in history.columns:
+        return 0.0
+
+    latest_close = history["Close"].dropna()
+
+    if latest_close.empty:
+        return 0.0
+
+    return float(latest_close.iloc[-1])
 
 
 def empty_portfolio_dataframe():
@@ -25,22 +32,22 @@ def empty_portfolio_dataframe():
 
 
 def build_portfolio_dataframe(portfolio_positions):
+    """Build portfolio analytics dataframe from saved positions."""
     portfolio_rows = []
+
     if not portfolio_positions:
-        return empty_portfolio_dataframe()
-    
-    rows = [] 
-    
+        return pd.DataFrame(portfolio_rows)
+
     for position in portfolio_positions:
-        current_price = get_latest_price(position.ticker)
+        ticker = str(position.ticker).upper()
+        shares = float(position.shares or 0)
+        buy_price = float(position.buy_price or 0)
 
-        if current_price is None:
-            current_price = 0.0
+        current_price = get_latest_price_for_ticker(ticker)
 
-        cost_basis = position.shares * position.buy_price
-        current_value = position.shares * current_price
+        cost_basis = shares * buy_price
+        current_value = shares * current_price
         gain_loss = current_value - cost_basis
-        holding_volatility = get_stock_volatility(position.ticker)
 
         if cost_basis > 0:
             gain_loss_pct = (gain_loss / cost_basis) * 100
@@ -49,15 +56,14 @@ def build_portfolio_dataframe(portfolio_positions):
 
         portfolio_rows.append(
             {
-                "Ticker": position.ticker,
-                "Shares": position.shares,
-                "Buy Price": position.buy_price,
-                "Current Price": current_price,
+                "Ticker": ticker,
+                "Shares": shares,
+                "Buy Price": buy_price,
                 "Cost Basis": cost_basis,
+                "Current Price": current_price,
                 "Current Value": current_value,
                 "Gain/Loss": gain_loss,
                 "Gain/Loss %": gain_loss_pct,
-                "Volatility %": holding_volatility
             }
         )
 
