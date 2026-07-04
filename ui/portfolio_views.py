@@ -3,6 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 import plotly.express as px
+from services.portfolio_analytics_service import build_position_weight_dataframe
 
 def render_portfolio_dashboard(portfolio_df):
     st.subheader("Portfolio Analytics")
@@ -234,47 +235,15 @@ def render_position_weight_summary(portfolio_df: pd.DataFrame) -> None:
     """Render portfolio position weight by ticker."""
     st.subheader("Position Weight by Ticker")
 
-    if portfolio_df is None or portfolio_df.empty:
+    try:
+        weight_df = build_position_weight_dataframe(portfolio_df)
+    except ValueError as error:
+        st.info(str(error))
+        return
+
+    if weight_df.empty:
         st.info("No position weight data available yet.")
         return
-
-    required_columns = [
-        "Ticker",
-        "Current Value",
-        "Allocation %",
-    ]
-
-    missing_columns = [
-        column for column in required_columns
-        if column not in portfolio_df.columns
-    ]
-
-    if missing_columns:
-        st.info(
-            "Position weight data is missing required columns: "
-            + ", ".join(missing_columns)
-        )
-        return
-
-    weight_df = portfolio_df[
-        [
-            "Ticker",
-            "Current Value",
-            "Allocation %",
-        ]
-    ].copy()
-
-    weight_df = weight_df.sort_values(
-        by="Allocation %",
-        ascending=False,
-    )
-
-    status_rows = weight_df["Allocation %"].apply(
-        lambda value: get_position_weight_status(float(value))
-    )
-
-    weight_df["Weight Status"] = status_rows.apply(lambda item: item[0])
-    weight_df["Risk Note"] = status_rows.apply(lambda item: item[1])
 
     display_df = weight_df.copy()
 
@@ -306,7 +275,6 @@ def render_position_weight_summary(portfolio_df: pd.DataFrame) -> None:
         )
     else:
         st.success("No major single-position concentration risk detected.")
-
 
 def render_risk_dashboard(portfolio_df, largest_position=None):
     st.subheader("Portfolio Risk Dashboard")
