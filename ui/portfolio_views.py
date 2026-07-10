@@ -136,6 +136,7 @@ def render_portfolio_dashboard(portfolio_df):
     render_position_weight_summary(portfolio_df)
     render_sector_exposure_summary(portfolio_df)
     render_risk_dashboard(portfolio_df, largest_position)
+    render_portfolio_export(portfolio_df)
     render_portfolio_table(portfolio_df)
 
 def render_unrealized_gain_loss_summary(portfolio_df: pd.DataFrame) -> None:
@@ -556,6 +557,25 @@ def render_portfolio_allocation_chart(portfolio_df: pd.DataFrame) -> None:
     )
 
     st.dataframe(display_df, use_container_width=True)
+
+def render_portfolio_export(portfolio_df: pd.DataFrame) -> None:
+    """Render portfolio CSV export button."""
+    if portfolio_df is None or portfolio_df.empty:
+        return
+
+    export_df = portfolio_df.copy()
+
+    csv_data = export_df.to_csv(index=False).encode("utf-8")
+
+    st.download_button(
+        label="Download Portfolio Summary CSV",
+        data=csv_data,
+        file_name="portfolio_summary.csv",
+        mime="text/csv",
+        use_container_width=True,
+    )
+
+
 
 def render_portfolio_table(portfolio_df):
     if portfolio_df.empty:
