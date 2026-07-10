@@ -3,9 +3,64 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 import plotly.express as px
+from portfolio import calculate_target_price
+from portfolio import calculate_stop_loss
+from portfolio import calculate_risk_reward
 from services.portfolio_analytics_service import build_position_weight_dataframe
+from services.portfolio_analytics_service import build_sector_exposure_dataframe
+
+def make_arrow_safe(dataframe: pd.DataFrame) -> pd.DataFrame:
+    """Return dataframe copy that is safe for Streamlit Arrow rendering."""
+    if dataframe is None:
+        return pd.DataFrame()
+
+    safe_df = dataframe.copy()
+
+    for column in safe_df.columns:
+        if safe_df[column].dtype == "object":
+            safe_df[column] = safe_df[column].astype(str)
+
+    return safe_df
+
+
+def format_portfolio_dataframe(portfolio_df: pd.DataFrame) -> pd.DataFrame:
+    """Format portfolio dataframe for display."""
+    if portfolio_df is None or portfolio_df.empty:
+        return pd.DataFrame()
+
+    display_df = portfolio_df.copy()
+
+    currency_columns = [
+        "Buy Price",
+        "Cost Basis",
+        "Current Price",
+        "Current Value",
+        "Gain/Loss",
+    ]
+
+    percent_columns = [
+        "Gain/Loss %",
+        "Allocation %",
+        "Volatility %",
+    ]
+
+    for column in currency_columns:
+        if column in display_df.columns:
+            display_df[column] = display_df[column].map(
+                lambda value: f"${float(value):,.2f}"
+            )
+
+    for column in percent_columns:
+        if column in display_df.columns:
+            display_df[column] = display_df[column].map(
+                lambda value: f"{float(value):.2f}%"
+            )
+
+    return display_df
+
 
 def render_portfolio_dashboard(portfolio_df):
+    st.success("DEBUG: ui.portfolio_views.render_portfolio_dashboard is running")
     st.subheader("Portfolio Analytics")
 
     if portfolio_df.empty:
@@ -79,6 +134,7 @@ def render_portfolio_dashboard(portfolio_df):
     render_unrealized_gain_loss_summary(portfolio_df)
     render_portfolio_allocation_chart(portfolio_df)
     render_position_weight_summary(portfolio_df)
+    render_sector_exposure_summary(portfolio_df)
     render_risk_dashboard(portfolio_df, largest_position)
     render_portfolio_table(portfolio_df)
 
@@ -275,6 +331,61 @@ def render_position_weight_summary(portfolio_df: pd.DataFrame) -> None:
         )
     else:
         st.success("No major single-position concentration risk detected.")
+
+def render_sector_exposure_summary(portfolio_df: pd.DataFrame) -> None:
+    """Render portfolio sector exposure summary."""
+    st.subheader("Sector Exposure")
+
+    try:
+        sector_df = build_sector_exposure_dataframe(portfolio_df)
+    except ValueError as error:
+        st.info(str(error))
+        return
+
+    if sector_df.empty:
+        st.info("No sector exposure data available yet.")
+        return
+
+    fig = px.pie(
+        sector_df,
+        names="Sector",
+        values="Current Value",
+        title="Exposure by Sector",
+        hole=0.35,
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+    display_df = sector_df.copy()
+
+    display_df["Current Value"] = display_df["Current Value"].map(
+        lambda value: f"${value:,.2f}"
+    )
+
+    display_df["Exposure %"] = display_df["Exposure %"].map(
+        lambda value: f"{value:.2f}%"
+    )
+
+    st.dataframe(display_df, use_container_width=True)
+
+    largest_sector = sector_df.iloc[0]
+    largest_sector_name = str(largest_sector["Sector"])
+    largest_exposure = float(largest_sector["Exposure %"])
+
+    if largest_exposure >= 50:
+        st.warning(
+            "Sector concentration risk detected: "
+            + largest_sector_name
+            + " is more than 50% of the portfolio."
+        )
+    elif largest_exposure >= 35:
+        st.info(
+            "Sector exposure watch: "
+            + largest_sector_name
+            + " is above 35% of the portfolio."
+        )
+    else:
+        st.success("No major sector concentration risk detected.")
 
 def render_risk_dashboard(portfolio_df, largest_position=None):
     st.subheader("Portfolio Risk Dashboard")

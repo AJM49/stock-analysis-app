@@ -14,6 +14,7 @@ from config import DEFAULT_PERIOD
 from config import DEFAULT_PRIMARY_TICKER
 from config import PERIOD_OPTIONS
 from database import get_database_status
+from database import get_portfolio_positions
 from database import init_database
 from indicators import add_technical_indicators
 from market_data import calculate_price_change
@@ -22,7 +23,7 @@ from market_data import load_stock_data
 from market_data import validate_ticker
 from controllers.portfolio_controller import build_portfolio_dashboard_data
 from ui_components import render_company_profile
-from ui_components import render_portfolio_dashboard
+from ui.portfolio_views import render_portfolio_dashboard
 from ui_components import render_portfolio_sidebar
 from ui_components import render_comparison_chart
 from ui_components import render_stock_export
@@ -106,7 +107,8 @@ render_market_cache_panel()
 st.sidebar.caption(BUILD_LABEL)
 render_release_notes_panel()
 
-portfolio_positions = render_portfolio_sidebar()
+render_portfolio_sidebar()
+portfolio_positions = get_portfolio_positions()
 portfolio_df = build_portfolio_dashboard_data(portfolio_positions)
 
 render_portfolio_dashboard(portfolio_df)
