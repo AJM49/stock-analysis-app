@@ -128,3 +128,112 @@ def build_sector_exposure_dataframe(portfolio_df: pd.DataFrame) -> pd.DataFrame:
         grouped_df["Exposure %"] = 0.0
 
     return grouped_df
+
+
+def build_portfolio_risk_flags(
+    portfolio_df: pd.DataFrame,
+    sector_df: pd.DataFrame | None = None,
+) -> list[dict]:
+    """Build portfolio-level risk flags."""
+    risk_flags = []
+
+    if portfolio_df is None or portfolio_df.empty:
+        return risk_flags
+
+    if "Allocation %" in portfolio_df.columns:
+        largest_position = portfolio_df.sort_values(
+            by="Allocation %",
+            ascending=False,
+        ).iloc[0]
+
+        largest_allocation = float(largest_position["Allocation %"])
+
+        if largest_allocation >= 50:
+            risk_flags.append(
+                {
+                    "Risk": "Single-position concentration",
+                    "Level": "High",
+                    "Detail": (
+                        str(largest_position["Ticker"])
+                        + " is more than 50% of the portfolio."
+                    ),
+                }
+            )
+        elif largest_allocation >= 25:
+            risk_flags.append(
+                {
+                    "Risk": "Single-position concentration",
+                    "Level": "Medium",
+                    "Detail": (
+                        str(largest_position["Ticker"])
+                        + " is above 25% of the portfolio."
+                    ),
+                }
+            )
+
+    if "Price Status" in portfolio_df.columns:
+        missing_price_df = portfolio_df[
+            portfolio_df["Price Status"] == "Missing"
+        ]
+
+        if not missing_price_df.empty:
+            risk_flags.append(
+                {
+                    "Risk": "Missing price data",
+                    "Level": "Medium",
+                    "Detail": (
+                        str(len(missing_price_df))
+                        + " position(s) are missing current market prices."
+                    ),
+                }
+            )
+
+    if "Gain/Loss %" in portfolio_df.columns:
+        negative_df = portfolio_df[
+            portfolio_df["Gain/Loss %"] < 0
+        ]
+
+        if not negative_df.empty:
+            risk_flags.append(
+                {
+                    "Risk": "Negative unrealized return",
+                    "Level": "Info",
+                    "Detail": (
+                        str(len(negative_df))
+                        + " position(s) currently show unrealized losses."
+                    ),
+                }
+            )
+
+    if sector_df is not None and not sector_df.empty:
+        largest_sector = sector_df.sort_values(
+            by="Exposure %",
+            ascending=False,
+        ).iloc[0]
+
+        largest_sector_exposure = float(largest_sector["Exposure %"])
+
+        if largest_sector_exposure >= 50:
+            risk_flags.append(
+                {
+                    "Risk": "Sector concentration",
+                    "Level": "High",
+                    "Detail": (
+                        str(largest_sector["Sector"])
+                        + " is more than 50% of the portfolio."
+                    ),
+                }
+            )
+        elif largest_sector_exposure >= 35:
+            risk_flags.append(
+                {
+                    "Risk": "Sector concentration",
+                    "Level": "Medium",
+                    "Detail": (
+                        str(largest_sector["Sector"])
+                        + " is above 35% of the portfolio."
+                    ),
+                }
+            )
+
+    return risk_flags

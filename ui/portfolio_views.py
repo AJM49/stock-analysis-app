@@ -3,11 +3,10 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 import plotly.express as px
+from services.portfolio_analytics_service import build_portfolio_risk_flags, build_sector_exposure_dataframe, build_position_weight_dataframe
 from portfolio import calculate_target_price
 from portfolio import calculate_stop_loss
 from portfolio import calculate_risk_reward
-from services.portfolio_analytics_service import build_position_weight_dataframe
-from services.portfolio_analytics_service import build_sector_exposure_dataframe
 
 def make_arrow_safe(dataframe: pd.DataFrame) -> pd.DataFrame:
     """Return dataframe copy that is safe for Streamlit Arrow rendering."""
@@ -60,84 +59,50 @@ def format_portfolio_dataframe(portfolio_df: pd.DataFrame) -> pd.DataFrame:
 
 
 def render_portfolio_dashboard(portfolio_df):
-    st.success("DEBUG: ui.portfolio_views.render_portfolio_dashboard is running")
+    """Render the full portfolio analytics dashboard."""
     st.subheader("Portfolio Analytics")
 
-    if portfolio_df.empty:
+    if portfolio_df is None or portfolio_df.empty:
         st.info("Add a portfolio position from the sidebar.")
         return
 
-    total_cost_basis = portfolio_df["Cost Basis"].sum()
-    total_current_value = portfolio_df["Current Value"].sum()
-    total_gain_loss = portfolio_df["Gain/Loss"].sum()
+    total_cost_basis = float(portfolio_df["Cost Basis"].sum())
+    total_current_value = float(portfolio_df["Current Value"].sum())
+    total_gain_loss = float(portfolio_df["Gain/Loss"].sum())
 
     if total_cost_basis > 0:
-        total_gain_loss_pct = (
-            total_gain_loss / total_cost_basis
-        ) * 100
+        total_gain_loss_pct = (total_gain_loss / total_cost_basis) * 100
     else:
         total_gain_loss_pct = 0.0
-
-    best_position = portfolio_df.sort_values(
-        by="Gain/Loss %",
-        ascending=False
-    ).iloc[0]
-
-    worst_position = portfolio_df.sort_values(
-        by="Gain/Loss %",
-        ascending=True
-    ).iloc[0]
-
-    largest_position = portfolio_df.sort_values(
-        by="Allocation %",
-        ascending=False
-    ).iloc[0]
 
     summary_col1, summary_col2, summary_col3 = st.columns(3)
 
     summary_col1.metric(
         "Total Current Value",
-        f"${total_current_value:,.2f}"
+        f"${total_current_value:,.2f}",
     )
 
     summary_col2.metric(
         "Total Cost Basis",
-        f"${total_cost_basis:,.2f}"
+        f"${total_cost_basis:,.2f}",
     )
 
     summary_col3.metric(
         "Total Gain/Loss",
         f"${total_gain_loss:,.2f}",
-        f"{total_gain_loss_pct:.2f}%"
+        f"{total_gain_loss_pct:.2f}%",
     )
 
-    insight_col1, insight_col2, insight_col3 = st.columns(3)
-
-    insight_col1.metric(
-        "Best Performer",
-        best_position["Ticker"],
-        f"{best_position['Gain/Loss %']:.2f}%"
-    )
-
-    insight_col2.metric(
-        "Worst Performer",
-        worst_position["Ticker"],
-        f"{worst_position['Gain/Loss %']:.2f}%"
-    )
-
-    insight_col3.metric(
-        "Largest Allocation",
-        largest_position["Ticker"],
-        f"{largest_position['Allocation %']:.2f}%"
-    )
+    st.divider()
 
     render_unrealized_gain_loss_summary(portfolio_df)
     render_portfolio_allocation_chart(portfolio_df)
     render_position_weight_summary(portfolio_df)
     render_sector_exposure_summary(portfolio_df)
-    render_risk_dashboard(portfolio_df, largest_position)
+    render_portfolio_risk_flags(portfolio_df)
     render_portfolio_export(portfolio_df)
     render_portfolio_table(portfolio_df)
+
 
 def render_unrealized_gain_loss_summary(portfolio_df: pd.DataFrame) -> None:
     """Render unrealized gain/loss portfolio summary."""
@@ -557,6 +522,44 @@ def render_portfolio_allocation_chart(portfolio_df: pd.DataFrame) -> None:
     )
 
     st.dataframe(display_df, use_container_width=True)
+
+def render_portfolio_risk_flags(portfolio_df: pd.DataFrame) -> None:
+    """Render portfolio-level risk flags."""
+    st.subheader("Portfolio Risk Flags")
+
+    if portfolio_df is None or portfolio_df.empty:
+        st.info("No portfolio data available for risk flags.")
+        return
+
+    sector_df = pd.DataFrame()
+
+    try:
+        sector_df = build_sector_exposure_dataframe(portfolio_df)
+    except Exception as error:
+        st.warning(f"Sector risk check unavailable: {error}")
+
+    try:
+        risk_flags = build_portfolio_risk_flags(
+            portfolio_df=portfolio_df,
+            sector_df=sector_df,
+        )
+    except Exception as error:
+        st.warning(f"Portfolio risk flags unavailable: {error}")
+        return
+
+    if not risk_flags:
+        st.success("No major portfolio risk flags detected.")
+        return
+
+    risk_flags_df = pd.DataFrame(risk_flags)
+
+    st.dataframe(
+        make_arrow_safe(risk_flags_df),
+        use_container_width=True,
+        hide_index=True,
+    )
+
+
 
 def render_portfolio_export(portfolio_df: pd.DataFrame) -> None:
     """Render portfolio CSV export button."""
