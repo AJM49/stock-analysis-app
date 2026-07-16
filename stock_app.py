@@ -111,6 +111,10 @@ render_portfolio_sidebar()
 portfolio_positions = get_portfolio_positions()
 portfolio_df = build_portfolio_dashboard_data(portfolio_positions)
 
+st.write("LIVE DEBUG portfolio positions:", len(portfolio_positions) if portfolio_positions else 0)
+st.write("LIVE DEBUG portfolio df empty:", portfolio_df.empty)
+st.write("LIVE DEBUG portfolio df columns:", list(portfolio_df.columns))
+
 render_portfolio_dashboard(portfolio_df)
 
 st.divider()
