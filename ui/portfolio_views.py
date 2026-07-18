@@ -841,3 +841,46 @@ def render_portfolio_snapshot_export(snapshots) -> None:
         mime="text/csv",
         use_container_width=True,
     )
+
+
+def render_portfolio_snapshot_export(snapshots) -> None:
+    """Render CSV export for saved portfolio snapshot history."""
+    st.subheader("Export Portfolio Snapshot History")
+
+    if not snapshots:
+        st.info("No portfolio snapshots available to export.")
+        return
+
+    snapshot_rows = []
+
+    for snapshot in snapshots:
+        snapshot_rows.append(
+            {
+                "Snapshot Date": snapshot.snapshot_date,
+                "Total Cost Basis": snapshot.total_cost_basis,
+                "Total Current Value": snapshot.total_current_value,
+                "Total Gain/Loss": snapshot.total_gain_loss,
+                "Total Gain/Loss %": snapshot.total_gain_loss_pct,
+                "Position Count": snapshot.position_count,
+            }
+        )
+
+    snapshot_df = pd.DataFrame(snapshot_rows)
+
+    if snapshot_df.empty:
+        st.info("No portfolio snapshot rows available to export.")
+        return
+
+    snapshot_df["Snapshot Date"] = pd.to_datetime(
+        snapshot_df["Snapshot Date"]
+    ).dt.strftime("%Y-%m-%d %H:%M:%S")
+
+    csv_data = snapshot_df.to_csv(index=False).encode("utf-8")
+
+    st.download_button(
+        label="Download Portfolio Snapshot History CSV",
+        data=csv_data,
+        file_name="portfolio_snapshot_history.csv",
+        mime="text/csv",
+        use_container_width=True,
+    )
