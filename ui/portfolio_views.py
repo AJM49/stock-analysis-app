@@ -716,3 +716,44 @@ def render_portfolio_snapshot_history(snapshots) -> None:
         use_container_width=True,
         hide_index=True,
     )
+
+
+def render_portfolio_value_history_chart(snapshots) -> None:
+    """Render portfolio value history chart from saved snapshots."""
+    st.subheader("Portfolio Value History")
+
+    if not snapshots:
+        st.info("No portfolio snapshots available for charting.")
+        return
+
+    snapshot_rows = []
+
+    for snapshot in snapshots:
+        snapshot_rows.append(
+            {
+                "Snapshot Date": snapshot.snapshot_date,
+                "Total Current Value": snapshot.total_current_value,
+            }
+        )
+
+    snapshot_df = pd.DataFrame(snapshot_rows)
+
+    if snapshot_df.empty:
+        st.info("No portfolio snapshot values available for charting.")
+        return
+
+    snapshot_df["Snapshot Date"] = pd.to_datetime(
+        snapshot_df["Snapshot Date"]
+    )
+
+    snapshot_df = snapshot_df.sort_values(
+        by="Snapshot Date",
+        ascending=True,
+    )
+
+    st.line_chart(
+        data=snapshot_df,
+        x="Snapshot Date",
+        y="Total Current Value",
+        use_container_width=True,
+    )
