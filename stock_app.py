@@ -121,11 +121,42 @@ portfolio_df = build_portfolio_dashboard_data(portfolio_positions)
 render_save_portfolio_snapshot_control(portfolio_df)
 render_portfolio_dashboard(portfolio_df)
 
-portfolio_snapshots = get_portfolio_snapshots()
-render_portfolio_value_history_chart(portfolio_snapshots)
-render_portfolio_gain_loss_history_chart(portfolio_snapshots)
-render_portfolio_snapshot_export(portfolio_snapshots)
-render_portfolio_snapshot_history(portfolio_snapshots)
+snapshot_limit_label = st.sidebar.selectbox(
+    "Portfolio history records",
+    options=[
+        "25 snapshots",
+        "50 snapshots",
+        "100 snapshots",
+        "250 snapshots",
+        "All snapshots",
+    ],
+    index=2,
+    key="portfolio_snapshot_limit_select",
+)
+
+snapshot_limit_map = {
+    "25 snapshots": 25,
+    "50 snapshots": 50,
+    "100 snapshots": 100,
+    "250 snapshots": 250,
+    "All snapshots": 10000,
+}
+
+portfolio_snapshots = get_portfolio_snapshots(
+    limit=snapshot_limit_map[snapshot_limit_label]
+)
+
+st.divider()
+st.header("Portfolio Performance History")
+st.caption(
+    f"Showing {len(portfolio_snapshots) if portfolio_snapshots else 0} saved portfolio snapshot(s)."
+)
+
+with st.expander("View Portfolio Performance History", expanded=True):
+    render_portfolio_value_history_chart(portfolio_snapshots)
+    render_portfolio_gain_loss_history_chart(portfolio_snapshots)
+    render_portfolio_snapshot_export(portfolio_snapshots)
+    render_portfolio_snapshot_history(portfolio_snapshots)
 
 st.divider()
 
