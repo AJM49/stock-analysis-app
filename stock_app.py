@@ -31,6 +31,7 @@ from ui.portfolio_views import render_portfolio_value_history_chart
 from ui.portfolio_views import render_portfolio_gain_loss_history_chart
 from ui_components import render_portfolio_sidebar
 from ui.sidebar import render_save_portfolio_snapshot_control
+from ui.sidebar import render_portfolio_snapshot_cleanup_control
 from ui_components import render_comparison_chart
 from ui_components import render_stock_export
 from ui_components import render_stock_header
@@ -119,6 +120,7 @@ portfolio_df = build_portfolio_dashboard_data(portfolio_positions)
 
 
 render_save_portfolio_snapshot_control(portfolio_df)
+render_portfolio_snapshot_cleanup_control()
 render_portfolio_dashboard(portfolio_df)
 
 snapshot_limit_label = st.sidebar.selectbox(

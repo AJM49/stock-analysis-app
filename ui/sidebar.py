@@ -11,6 +11,8 @@ from database import delete_portfolio_position
 from database import update_portfolio_position
 from services.market_data_service import get_stock_data
 from database import save_portfolio_snapshot
+from database import delete_portfolio_snapshot
+from database import get_portfolio_snapshots
 
 def render_watchlist_sidebar(ticker):
     st.sidebar.divider()
@@ -339,3 +341,53 @@ def render_save_portfolio_snapshot_control(portfolio_df):
             st.rerun()
         else:
             st.sidebar.error("Portfolio snapshot was not saved.")
+
+
+def render_portfolio_snapshot_cleanup_control() -> None:
+    """Render sidebar control to delete saved portfolio snapshots."""
+    st.sidebar.divider()
+    st.sidebar.subheader("Portfolio Snapshot Cleanup")
+
+    snapshots = get_portfolio_snapshots(limit=10000)
+
+    if not snapshots:
+        st.sidebar.info("No portfolio snapshots to delete.")
+        return
+
+    snapshot_options = {
+        (
+            f"{snapshot.snapshot_date.strftime('%Y-%m-%d %H:%M')} | "
+            f"${snapshot.total_current_value:,.2f} | "
+            f"{snapshot.position_count} positions"
+        ): snapshot.id
+        for snapshot in snapshots
+    }
+
+    selected_snapshot = st.sidebar.selectbox(
+        "Select snapshot to delete",
+        options=list(snapshot_options.keys()),
+        key="delete_portfolio_snapshot_select",
+    )
+
+    confirm_delete_snapshot = st.sidebar.checkbox(
+        "Confirm snapshot delete",
+        key="confirm_delete_portfolio_snapshot",
+    )
+
+    if st.sidebar.button(
+        "Delete Selected Snapshot",
+        key="delete_portfolio_snapshot_button",
+    ):
+        if not confirm_delete_snapshot:
+            st.sidebar.warning("Check confirm snapshot delete before deleting.")
+            return
+
+        deleted = delete_portfolio_snapshot(
+            snapshot_options[selected_snapshot]
+        )
+
+        if deleted:
+            st.session_state["portfolio_snapshot_deleted"] = True
+            st.rerun()
+        else:
+            st.sidebar.error("Portfolio snapshot was not found.")

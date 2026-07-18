@@ -714,3 +714,29 @@ def get_portfolio_snapshots(limit: int = 100):
 
     finally:
         session.close()
+
+
+def delete_portfolio_snapshot(snapshot_id: int) -> bool:
+    """Delete a portfolio snapshot by database id."""
+    session = SessionLocal()
+
+    try:
+        snapshot = (
+            session.query(PortfolioSnapshot)
+            .filter(PortfolioSnapshot.id == snapshot_id)
+            .first()
+        )
+
+        if snapshot is None:
+            return False
+
+        session.delete(snapshot)
+        session.commit()
+        return True
+
+    except Exception:
+        session.rollback()
+        raise
+
+    finally:
+        session.close()
