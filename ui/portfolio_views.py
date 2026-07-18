@@ -100,6 +100,8 @@ def render_portfolio_dashboard(portfolio_df):
         f"{total_gain_loss_pct:.2f}%",
     )
 
+    render_portfolio_risk_alert_banner(portfolio_df)
+
     st.divider()
 
     with st.expander("Portfolio Overview", expanded=True):
@@ -1214,3 +1216,135 @@ def render_portfolio_help_text(section_name: str) -> None:
 
     if message:
         st.caption(message)
+
+
+def render_portfolio_risk_alert_banner(portfolio_df: pd.DataFrame) -> None:
+    """Render a top-level portfolio risk alert banner."""
+    if portfolio_df is None or portfolio_df.empty:
+        return
+
+    alerts = []
+
+    if "Allocation %" in portfolio_df.columns and "Ticker" in portfolio_df.columns:
+        largest_position = portfolio_df.sort_values(
+            by="Allocation %",
+            ascending=False,
+        ).iloc[0]
+
+        largest_ticker = str(largest_position["Ticker"])
+        largest_allocation = float(largest_position["Allocation %"])
+
+        if largest_allocation >= 50:
+            alerts.append(
+                {
+                    "level": "high",
+                    "message": (
+                        f"High position concentration: {largest_ticker} is "
+                        f"{largest_allocation:.2f}% of the portfolio."
+                    ),
+                }
+            )
+        elif largest_allocation >= 25:
+            alerts.append(
+                {
+                    "level": "medium",
+                    "message": (
+                        f"Medium position concentration: {largest_ticker} is "
+                        f"{largest_allocation:.2f}% of the portfolio."
+                    ),
+                }
+            )
+
+    try:
+        sector_df = build_sector_exposure_dataframe(portfolio_df)
+    except Exception:
+        sector_df = pd.DataFrame()
+
+    if sector_df is not None and not sector_df.empty:
+        if "Sector" in sector_df.columns and "Exposure %" in sector_df.columns:
+            largest_sector = sector_df.sort_values(
+                by="Exposure %",
+                ascending=False,
+            ).iloc[0]
+
+            sector = str(largest_sector["Sector"])
+            exposure_pct = float(largest_sector["Exposure %"])
+
+            if exposure_pct >= 50:
+                alerts.append(
+                    {
+                        "level": "high",
+                        "message": (
+                            f"High sector concentration: {sector} is "
+                            f"{exposure_pct:.2f}% of the portfolio."
+                        ),
+                    }
+                )
+            elif exposure_pct >= 35:
+                alerts.append(
+                    {
+                        "level": "medium",
+                        "message": (
+                            f"Medium sector concentration: {sector} is "
+                            f"{exposure_pct:.2f}% of the portfolio."
+                        ),
+                    }
+                )
+
+    if "Price Status" in portfolio_df.columns:
+        missing_price_count = int(
+            (portfolio_df["Price Status"] == "Missing").sum()
+        )
+
+        if missing_price_count > 0:
+            alerts.append(
+                {
+                    "level": "medium",
+                    "message": (
+                        f"{missing_price_count} portfolio position(s) have "
+                        "missing price data."
+                    ),
+                }
+            )
+
+    if "Gain/Loss" in portfolio_df.columns:
+        total_gain_loss = float(portfolio_df["Gain/Loss"].sum())
+
+        if total_gain_loss < 0:
+            alerts.append(
+                {
+                    "level": "medium",
+                    "message": (
+                        f"Portfolio is currently negative by "
+                        f"${total_gain_loss:,.2f}."
+                    ),
+                }
+            )
+
+    if not alerts:
+        st.success("Portfolio risk alert: no major risk triggers detected.")
+        return
+
+    high_alerts = [
+        alert["message"]
+        for alert in alerts
+        if alert["level"] == "high"
+    ]
+
+    medium_alerts = [
+        alert["message"]
+        for alert in alerts
+        if alert["level"] == "medium"
+    ]
+
+    if high_alerts:
+        st.error("Portfolio risk alert: " + high_alerts[0])
+    elif medium_alerts:
+        st.warning("Portfolio risk alert: " + medium_alerts[0])
+
+    with st.expander("View all portfolio risk alerts", expanded=False):
+        for alert in alerts:
+            if alert["level"] == "high":
+                st.error(alert["message"])
+            else:
+                st.warning(alert["message"])
