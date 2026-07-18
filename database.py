@@ -554,3 +554,71 @@ def get_market_data_freshness_for_ticker(ticker):
         session.close()
 
 
+
+
+def update_portfolio_position(position_id: int, ticker, shares, buy_price) -> bool:
+    """Update a portfolio position by database id."""
+    session = SessionLocal()
+
+    try:
+        position = (
+            session.query(PortfolioPosition)
+            .filter(PortfolioPosition.id == position_id)
+            .first()
+        )
+
+        if position is None:
+            return False
+
+        clean_ticker = str(ticker).strip().upper()
+
+        if not clean_ticker:
+            return False
+
+        position.ticker = clean_ticker
+        position.shares = float(shares)
+        position.buy_price = float(buy_price)
+
+        session.commit()
+        return True
+
+    except Exception:
+        session.rollback()
+        raise
+
+    finally:
+        session.close()
+
+
+def update_portfolio_position(position_id: int, ticker, shares, buy_price) -> bool:
+    """Update a portfolio position by database id."""
+    session = SessionLocal()
+
+    try:
+        position = (
+            session.query(PortfolioPosition)
+            .filter(PortfolioPosition.id == position_id)
+            .first()
+        )
+
+        if position is None:
+            return False
+
+        clean_ticker = str(ticker).strip().upper()
+
+        if not clean_ticker:
+            return False
+
+        position.ticker = clean_ticker
+        position.shares = float(shares)
+        position.buy_price = float(buy_price)
+
+        session.commit()
+        return True
+
+    except Exception:
+        session.rollback()
+        raise
+
+    finally:
+        session.close()

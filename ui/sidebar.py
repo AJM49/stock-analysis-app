@@ -8,6 +8,7 @@ from database import get_portfolio_positions
 from database import get_watchlist
 from market_data import validate_ticker
 from database import delete_portfolio_position
+from database import update_portfolio_position
 
 def render_watchlist_sidebar(ticker):
     st.sidebar.divider()
@@ -137,6 +138,71 @@ def render_portfolio_sidebar():
 
 
     st.sidebar.divider()
+
+    st.sidebar.divider()
+    st.sidebar.subheader("Edit Portfolio Position")
+
+    editable_positions = get_portfolio_positions()
+
+    if not editable_positions:
+        st.sidebar.info("No saved portfolio positions to edit.")
+    else:
+        edit_options = {
+            (
+                f"{position.ticker} | "
+                f"{position.shares} shares | "
+                f"${position.buy_price:,.2f}"
+            ): position
+            for position in editable_positions
+        }
+
+        selected_edit_position_label = st.sidebar.selectbox(
+            "Select position to edit",
+            options=list(edit_options.keys()),
+            key="edit_portfolio_position_select",
+        )
+
+        selected_edit_position = edit_options[selected_edit_position_label]
+
+        edited_ticker = st.sidebar.text_input(
+            "Edit ticker",
+            value=selected_edit_position.ticker,
+            key="edit_portfolio_ticker",
+        )
+
+        edited_shares = st.sidebar.number_input(
+            "Edit shares",
+            min_value=0.0,
+            value=float(selected_edit_position.shares),
+            step=1.0,
+            key="edit_portfolio_shares",
+        )
+
+        edited_buy_price = st.sidebar.number_input(
+            "Edit buy price",
+            min_value=0.0,
+            value=float(selected_edit_position.buy_price),
+            step=1.0,
+            key="edit_portfolio_buy_price",
+        )
+
+        if st.sidebar.button(
+            "Update Selected Position",
+            key="update_portfolio_position_button",
+        ):
+            updated = update_portfolio_position(
+                position_id=selected_edit_position.id,
+                ticker=edited_ticker,
+                shares=edited_shares,
+                buy_price=edited_buy_price,
+            )
+
+            if updated:
+                st.sidebar.success("Portfolio position updated.")
+                st.rerun()
+            else:
+                st.sidebar.error("Portfolio position was not updated.")
+
     st.sidebar.subheader("Delete Portfolio Position")
 
     saved_positions = get_portfolio_positions()
