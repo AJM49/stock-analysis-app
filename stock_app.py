@@ -25,6 +25,7 @@ from controllers.portfolio_controller import build_portfolio_dashboard_data
 from ui_components import render_company_profile
 from ui.portfolio_views import render_portfolio_dashboard
 from ui_components import render_portfolio_sidebar
+from ui.sidebar import render_save_portfolio_snapshot_control
 from ui_components import render_comparison_chart
 from ui_components import render_stock_export
 from ui_components import render_stock_header
@@ -112,6 +113,7 @@ portfolio_positions = get_portfolio_positions()
 portfolio_df = build_portfolio_dashboard_data(portfolio_positions)
 
 
+render_save_portfolio_snapshot_control(portfolio_df)
 render_portfolio_dashboard(portfolio_df)
 
 st.divider()

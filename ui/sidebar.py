@@ -10,6 +10,7 @@ from market_data import validate_ticker
 from database import delete_portfolio_position
 from database import update_portfolio_position
 from services.market_data_service import get_stock_data
+from database import save_portfolio_snapshot
 
 def render_watchlist_sidebar(ticker):
     st.sidebar.divider()
@@ -299,3 +300,41 @@ def render_portfolio_sidebar():
                 else:
                     st.sidebar.error("Portfolio position was not found.")
 
+
+
+def render_save_portfolio_snapshot_control(portfolio_df):
+    """Render sidebar control to save current portfolio snapshot."""
+    st.sidebar.divider()
+    st.sidebar.subheader("Portfolio Snapshot")
+
+    if portfolio_df is None or portfolio_df.empty:
+        st.sidebar.info("No portfolio data available to snapshot.")
+        return
+
+    if st.sidebar.button(
+        "Save Portfolio Snapshot",
+        key="save_portfolio_snapshot_button",
+    ):
+        total_cost_basis = float(portfolio_df["Cost Basis"].sum())
+        total_current_value = float(portfolio_df["Current Value"].sum())
+        total_gain_loss = float(portfolio_df["Gain/Loss"].sum())
+
+        if total_cost_basis > 0:
+            total_gain_loss_pct = (
+                total_gain_loss / total_cost_basis
+            ) * 100
+        else:
+            total_gain_loss_pct = 0.0
+
+        saved = save_portfolio_snapshot(
+            total_cost_basis=total_cost_basis,
+            total_current_value=total_current_value,
+            total_gain_loss=total_gain_loss,
+            total_gain_loss_pct=total_gain_loss_pct,
+            position_count=len(portfolio_df),
+        )
+
+        if saved:
+            st.sidebar.success("Portfolio snapshot saved.")
+        else:
+            st.sidebar.error("Portfolio snapshot was not saved.")
