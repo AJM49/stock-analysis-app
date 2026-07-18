@@ -95,6 +95,7 @@ def render_portfolio_dashboard(portfolio_df):
 
     st.divider()
 
+    render_missing_price_warning(portfolio_df)
     render_unrealized_gain_loss_summary(portfolio_df)
     render_portfolio_allocation_chart(portfolio_df)
     render_position_weight_summary(portfolio_df)
@@ -102,6 +103,33 @@ def render_portfolio_dashboard(portfolio_df):
     render_portfolio_risk_flags(portfolio_df)
     render_portfolio_export(portfolio_df)
     render_portfolio_table(portfolio_df)
+
+
+def render_missing_price_warning(portfolio_df: pd.DataFrame) -> None:
+    """Warn when portfolio positions are missing current price data."""
+    if portfolio_df is None or portfolio_df.empty:
+        return
+
+    if "Price Status" not in portfolio_df.columns:
+        return
+
+    missing_price_df = portfolio_df[
+        portfolio_df["Price Status"] == "Missing"
+    ]
+
+    if missing_price_df.empty:
+        return
+
+    missing_tickers = ", ".join(
+        missing_price_df["Ticker"].astype(str).tolist()
+    )
+
+    st.warning(
+        "Missing current price data for: "
+        + missing_tickers
+        + ". These positions may show $0 current value until price data is refreshed."
+    )
+
 
 
 def render_unrealized_gain_loss_summary(portfolio_df: pd.DataFrame) -> None:

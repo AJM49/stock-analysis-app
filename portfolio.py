@@ -45,6 +45,11 @@ def build_portfolio_dataframe(portfolio_positions):
 
         current_price = get_latest_price_for_ticker(ticker)
 
+        if current_price > 0:
+            price_status = "Available"
+        else:
+            price_status = "Missing"
+
         cost_basis = shares * buy_price
         current_value = shares * current_price
         gain_loss = current_value - cost_basis
@@ -61,6 +66,7 @@ def build_portfolio_dataframe(portfolio_positions):
                 "Buy Price": buy_price,
                 "Cost Basis": cost_basis,
                 "Current Price": current_price,
+                "Price Status": price_status,
                 "Current Value": current_value,
                 "Gain/Loss": gain_loss,
                 "Gain/Loss %": gain_loss_pct,
