@@ -95,17 +95,26 @@ def render_portfolio_dashboard(portfolio_df):
 
     st.divider()
 
-    render_best_worst_performer_summary(portfolio_df)
-    render_portfolio_concentration_score(portfolio_df)
-    render_sector_concentration_warning(portfolio_df)
-    render_missing_price_warning(portfolio_df)
-    render_unrealized_gain_loss_summary(portfolio_df)
-    render_portfolio_allocation_chart(portfolio_df)
-    render_position_weight_summary(portfolio_df)
-    render_sector_exposure_summary(portfolio_df)
-    render_portfolio_risk_flags(portfolio_df)
-    render_portfolio_export(portfolio_df)
-    render_portfolio_table(portfolio_df)
+    with st.expander("Portfolio Overview", expanded=True):
+        render_best_worst_performer_summary(portfolio_df)
+        render_unrealized_gain_loss_summary(portfolio_df)
+
+    with st.expander("Risk Intelligence", expanded=True):
+        render_portfolio_concentration_score(portfolio_df)
+        render_sector_concentration_warning(portfolio_df)
+        render_missing_price_warning(portfolio_df)
+        render_portfolio_risk_flags(portfolio_df)
+
+    with st.expander("Allocation and Exposure", expanded=True):
+        render_portfolio_allocation_chart(portfolio_df)
+        render_position_weight_summary(portfolio_df)
+        render_sector_exposure_summary(portfolio_df)
+
+    with st.expander("Portfolio Export", expanded=False):
+        render_portfolio_export(portfolio_df)
+
+    with st.expander("Portfolio Table", expanded=False):
+        render_portfolio_table(portfolio_df)
 
 
 def render_missing_price_warning(portfolio_df: pd.DataFrame) -> None:
