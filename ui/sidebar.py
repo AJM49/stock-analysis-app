@@ -105,7 +105,7 @@ def render_portfolio_sidebar():
                     st.sidebar.success(message)
                     st.rerun()
                 else:
-                    st.sidebar.warning(message)
+                    st.sidebar.error(message)
 
     portfolio_positions = get_portfolio_positions()
 

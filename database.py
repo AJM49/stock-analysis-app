@@ -259,6 +259,24 @@ def get_portfolio_positions():
     finally:
         session.close()
 
+
+def is_valid_ticker_value(ticker) -> bool:
+    """Return True when ticker input is structurally valid."""
+    if ticker is None:
+        return False
+
+    clean_ticker = str(ticker).strip().upper()
+
+    if not clean_ticker:
+        return False
+
+    if len(clean_ticker) > 10:
+        return False
+
+    allowed_characters = set("ABCDEFGHIJKLMNOPQRSTUVWXYZ.-")
+
+    return all(character in allowed_characters for character in clean_ticker)
+
 def add_portfolio_position(ticker, shares, buy_price):
     clean_ticker = ticker.upper().strip()
 
@@ -572,7 +590,13 @@ def update_portfolio_position(position_id: int, ticker, shares, buy_price) -> bo
 
         clean_ticker = str(ticker).strip().upper()
 
-        if not clean_ticker:
+        if not is_valid_ticker_value(clean_ticker):
+            return False
+
+        if float(shares) <= 0:
+            return False
+
+        if float(buy_price) <= 0:
             return False
 
         position.ticker = clean_ticker
@@ -606,7 +630,13 @@ def update_portfolio_position(position_id: int, ticker, shares, buy_price) -> bo
 
         clean_ticker = str(ticker).strip().upper()
 
-        if not clean_ticker:
+        if not is_valid_ticker_value(clean_ticker):
+            return False
+
+        if float(shares) <= 0:
+            return False
+
+        if float(buy_price) <= 0:
             return False
 
         position.ticker = clean_ticker
