@@ -28,6 +28,7 @@ from ui.portfolio_views import render_portfolio_dashboard
 from ui.portfolio_views import render_portfolio_snapshot_history
 from ui.portfolio_views import render_portfolio_snapshot_export
 from ui.portfolio_views import render_portfolio_value_history_chart
+from ui.portfolio_views import render_portfolio_performance_summary_cards
 from ui.portfolio_views import render_portfolio_gain_loss_history_chart
 from ui_components import render_portfolio_sidebar
 from ui.sidebar import render_save_portfolio_snapshot_control
@@ -155,6 +156,7 @@ st.caption(
 )
 
 with st.expander("View Portfolio Performance History", expanded=True):
+    render_portfolio_performance_summary_cards(portfolio_snapshots)
     render_portfolio_value_history_chart(portfolio_snapshots)
     render_portfolio_gain_loss_history_chart(portfolio_snapshots)
     render_portfolio_snapshot_export(portfolio_snapshots)

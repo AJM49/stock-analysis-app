@@ -1090,3 +1090,69 @@ def render_sector_concentration_warning(portfolio_df: pd.DataFrame) -> None:
             f"No major sector concentration detected. Largest sector: "
             f"{sector} at {exposure_pct:.2f}%."
         )
+
+
+def render_portfolio_performance_summary_cards(snapshots) -> None:
+    """Render summary cards for portfolio snapshot history."""
+    st.subheader("Portfolio Performance Summary")
+
+    if not snapshots:
+        st.info("No portfolio snapshots available for performance summary.")
+        return
+
+    snapshot_rows = []
+
+    for snapshot in snapshots:
+        snapshot_rows.append(
+            {
+                "Snapshot Date": snapshot.snapshot_date,
+                "Total Current Value": snapshot.total_current_value,
+                "Total Gain/Loss": snapshot.total_gain_loss,
+                "Total Gain/Loss %": snapshot.total_gain_loss_pct,
+                "Position Count": snapshot.position_count,
+            }
+        )
+
+    snapshot_df = pd.DataFrame(snapshot_rows)
+
+    if snapshot_df.empty:
+        st.info("No portfolio snapshot rows available.")
+        return
+
+    snapshot_df["Snapshot Date"] = pd.to_datetime(
+        snapshot_df["Snapshot Date"]
+    )
+
+    snapshot_df = snapshot_df.sort_values(
+        by="Snapshot Date",
+        ascending=True,
+    )
+
+    latest_snapshot = snapshot_df.iloc[-1]
+    best_value_snapshot = snapshot_df.sort_values(
+        by="Total Current Value",
+        ascending=False,
+    ).iloc[0]
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    col1.metric(
+        "Latest Snapshot Value",
+        f"${float(latest_snapshot['Total Current Value']):,.2f}",
+    )
+
+    col2.metric(
+        "Latest Gain/Loss",
+        f"${float(latest_snapshot['Total Gain/Loss']):,.2f}",
+        f"{float(latest_snapshot['Total Gain/Loss %']):.2f}%",
+    )
+
+    col3.metric(
+        "Snapshot Count",
+        f"{len(snapshot_df)}",
+    )
+
+    col4.metric(
+        "Best Saved Value",
+        f"${float(best_value_snapshot['Total Current Value']):,.2f}",
+    )
