@@ -116,6 +116,7 @@ st.sidebar.caption(BUILD_LABEL)
 render_release_notes_panel()
 
 render_portfolio_sidebar()
+st.sidebar.success("Sprint 62: Portfolio UX and Release Hardening")
 portfolio_positions = get_portfolio_positions()
 portfolio_df = build_portfolio_dashboard_data(portfolio_positions)
 
