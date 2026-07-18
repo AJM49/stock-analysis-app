@@ -97,6 +97,7 @@ def render_portfolio_dashboard(portfolio_df):
 
     render_best_worst_performer_summary(portfolio_df)
     render_portfolio_concentration_score(portfolio_df)
+    render_sector_concentration_warning(portfolio_df)
     render_missing_price_warning(portfolio_df)
     render_unrealized_gain_loss_summary(portfolio_df)
     render_portfolio_allocation_chart(portfolio_df)
@@ -1029,3 +1030,63 @@ def render_portfolio_concentration_score(portfolio_df: pd.DataFrame) -> None:
     )
 
     st.caption(concentration_note)
+
+
+def render_sector_concentration_warning(portfolio_df: pd.DataFrame) -> None:
+    """Render warning when portfolio sector exposure is concentrated."""
+    st.subheader("Sector Concentration Warning")
+
+    if portfolio_df is None or portfolio_df.empty:
+        st.info("No portfolio data available for sector concentration check.")
+        return
+
+    try:
+        sector_df = build_sector_exposure_dataframe(portfolio_df)
+    except Exception as error:
+        st.warning(f"Sector concentration check unavailable: {error}")
+        return
+
+    if sector_df is None or sector_df.empty:
+        st.info("No sector exposure data available.")
+        return
+
+    required_columns = [
+        "Sector",
+        "Exposure %",
+    ]
+
+    missing_columns = [
+        column for column in required_columns
+        if column not in sector_df.columns
+    ]
+
+    if missing_columns:
+        st.warning(
+            "Sector concentration warning unavailable. Missing columns: "
+            + ", ".join(missing_columns)
+        )
+        return
+
+    largest_sector = sector_df.sort_values(
+        by="Exposure %",
+        ascending=False,
+    ).iloc[0]
+
+    sector = str(largest_sector["Sector"])
+    exposure_pct = float(largest_sector["Exposure %"])
+
+    if exposure_pct >= 50:
+        st.error(
+            f"High sector concentration: {sector} is {exposure_pct:.2f}% "
+            "of the portfolio."
+        )
+    elif exposure_pct >= 35:
+        st.warning(
+            f"Medium sector concentration: {sector} is {exposure_pct:.2f}% "
+            "of the portfolio."
+        )
+    else:
+        st.success(
+            f"No major sector concentration detected. Largest sector: "
+            f"{sector} at {exposure_pct:.2f}%."
+        )
