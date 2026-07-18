@@ -133,6 +133,21 @@ class PortfolioPosition(Base):
 
 
 
+
+class PortfolioSnapshot(Base):
+    """Historical portfolio value snapshot."""
+
+    __tablename__ = "portfolio_snapshots"
+
+    id = Column(Integer, primary_key=True, index=True)
+    snapshot_date = Column(DateTime, default=datetime.utcnow, index=True)
+    total_cost_basis = Column(Float, nullable=False, default=0.0)
+    total_current_value = Column(Float, nullable=False, default=0.0)
+    total_gain_loss = Column(Float, nullable=False, default=0.0)
+    total_gain_loss_pct = Column(Float, nullable=False, default=0.0)
+    position_count = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
 class MarketDataCache(Base):
     __tablename__ = "market_data_cache"
 
@@ -649,6 +664,53 @@ def update_portfolio_position(position_id: int, ticker, shares, buy_price) -> bo
     except Exception:
         session.rollback()
         raise
+
+    finally:
+        session.close()
+
+
+def save_portfolio_snapshot(
+    total_cost_basis: float,
+    total_current_value: float,
+    total_gain_loss: float,
+    total_gain_loss_pct: float,
+    position_count: int,
+) -> bool:
+    """Save a portfolio performance snapshot."""
+    session = SessionLocal()
+
+    try:
+        snapshot = PortfolioSnapshot(
+            total_cost_basis=float(total_cost_basis),
+            total_current_value=float(total_current_value),
+            total_gain_loss=float(total_gain_loss),
+            total_gain_loss_pct=float(total_gain_loss_pct),
+            position_count=int(position_count),
+        )
+
+        session.add(snapshot)
+        session.commit()
+        return True
+
+    except Exception:
+        session.rollback()
+        raise
+
+    finally:
+        session.close()
+
+
+def get_portfolio_snapshots(limit: int = 100):
+    """Return recent portfolio snapshots."""
+    session = SessionLocal()
+
+    try:
+        return (
+            session.query(PortfolioSnapshot)
+            .order_by(PortfolioSnapshot.snapshot_date.desc())
+            .limit(limit)
+            .all()
+        )
 
     finally:
         session.close()
