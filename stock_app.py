@@ -26,6 +26,7 @@ from controllers.portfolio_controller import build_portfolio_dashboard_data
 from ui_components import render_company_profile
 from ui.portfolio_views import render_portfolio_dashboard
 from ui.portfolio_views import render_portfolio_snapshot_history
+from ui.portfolio_views import render_portfolio_snapshot_export
 from ui.portfolio_views import render_portfolio_value_history_chart
 from ui.portfolio_views import render_portfolio_gain_loss_history_chart
 from ui_components import render_portfolio_sidebar
@@ -123,6 +124,7 @@ render_portfolio_dashboard(portfolio_df)
 portfolio_snapshots = get_portfolio_snapshots()
 render_portfolio_value_history_chart(portfolio_snapshots)
 render_portfolio_gain_loss_history_chart(portfolio_snapshots)
+render_portfolio_snapshot_export(portfolio_snapshots)
 render_portfolio_snapshot_history(portfolio_snapshots)
 
 st.divider()
