@@ -96,6 +96,7 @@ def render_portfolio_dashboard(portfolio_df):
     st.divider()
 
     render_best_worst_performer_summary(portfolio_df)
+    render_portfolio_concentration_score(portfolio_df)
     render_missing_price_warning(portfolio_df)
     render_unrealized_gain_loss_summary(portfolio_df)
     render_portfolio_allocation_chart(portfolio_df)
@@ -959,3 +960,72 @@ def render_best_worst_performer_summary(portfolio_df: pd.DataFrame) -> None:
         str(largest_loss["Ticker"]),
         f"${float(largest_loss['Gain/Loss']):,.2f}",
     )
+
+
+def render_portfolio_concentration_score(portfolio_df: pd.DataFrame) -> None:
+    """Render portfolio concentration score based on largest allocation."""
+    st.subheader("Portfolio Concentration Score")
+
+    if portfolio_df is None or portfolio_df.empty:
+        st.info("No portfolio data available for concentration score.")
+        return
+
+    required_columns = [
+        "Ticker",
+        "Allocation %",
+    ]
+
+    missing_columns = [
+        column for column in required_columns
+        if column not in portfolio_df.columns
+    ]
+
+    if missing_columns:
+        st.warning(
+            "Concentration score unavailable. Missing columns: "
+            + ", ".join(missing_columns)
+        )
+        return
+
+    largest_position = portfolio_df.sort_values(
+        by="Allocation %",
+        ascending=False,
+    ).iloc[0]
+
+    ticker = str(largest_position["Ticker"])
+    allocation_pct = float(largest_position["Allocation %"])
+
+    if allocation_pct >= 50:
+        concentration_level = "High"
+        concentration_note = (
+            "The portfolio is highly concentrated in one position."
+        )
+    elif allocation_pct >= 25:
+        concentration_level = "Medium"
+        concentration_note = (
+            "The portfolio has meaningful single-position concentration."
+        )
+    else:
+        concentration_level = "Low"
+        concentration_note = (
+            "The portfolio is reasonably diversified by position weight."
+        )
+
+    col1, col2, col3 = st.columns(3)
+
+    col1.metric(
+        "Concentration Level",
+        concentration_level,
+    )
+
+    col2.metric(
+        "Largest Position",
+        ticker,
+    )
+
+    col3.metric(
+        "Largest Allocation",
+        f"{allocation_pct:.2f}%",
+    )
+
+    st.caption(concentration_note)
