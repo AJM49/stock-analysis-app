@@ -95,6 +95,7 @@ def render_portfolio_dashboard(portfolio_df):
 
     st.divider()
 
+    render_best_worst_performer_summary(portfolio_df)
     render_missing_price_warning(portfolio_df)
     render_unrealized_gain_loss_summary(portfolio_df)
     render_portfolio_allocation_chart(portfolio_df)
@@ -883,4 +884,78 @@ def render_portfolio_snapshot_export(snapshots) -> None:
         file_name="portfolio_snapshot_history.csv",
         mime="text/csv",
         use_container_width=True,
+    )
+
+
+def render_best_worst_performer_summary(portfolio_df: pd.DataFrame) -> None:
+    """Render best and worst portfolio performer summary cards."""
+    st.subheader("Best/Worst Performer Summary")
+
+    if portfolio_df is None or portfolio_df.empty:
+        st.info("No portfolio data available for performer summary.")
+        return
+
+    required_columns = [
+        "Ticker",
+        "Gain/Loss",
+        "Gain/Loss %",
+        "Current Value",
+    ]
+
+    missing_columns = [
+        column for column in required_columns
+        if column not in portfolio_df.columns
+    ]
+
+    if missing_columns:
+        st.warning(
+            "Performer summary unavailable. Missing columns: "
+            + ", ".join(missing_columns)
+        )
+        return
+
+    best_pct = portfolio_df.sort_values(
+        by="Gain/Loss %",
+        ascending=False,
+    ).iloc[0]
+
+    worst_pct = portfolio_df.sort_values(
+        by="Gain/Loss %",
+        ascending=True,
+    ).iloc[0]
+
+    largest_gain = portfolio_df.sort_values(
+        by="Gain/Loss",
+        ascending=False,
+    ).iloc[0]
+
+    largest_loss = portfolio_df.sort_values(
+        by="Gain/Loss",
+        ascending=True,
+    ).iloc[0]
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    col1.metric(
+        "Best Performer",
+        str(best_pct["Ticker"]),
+        f"{float(best_pct['Gain/Loss %']):.2f}%",
+    )
+
+    col2.metric(
+        "Worst Performer",
+        str(worst_pct["Ticker"]),
+        f"{float(worst_pct['Gain/Loss %']):.2f}%",
+    )
+
+    col3.metric(
+        "Largest Gain",
+        str(largest_gain["Ticker"]),
+        f"${float(largest_gain['Gain/Loss']):,.2f}",
+    )
+
+    col4.metric(
+        "Largest Loss",
+        str(largest_loss["Ticker"]),
+        f"${float(largest_loss['Gain/Loss']):,.2f}",
     )
