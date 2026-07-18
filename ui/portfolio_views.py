@@ -757,3 +757,44 @@ def render_portfolio_value_history_chart(snapshots) -> None:
         y="Total Current Value",
         use_container_width=True,
     )
+
+
+def render_portfolio_gain_loss_history_chart(snapshots) -> None:
+    """Render portfolio gain/loss history chart from saved snapshots."""
+    st.subheader("Portfolio Gain/Loss History")
+
+    if not snapshots:
+        st.info("No portfolio snapshots available for gain/loss charting.")
+        return
+
+    snapshot_rows = []
+
+    for snapshot in snapshots:
+        snapshot_rows.append(
+            {
+                "Snapshot Date": snapshot.snapshot_date,
+                "Total Gain/Loss": snapshot.total_gain_loss,
+            }
+        )
+
+    snapshot_df = pd.DataFrame(snapshot_rows)
+
+    if snapshot_df.empty:
+        st.info("No portfolio gain/loss values available for charting.")
+        return
+
+    snapshot_df["Snapshot Date"] = pd.to_datetime(
+        snapshot_df["Snapshot Date"]
+    )
+
+    snapshot_df = snapshot_df.sort_values(
+        by="Snapshot Date",
+        ascending=True,
+    )
+
+    st.line_chart(
+        data=snapshot_df,
+        x="Snapshot Date",
+        y="Total Gain/Loss",
+        use_container_width=True,
+    )

@@ -27,6 +27,7 @@ from ui_components import render_company_profile
 from ui.portfolio_views import render_portfolio_dashboard
 from ui.portfolio_views import render_portfolio_snapshot_history
 from ui.portfolio_views import render_portfolio_value_history_chart
+from ui.portfolio_views import render_portfolio_gain_loss_history_chart
 from ui_components import render_portfolio_sidebar
 from ui.sidebar import render_save_portfolio_snapshot_control
 from ui_components import render_comparison_chart
@@ -121,6 +122,7 @@ render_portfolio_dashboard(portfolio_df)
 
 portfolio_snapshots = get_portfolio_snapshots()
 render_portfolio_value_history_chart(portfolio_snapshots)
+render_portfolio_gain_loss_history_chart(portfolio_snapshots)
 render_portfolio_snapshot_history(portfolio_snapshots)
 
 st.divider()
