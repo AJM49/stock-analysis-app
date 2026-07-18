@@ -96,24 +96,29 @@ def render_portfolio_dashboard(portfolio_df):
     st.divider()
 
     with st.expander("Portfolio Overview", expanded=True):
+        render_portfolio_help_text("Portfolio Overview")
         render_best_worst_performer_summary(portfolio_df)
         render_unrealized_gain_loss_summary(portfolio_df)
 
     with st.expander("Risk Intelligence", expanded=True):
+        render_portfolio_help_text("Risk Intelligence")
         render_portfolio_concentration_score(portfolio_df)
         render_sector_concentration_warning(portfolio_df)
         render_missing_price_warning(portfolio_df)
         render_portfolio_risk_flags(portfolio_df)
 
     with st.expander("Allocation and Exposure", expanded=True):
+        render_portfolio_help_text("Allocation and Exposure")
         render_portfolio_allocation_chart(portfolio_df)
         render_position_weight_summary(portfolio_df)
         render_sector_exposure_summary(portfolio_df)
 
     with st.expander("Portfolio Export", expanded=False):
+        render_portfolio_help_text("Portfolio Export")
         render_portfolio_export(portfolio_df)
 
     with st.expander("Portfolio Table", expanded=False):
+        render_portfolio_help_text("Portfolio Table")
         render_portfolio_table(portfolio_df)
 
 
@@ -1165,3 +1170,33 @@ def render_portfolio_performance_summary_cards(snapshots) -> None:
         "Best Saved Value",
         f"${float(best_value_snapshot['Total Current Value']):,.2f}",
     )
+
+
+def render_portfolio_help_text(section_name: str) -> None:
+    """Render short help text for portfolio dashboard sections."""
+    help_text = {
+        "Portfolio Overview": (
+            "Shows the strongest and weakest positions plus total unrealized "
+            "gain or loss."
+        ),
+        "Risk Intelligence": (
+            "Highlights concentration, missing price data, negative return "
+            "risk, and sector exposure risk."
+        ),
+        "Allocation and Exposure": (
+            "Shows how portfolio value is distributed across positions and "
+            "sectors."
+        ),
+        "Portfolio Export": (
+            "Download the current portfolio analytics view as a CSV file."
+        ),
+        "Portfolio Table": (
+            "Review the full position-level portfolio data used by the "
+            "dashboard."
+        ),
+    }
+
+    message = help_text.get(section_name)
+
+    if message:
+        st.caption(message)
