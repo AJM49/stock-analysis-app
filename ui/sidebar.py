@@ -335,6 +335,7 @@ def render_save_portfolio_snapshot_control(portfolio_df):
         )
 
         if saved:
-            st.sidebar.success("Portfolio snapshot saved.")
+            st.session_state["portfolio_snapshot_saved"] = True
+            st.rerun()
         else:
             st.sidebar.error("Portfolio snapshot was not saved.")
