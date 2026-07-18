@@ -663,3 +663,56 @@ def render_portfolio_table(portfolio_df):
         key="download_portfolio_csv"
     )
 
+
+
+def render_portfolio_snapshot_history(snapshots) -> None:
+    """Render saved portfolio snapshot history."""
+    st.subheader("Portfolio Snapshot History")
+
+    if not snapshots:
+        st.info("No portfolio snapshots saved yet.")
+        return
+
+    snapshot_rows = []
+
+    for snapshot in snapshots:
+        snapshot_rows.append(
+            {
+                "Snapshot Date": snapshot.snapshot_date,
+                "Total Cost Basis": snapshot.total_cost_basis,
+                "Total Current Value": snapshot.total_current_value,
+                "Total Gain/Loss": snapshot.total_gain_loss,
+                "Total Gain/Loss %": snapshot.total_gain_loss_pct,
+                "Position Count": snapshot.position_count,
+            }
+        )
+
+    snapshot_df = pd.DataFrame(snapshot_rows)
+
+    if not snapshot_df.empty:
+        snapshot_df["Snapshot Date"] = pd.to_datetime(
+            snapshot_df["Snapshot Date"]
+        ).dt.strftime("%Y-%m-%d %H:%M")
+
+        currency_columns = [
+            "Total Cost Basis",
+            "Total Current Value",
+            "Total Gain/Loss",
+        ]
+
+        for column in currency_columns:
+            snapshot_df[column] = snapshot_df[column].map(
+                lambda value: f"${float(value):,.2f}"
+            )
+
+        snapshot_df["Total Gain/Loss %"] = snapshot_df[
+            "Total Gain/Loss %"
+        ].map(
+            lambda value: f"{float(value):.2f}%"
+        )
+
+    st.dataframe(
+        make_arrow_safe(snapshot_df),
+        use_container_width=True,
+        hide_index=True,
+    )

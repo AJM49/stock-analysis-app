@@ -15,6 +15,7 @@ from config import DEFAULT_PRIMARY_TICKER
 from config import PERIOD_OPTIONS
 from database import get_database_status
 from database import get_portfolio_positions
+from database import get_portfolio_snapshots
 from database import init_database
 from indicators import add_technical_indicators
 from market_data import calculate_price_change
@@ -24,6 +25,7 @@ from market_data import validate_ticker
 from controllers.portfolio_controller import build_portfolio_dashboard_data
 from ui_components import render_company_profile
 from ui.portfolio_views import render_portfolio_dashboard
+from ui.portfolio_views import render_portfolio_snapshot_history
 from ui_components import render_portfolio_sidebar
 from ui.sidebar import render_save_portfolio_snapshot_control
 from ui_components import render_comparison_chart
@@ -115,6 +117,9 @@ portfolio_df = build_portfolio_dashboard_data(portfolio_positions)
 
 render_save_portfolio_snapshot_control(portfolio_df)
 render_portfolio_dashboard(portfolio_df)
+
+portfolio_snapshots = get_portfolio_snapshots()
+render_portfolio_snapshot_history(portfolio_snapshots)
 
 st.divider()
 
