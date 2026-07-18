@@ -63,7 +63,14 @@ def render_portfolio_dashboard(portfolio_df):
     st.subheader("Portfolio Analytics")
 
     if portfolio_df is None or portfolio_df.empty:
-        st.info("Add a portfolio position from the sidebar.")
+        st.info(
+            "No portfolio positions found. Add a ticker, share count, and "
+            "buy price from the sidebar to activate portfolio analytics."
+        )
+        st.caption(
+            "After positions are added, this dashboard will show allocation, "
+            "gain/loss, concentration risk, sector exposure, and export tools."
+        )
         return
 
     total_cost_basis = float(portfolio_df["Cost Basis"].sum())
@@ -822,7 +829,9 @@ def render_portfolio_snapshot_export(snapshots) -> None:
     st.subheader("Export Portfolio Snapshot History")
 
     if not snapshots:
-        st.info("No portfolio snapshots available to export.")
+        st.info(
+        "No portfolio snapshot history is available to export yet."
+    )
         return
 
     snapshot_rows = []
@@ -865,7 +874,9 @@ def render_portfolio_snapshot_export(snapshots) -> None:
     st.subheader("Export Portfolio Snapshot History")
 
     if not snapshots:
-        st.info("No portfolio snapshots available to export.")
+        st.info(
+        "No portfolio snapshot history is available to export yet."
+    )
         return
 
     snapshot_rows = []
@@ -1111,7 +1122,10 @@ def render_portfolio_performance_summary_cards(snapshots) -> None:
     st.subheader("Portfolio Performance Summary")
 
     if not snapshots:
-        st.info("No portfolio snapshots available for performance summary.")
+        st.info(
+        "No portfolio snapshots saved yet. Add positions, then use "
+        "'Save Portfolio Snapshot' in the sidebar to start tracking history."
+    )
         return
 
     snapshot_rows = []
