@@ -832,13 +832,13 @@ def render_portfolio_gain_loss_history_chart(snapshots) -> None:
 
 
 def render_portfolio_snapshot_export(snapshots) -> None:
-    """Render CSV export for saved portfolio snapshot history."""
+    """Render CSV export for portfolio snapshot history."""
     st.subheader("Export Portfolio Snapshot History")
 
     if not snapshots:
         st.info(
-        "No portfolio snapshot history is available to export yet."
-    )
+            "No portfolio snapshot history is available to export yet."
+        )
         return
 
     snapshot_rows = []
@@ -852,29 +852,42 @@ def render_portfolio_snapshot_export(snapshots) -> None:
                 "Total Gain/Loss": snapshot.total_gain_loss,
                 "Total Gain/Loss %": snapshot.total_gain_loss_pct,
                 "Position Count": snapshot.position_count,
+                "Risk Score": getattr(snapshot, "risk_score", None),
+                "Risk Level": getattr(snapshot, "risk_level", None),
+                "Risk Notes": getattr(snapshot, "risk_notes", None),
             }
         )
 
-    snapshot_df = pd.DataFrame(snapshot_rows)
+    export_df = pd.DataFrame(snapshot_rows)
 
-    if snapshot_df.empty:
+    if export_df.empty:
         st.info("No portfolio snapshot rows available to export.")
         return
 
-    snapshot_df["Snapshot Date"] = pd.to_datetime(
-        snapshot_df["Snapshot Date"]
+    export_df["Snapshot Date"] = pd.to_datetime(
+        export_df["Snapshot Date"]
     ).dt.strftime("%Y-%m-%d %H:%M:%S")
 
-    csv_data = snapshot_df.to_csv(index=False).encode("utf-8")
-
-    st.download_button(
-        label="Download Portfolio Snapshot History CSV",
-        data=csv_data,
-        file_name="portfolio_snapshot_history.csv",
-        mime="text/csv",
-        use_container_width=True,
+    export_df = export_df.sort_values(
+        by="Snapshot Date",
+        ascending=False,
     )
 
+    csv_data = export_df.to_csv(index=False).encode("utf-8-sig")
+
+    st.download_button(
+        label="Download Snapshot History CSV for Excel or Google Sheets",
+        data=csv_data,
+        file_name="portfolio_snapshot_history_google_sheets.csv",
+        mime="text/csv",
+        key="download_portfolio_snapshot_history_google_sheets_csv",
+    )
+
+    st.caption(
+        "This CSV includes portfolio value, gain/loss, position count, risk "
+        "score, risk level, and risk notes. It can be uploaded directly into "
+        "Google Sheets or opened in Excel."
+    )
 
 def render_portfolio_snapshot_export(snapshots) -> None:
     """Render CSV export for saved portfolio snapshot history."""
