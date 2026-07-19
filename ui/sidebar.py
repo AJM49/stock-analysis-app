@@ -305,13 +305,16 @@ def render_portfolio_sidebar():
 
 
 
-def render_save_portfolio_snapshot_control(portfolio_df):
-    """Render sidebar control to save current portfolio snapshot."""
+def render_save_portfolio_snapshot_control(portfolio_df) -> None:
+    """Render sidebar control for saving portfolio performance snapshots."""
     st.sidebar.divider()
     st.sidebar.subheader("Portfolio Snapshot")
 
+    if st.session_state.pop("portfolio_snapshot_saved", False):
+        st.sidebar.success("Portfolio snapshot saved.")
+
     if portfolio_df is None or portfolio_df.empty:
-        st.sidebar.info("No portfolio data available to snapshot.")
+        st.sidebar.info("Add portfolio positions before saving a snapshot.")
         return
 
     if st.sidebar.button(
@@ -323,34 +326,32 @@ def render_save_portfolio_snapshot_control(portfolio_df):
         total_gain_loss = float(portfolio_df["Gain/Loss"].sum())
 
         if total_cost_basis > 0:
-            total_gain_loss_pct = (
-                total_gain_loss / total_cost_basis
-            ) * 100
+            total_gain_loss_pct = (total_gain_loss / total_cost_basis) * 100
         else:
             total_gain_loss_pct = 0.0
 
-        saved =         risk_score, risk_level, risk_notes = calculate_portfolio_risk_score(
+        position_count = int(len(portfolio_df))
+
+        risk_score, risk_level, risk_notes = calculate_portfolio_risk_score(
             portfolio_df
         )
 
-save_portfolio_snapshot(
+        saved = save_portfolio_snapshot(
             total_cost_basis=total_cost_basis,
             total_current_value=total_current_value,
             total_gain_loss=total_gain_loss,
             total_gain_loss_pct=total_gain_loss_pct,
-            position_count=len(portfolio_df,
+            position_count=position_count,
             risk_score=risk_score,
             risk_level=risk_level,
             risk_notes="; ".join(risk_notes),
-        ),
         )
 
         if saved:
             st.session_state["portfolio_snapshot_saved"] = True
             st.rerun()
-        else:
-            st.sidebar.error("Portfolio snapshot was not saved.")
 
+        st.sidebar.error("Portfolio snapshot could not be saved.")
 
 def render_portfolio_snapshot_cleanup_control() -> None:
     """Render sidebar control to delete saved portfolio snapshots."""
