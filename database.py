@@ -8,6 +8,7 @@ from sqlalchemy import Date
 from sqlalchemy import Float
 from sqlalchemy import Integer
 from sqlalchemy import String
+from sqlalchemy import Text
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -146,6 +147,9 @@ class PortfolioSnapshot(Base):
     total_gain_loss = Column(Float, nullable=False, default=0.0)
     total_gain_loss_pct = Column(Float, nullable=False, default=0.0)
     position_count = Column(Integer, nullable=False, default=0)
+    risk_score = Column(Float, nullable=True)
+    risk_level = Column(String, nullable=True)
+    risk_notes = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class MarketDataCache(Base):
@@ -675,6 +679,9 @@ def save_portfolio_snapshot(
     total_gain_loss: float,
     total_gain_loss_pct: float,
     position_count: int,
+    risk_score: float | None = None,
+    risk_level: str | None = None,
+    risk_notes: str | None = None,
 ) -> bool:
     """Save a portfolio performance snapshot."""
     session = SessionLocal()
@@ -686,6 +693,9 @@ def save_portfolio_snapshot(
             total_gain_loss=float(total_gain_loss),
             total_gain_loss_pct=float(total_gain_loss_pct),
             position_count=int(position_count),
+            risk_score=risk_score,
+            risk_level=risk_level,
+            risk_notes=risk_notes,
         )
 
         session.add(snapshot)
@@ -740,3 +750,54 @@ def delete_portfolio_snapshot(snapshot_id: int) -> bool:
 
     finally:
         session.close()
+
+
+def ensure_portfolio_snapshot_risk_columns() -> None:
+    """Ensure portfolio snapshot risk columns exist for existing databases."""
+    engine_name = engine.dialect.name
+
+    with engine.begin() as connection:
+        if engine_name == "sqlite":
+            existing_columns = {
+                row[1]
+                for row in connection.exec_driver_sql(
+                    "PRAGMA table_info(portfolio_snapshots)"
+                ).fetchall()
+            }
+
+            if "risk_score" not in existing_columns:
+                connection.exec_driver_sql(
+                    "ALTER TABLE portfolio_snapshots ADD COLUMN risk_score FLOAT"
+                )
+
+            if "risk_level" not in existing_columns:
+                connection.exec_driver_sql(
+                    "ALTER TABLE portfolio_snapshots ADD COLUMN risk_level VARCHAR"
+                )
+
+            if "risk_notes" not in existing_columns:
+                connection.exec_driver_sql(
+                    "ALTER TABLE portfolio_snapshots ADD COLUMN risk_notes TEXT"
+                )
+
+        else:
+            connection.exec_driver_sql(
+                """
+                ALTER TABLE portfolio_snapshots
+                ADD COLUMN IF NOT EXISTS risk_score DOUBLE PRECISION
+                """
+            )
+            connection.exec_driver_sql(
+                """
+                ALTER TABLE portfolio_snapshots
+                ADD COLUMN IF NOT EXISTS risk_level VARCHAR
+                """
+            )
+            connection.exec_driver_sql(
+                """
+                ALTER TABLE portfolio_snapshots
+                ADD COLUMN IF NOT EXISTS risk_notes TEXT
+                """
+            )
+
+ensure_portfolio_snapshot_risk_columns()

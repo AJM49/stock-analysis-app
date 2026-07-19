@@ -13,6 +13,7 @@ from services.market_data_service import get_stock_data
 from database import save_portfolio_snapshot
 from database import delete_portfolio_snapshot
 from database import get_portfolio_snapshots
+from services.portfolio_analytics_service import calculate_portfolio_risk_score
 
 def render_watchlist_sidebar(ticker):
     st.sidebar.divider()
@@ -328,12 +329,20 @@ def render_save_portfolio_snapshot_control(portfolio_df):
         else:
             total_gain_loss_pct = 0.0
 
-        saved = save_portfolio_snapshot(
+        saved =         risk_score, risk_level, risk_notes = calculate_portfolio_risk_score(
+            portfolio_df
+        )
+
+save_portfolio_snapshot(
             total_cost_basis=total_cost_basis,
             total_current_value=total_current_value,
             total_gain_loss=total_gain_loss,
             total_gain_loss_pct=total_gain_loss_pct,
-            position_count=len(portfolio_df),
+            position_count=len(portfolio_df,
+            risk_score=risk_score,
+            risk_level=risk_level,
+            risk_notes="; ".join(risk_notes),
+        ),
         )
 
         if saved:

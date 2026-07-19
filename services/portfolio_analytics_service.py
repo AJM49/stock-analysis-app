@@ -237,3 +237,84 @@ def build_portfolio_risk_flags(
             )
 
     return risk_flags
+
+
+def calculate_portfolio_risk_score(portfolio_df: pd.DataFrame) -> tuple[int, str, list[str]]:
+    """Calculate portfolio risk score, level, and notes."""
+    if portfolio_df is None or portfolio_df.empty:
+        return 0, "No Data", ["No portfolio positions available."]
+
+    score = 0
+    notes = []
+
+    if "Allocation %" in portfolio_df.columns and "Ticker" in portfolio_df.columns:
+        largest_position = portfolio_df.sort_values(
+            by="Allocation %",
+            ascending=False,
+        ).iloc[0]
+
+        ticker = str(largest_position["Ticker"])
+        allocation_pct = float(largest_position["Allocation %"])
+
+        if allocation_pct >= 50:
+            score += 35
+            notes.append(f"{ticker} position concentration is {allocation_pct:.2f}%.")
+        elif allocation_pct >= 25:
+            score += 20
+            notes.append(f"{ticker} position concentration is {allocation_pct:.2f}%.")
+
+    try:
+        sector_df = build_sector_exposure_dataframe(portfolio_df)
+    except Exception:
+        sector_df = pd.DataFrame()
+
+    if sector_df is not None and not sector_df.empty:
+        if "Sector" in sector_df.columns and "Exposure %" in sector_df.columns:
+            largest_sector = sector_df.sort_values(
+                by="Exposure %",
+                ascending=False,
+            ).iloc[0]
+
+            sector = str(largest_sector["Sector"])
+            exposure_pct = float(largest_sector["Exposure %"])
+
+            if exposure_pct >= 50:
+                score += 30
+                notes.append(f"{sector} sector concentration is {exposure_pct:.2f}%.")
+            elif exposure_pct >= 35:
+                score += 15
+                notes.append(f"{sector} sector concentration is {exposure_pct:.2f}%.")
+
+    if "Price Status" in portfolio_df.columns:
+        missing_price_count = int(
+            (portfolio_df["Price Status"] == "Missing").sum()
+        )
+
+        if missing_price_count > 0:
+            score += min(20, missing_price_count * 5)
+            notes.append(f"{missing_price_count} position(s) have missing price data.")
+
+    if "Gain/Loss" in portfolio_df.columns:
+        total_gain_loss = float(portfolio_df["Gain/Loss"].sum())
+
+        if total_gain_loss < 0:
+            score += 15
+            notes.append(
+                f"Portfolio gain/loss is negative by ${total_gain_loss:,.2f}."
+            )
+
+    score = min(score, 100)
+
+    if score >= 75:
+        risk_level = "High Risk"
+    elif score >= 50:
+        risk_level = "Elevated Risk"
+    elif score >= 25:
+        risk_level = "Moderate Risk"
+    else:
+        risk_level = "Low Risk"
+
+    if not notes:
+        notes.append("No major risk triggers detected.")
+
+    return score, risk_level, notes
