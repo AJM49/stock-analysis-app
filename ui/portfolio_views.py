@@ -889,6 +889,24 @@ def render_portfolio_snapshot_export(snapshots) -> None:
         "Google Sheets or opened in Excel."
     )
 
+    with st.expander("How to use this CSV in Google Sheets", expanded=False):
+        st.markdown(
+            """
+            1. Click **Download Snapshot History CSV for Excel or Google Sheets**.
+            2. Open **Google Sheets**.
+            3. Go to **File → Import → Upload**.
+            4. Select the downloaded CSV file.
+            5. Choose **Insert new sheet**.
+            6. Confirm the columns imported correctly:
+               - Snapshot Date
+               - Total Current Value
+               - Total Gain/Loss
+               - Risk Score
+               - Risk Level
+               - Risk Notes
+            """
+        )
+
 def render_portfolio_snapshot_export(snapshots) -> None:
     """Render CSV export for saved portfolio snapshot history."""
     st.subheader("Export Portfolio Snapshot History")
