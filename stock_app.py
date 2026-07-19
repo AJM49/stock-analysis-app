@@ -151,10 +151,33 @@ portfolio_snapshots = get_portfolio_snapshots(
     limit=snapshot_limit_map[snapshot_limit_label]
 )
 
+snapshot_risk_level_filter = st.sidebar.selectbox(
+    "Portfolio snapshot risk level",
+    options=[
+        "All Risk Levels",
+        "Low Risk",
+        "Moderate Risk",
+        "Elevated Risk",
+        "High Risk",
+        "No Data",
+    ],
+    index=0,
+    key="portfolio_snapshot_risk_level_filter",
+)
+
+if snapshot_risk_level_filter != "All Risk Levels":
+    portfolio_snapshots = [
+        snapshot
+        for snapshot in portfolio_snapshots
+        if (getattr(snapshot, "risk_level", None) or "No Data")
+        == snapshot_risk_level_filter
+    ]
+
 st.divider()
 st.header("Portfolio Performance History")
 st.caption(
-    f"Showing {len(portfolio_snapshots) if portfolio_snapshots else 0} saved portfolio snapshot(s)."
+    f"Showing {len(portfolio_snapshots) if portfolio_snapshots else 0} saved portfolio snapshot(s). "
+    f"Risk level filter: {snapshot_risk_level_filter}."
 )
 
 with st.expander("View Portfolio Performance History", expanded=True):
