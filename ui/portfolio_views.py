@@ -712,6 +712,9 @@ def render_portfolio_snapshot_history(snapshots) -> None:
                 "Total Gain/Loss": snapshot.total_gain_loss,
                 "Total Gain/Loss %": snapshot.total_gain_loss_pct,
                 "Position Count": snapshot.position_count,
+                "Risk Score": getattr(snapshot, "risk_score", None),
+                "Risk Level": getattr(snapshot, "risk_level", None),
+                "Risk Notes": getattr(snapshot, "risk_notes", None),
             }
         )
 
@@ -1538,3 +1541,63 @@ def render_portfolio_risk_recommendations(portfolio_df: pd.DataFrame) -> None:
 
     for recommendation in recommendations:
         st.info(recommendation)
+
+
+def render_portfolio_risk_score_history_chart(snapshots) -> None:
+    """Render portfolio risk score history chart."""
+    st.subheader("Portfolio Risk Score History")
+
+    if not snapshots:
+        st.info(
+            "No risk score history available yet. Save portfolio snapshots "
+            "after risk scoring is enabled."
+        )
+        return
+
+    snapshot_rows = []
+
+    for snapshot in snapshots:
+        risk_score = getattr(snapshot, "risk_score", None)
+
+        if risk_score is None:
+            continue
+
+        snapshot_rows.append(
+            {
+                "Snapshot Date": snapshot.snapshot_date,
+                "Risk Score": float(risk_score),
+                "Risk Level": getattr(snapshot, "risk_level", None),
+            }
+        )
+
+    risk_df = pd.DataFrame(snapshot_rows)
+
+    if risk_df.empty:
+        st.info(
+            "Portfolio Risk Score History is active, but no saved snapshots "
+            "currently contain risk scores. Save a new portfolio snapshot to "
+            "start risk score history tracking."
+        )
+        return
+
+    risk_df["Snapshot Date"] = pd.to_datetime(risk_df["Snapshot Date"])
+
+    risk_df = risk_df.sort_values(
+        by="Snapshot Date",
+        ascending=True,
+    )
+
+    st.line_chart(
+        risk_df,
+        x="Snapshot Date",
+        y="Risk Score",
+    )
+
+    latest_risk = risk_df.iloc[-1]
+    latest_level = latest_risk.get("Risk Level")
+
+    st.caption(
+        f"Latest saved risk score: {latest_risk['Risk Score']:.0f}/100"
+        + (f" — {latest_level}" if latest_level else "")
+    )
+
