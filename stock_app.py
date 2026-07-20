@@ -165,6 +165,12 @@ snapshot_risk_level_filter = st.sidebar.selectbox(
     key="portfolio_snapshot_risk_level_filter",
 )
 
+snapshot_risk_notes_search = st.sidebar.text_input(
+    "Portfolio snapshot risk notes search",
+    value="",
+    key="portfolio_snapshot_risk_notes_search",
+)
+
 if snapshot_risk_level_filter != "All Risk Levels":
     portfolio_snapshots = [
         snapshot
@@ -173,12 +179,40 @@ if snapshot_risk_level_filter != "All Risk Levels":
         == snapshot_risk_level_filter
     ]
 
-st.divider()
+if snapshot_risk_notes_search.strip():
+    search_term = snapshot_risk_notes_search.strip().lower()
+
+    portfolio_snapshots = [
+        snapshot
+        for snapshot in portfolio_snapshots
+        if search_term
+        in (
+            str(getattr(snapshot, "risk_notes", "") or "")
+            + " "
+            + str(getattr(snapshot, "risk_level", "") or "")
+            + " "
+            + str(getattr(snapshot, "snapshot_date", "") or "")
+        ).lower()
+    ]
+
+snapshot_count = len(portfolio_snapshots) if portfolio_snapshots else 0
+
 st.header("Portfolio Performance History")
 st.caption(
-    f"Showing {len(portfolio_snapshots) if portfolio_snapshots else 0} saved portfolio snapshot(s). "
-    f"Risk level filter: {snapshot_risk_level_filter}."
+    f"Showing {snapshot_count} saved portfolio snapshot(s). "
+    f"Risk level filter: {snapshot_risk_level_filter}. "
+    f"Risk notes search: {snapshot_risk_notes_search or 'None'}."
 )
+
+if snapshot_count == 0 and (
+    snapshot_risk_level_filter != "All Risk Levels"
+    or snapshot_risk_notes_search.strip()
+):
+    st.warning(
+        "No portfolio snapshots match the current risk filters. "
+        "Try searching for VTV, ETF, concentration, missing, price, "
+        "Moderate Risk, or clear the filters."
+    )
 
 with st.expander("View Portfolio Performance History", expanded=True):
     render_portfolio_performance_summary_cards(portfolio_snapshots)
