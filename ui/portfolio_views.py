@@ -2017,6 +2017,16 @@ def render_portfolio_what_if_scenario(portfolio_df: pd.DataFrame) -> None:
     ):
         reset_portfolio_scenario_inputs()
 
+    if "pending_scenario_action" in st.session_state:
+        st.session_state["scenario_action_select"] = st.session_state.pop(
+            "pending_scenario_action"
+        )
+
+    if "pending_scenario_price" in st.session_state:
+        st.session_state["scenario_price_input"] = st.session_state.pop(
+            "pending_scenario_price"
+        )
+
     scenario_ticker = st.selectbox(
         "Scenario ticker",
         options=portfolio_df["Ticker"].astype(str).tolist(),
@@ -2040,6 +2050,22 @@ def render_portfolio_what_if_scenario(portfolio_df: pd.DataFrame) -> None:
     current_shares = float(selected_position["Shares"])
     current_price = float(selected_position["Current Price"])
     buy_price = float(selected_position["Buy Price"])
+
+    st.caption("Scenario Price Presets")
+
+    preset_col1, preset_col2, preset_col3, preset_col4 = st.columns(4)
+
+    if preset_col1.button("Price -10%", key="scenario_price_minus_10"):
+        apply_scenario_price_preset(current_price, -0.10)
+
+    if preset_col2.button("Price +10%", key="scenario_price_plus_10"):
+        apply_scenario_price_preset(current_price, 0.10)
+
+    if preset_col3.button("Price -25%", key="scenario_price_minus_25"):
+        apply_scenario_price_preset(current_price, -0.25)
+
+    if preset_col4.button("Price +25%", key="scenario_price_plus_25"):
+        apply_scenario_price_preset(current_price, 0.25)
 
     scenario_shares_delta = 0.0
     scenario_price = current_price
@@ -2394,10 +2420,25 @@ def reset_portfolio_scenario_inputs() -> None:
         "scenario_add_shares_input",
         "scenario_reduce_shares_input",
         "scenario_price_input",
+        "pending_scenario_action",
+        "pending_scenario_price",
     ]
 
     for key in scenario_keys:
         if key in st.session_state:
             del st.session_state[key]
+
+    st.rerun()
+
+
+def apply_scenario_price_preset(current_price: float, percent_change: float) -> None:
+    """Store a pending scenario price preset and rerun safely."""
+    scenario_price = current_price * (1 + percent_change)
+
+    if scenario_price < 0:
+        scenario_price = 0.0
+
+    st.session_state["pending_scenario_action"] = "Change price"
+    st.session_state["pending_scenario_price"] = float(scenario_price)
 
     st.rerun()
