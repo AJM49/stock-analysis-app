@@ -1814,3 +1814,83 @@ def render_latest_snapshot_status_panel(
         st.success(status_message)
     else:
         st.warning(status_message)
+
+    decision_summary = build_snapshot_decision_summary(
+        value_delta=value_delta,
+        gain_loss_delta=gain_loss_delta,
+        current_risk_score=current_risk_score,
+        latest_risk_score=latest_risk_score,
+    )
+
+    st.subheader("Snapshot Decision Summary")
+    st.info(decision_summary)
+
+
+def build_snapshot_decision_summary(
+    value_delta: float,
+    gain_loss_delta: float,
+    current_risk_score: int,
+    latest_risk_score,
+) -> str:
+    """Build plain-English decision summary for latest snapshot comparison."""
+    value_changed = abs(value_delta) >= 0.01
+    gain_loss_changed = abs(gain_loss_delta) >= 0.01
+
+    if latest_risk_score is None:
+        risk_changed = True
+        risk_message = (
+            "The latest snapshot does not have a saved risk score, so the "
+            "current risk score should be saved for better tracking."
+        )
+    else:
+        risk_delta = current_risk_score - float(latest_risk_score)
+
+        if risk_delta > 0:
+            risk_changed = True
+            risk_message = (
+                f"Risk score increased by {risk_delta:.0f} point(s) since "
+                "the latest snapshot."
+            )
+        elif risk_delta < 0:
+            risk_changed = True
+            risk_message = (
+                f"Risk score decreased by {abs(risk_delta):.0f} point(s) since "
+                "the latest snapshot."
+            )
+        else:
+            risk_changed = False
+            risk_message = "Risk score is unchanged since the latest snapshot."
+
+    if value_delta > 0:
+        value_message = f"Portfolio value increased by ${value_delta:,.2f}."
+    elif value_delta < 0:
+        value_message = f"Portfolio value decreased by ${abs(value_delta):,.2f}."
+    else:
+        value_message = "Portfolio value is unchanged."
+
+    if gain_loss_delta > 0:
+        gain_loss_message = (
+            f"Unrealized gain/loss improved by ${gain_loss_delta:,.2f}."
+        )
+    elif gain_loss_delta < 0:
+        gain_loss_message = (
+            f"Unrealized gain/loss declined by ${abs(gain_loss_delta):,.2f}."
+        )
+    else:
+        gain_loss_message = "Unrealized gain/loss is unchanged."
+
+    if value_changed or gain_loss_changed or risk_changed:
+        action_message = (
+            "Recommended action: save a new snapshot to record the current "
+            "portfolio state."
+        )
+    else:
+        action_message = (
+            "Recommended action: no new snapshot is needed unless you want "
+            "another timestamped record."
+        )
+
+    return (
+        f"{value_message} {gain_loss_message} {risk_message} "
+        f"{action_message}"
+    )
