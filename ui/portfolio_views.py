@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 import plotly.express as px
-from services.portfolio_analytics_service import build_portfolio_risk_flags, build_sector_exposure_dataframe, build_position_weight_dataframe
+from services.portfolio_analytics_service import build_portfolio_risk_flags, build_sector_exposure_dataframe, build_position_weight_dataframe, calculate_portfolio_risk_score
 from portfolio import calculate_target_price
 from portfolio import calculate_stop_loss
 from portfolio import calculate_risk_reward
@@ -101,6 +101,7 @@ def render_portfolio_dashboard(portfolio_df):
     )
 
     render_portfolio_risk_alert_banner(portfolio_df)
+    render_portfolio_executive_summary(portfolio_df)
 
     st.divider()
 
@@ -1632,3 +1633,78 @@ def render_portfolio_risk_score_history_chart(snapshots) -> None:
         + (f" — {latest_level}" if latest_level else "")
     )
 
+
+
+def render_portfolio_executive_summary(portfolio_df: pd.DataFrame) -> None:
+    """Render a plain-English executive summary for the portfolio."""
+    st.subheader("Portfolio Executive Summary")
+
+    if portfolio_df is None or portfolio_df.empty:
+        st.info(
+            "No portfolio positions found. Add positions from the sidebar to "
+            "generate an executive summary."
+        )
+        return
+
+    total_cost_basis = float(portfolio_df["Cost Basis"].sum())
+    total_current_value = float(portfolio_df["Current Value"].sum())
+    total_gain_loss = float(portfolio_df["Gain/Loss"].sum())
+
+    if total_cost_basis > 0:
+        total_gain_loss_pct = (total_gain_loss / total_cost_basis) * 100
+    else:
+        total_gain_loss_pct = 0.0
+
+    risk_score, risk_level, risk_notes = calculate_portfolio_risk_score(
+        portfolio_df
+    )
+
+    main_risk_driver = risk_notes[0] if risk_notes else "No major risk triggers detected."
+
+    if risk_score >= 75:
+        recommended_action = (
+            "Review concentration and risk exposure before adding more capital."
+        )
+    elif risk_score >= 50:
+        recommended_action = (
+            "Monitor high-impact positions and consider gradual diversification."
+        )
+    elif risk_score >= 25:
+        recommended_action = (
+            "Continue monitoring risk drivers and save snapshots regularly."
+        )
+    else:
+        recommended_action = (
+            "Portfolio risk appears low. Continue tracking performance over time."
+        )
+
+    col1, col2, col3 = st.columns(3)
+
+    col1.metric(
+        "Portfolio Value",
+        f"${total_current_value:,.2f}",
+    )
+
+    col2.metric(
+        "Total Gain/Loss",
+        f"${total_gain_loss:,.2f}",
+        f"{total_gain_loss_pct:.2f}%",
+    )
+
+    col3.metric(
+        "Current Risk Level",
+        risk_level,
+        f"{risk_score}/100",
+    )
+
+    st.markdown(
+        f"""
+        **Summary:** Portfolio current value is **\\${total_current_value:,.2f}** with
+        total unrealized gain/loss of **\\${total_gain_loss:,.2f}**
+        (**{total_gain_loss_pct:.2f}%**).
+
+        **Main risk driver:** {main_risk_driver}
+
+        **Recommended next action:** {recommended_action}
+        """
+    )
