@@ -2615,21 +2615,100 @@ def render_scenario_session_history() -> None:
 
     scenario_history_df = pd.DataFrame(scenario_history)
 
-    st.dataframe(
-        scenario_history_df,
-        use_container_width=True,
-        hide_index=True,
+    risk_options = ["All Risk Levels"] + sorted(
+        scenario_history_df["Scenario Risk Level"].dropna().astype(str).unique().tolist()
     )
 
-    scenario_history_timestamp = pd.Timestamp.now().strftime("%Y-%m-%d_%H%M")
-
-    st.download_button(
-        label="Download Scenario History CSV",
-        data=scenario_history_df.to_csv(index=False).encode("utf-8-sig"),
-        file_name=f"portfolio_scenario_history_{scenario_history_timestamp}.csv",
-        mime="text/csv",
-        key="download_scenario_history_csv",
+    decision_options = ["All Decisions"] + sorted(
+        scenario_history_df["Scenario Decision"].dropna().astype(str).unique().tolist()
     )
+
+    filter_col1, filter_col2 = st.columns(2)
+
+    selected_risk_filter = filter_col1.selectbox(
+        "Scenario history risk filter",
+        options=risk_options,
+        index=0,
+        key="scenario_history_risk_filter",
+    )
+
+    selected_decision_filter = filter_col2.selectbox(
+        "Scenario history decision filter",
+        options=decision_options,
+        index=0,
+        key="scenario_history_decision_filter",
+    )
+
+    filtered_history_df = scenario_history_df.copy()
+
+    if selected_risk_filter != "All Risk Levels":
+        filtered_history_df = filtered_history_df[
+            filtered_history_df["Scenario Risk Level"].astype(str) == selected_risk_filter
+        ]
+
+    if selected_decision_filter != "All Decisions":
+        filtered_history_df = filtered_history_df[
+            filtered_history_df["Scenario Decision"].astype(str) == selected_decision_filter
+        ]
+
+    st.caption(
+        f"Showing {len(filtered_history_df)} of {len(scenario_history_df)} saved scenario(s)."
+    )
+
+    if filtered_history_df.empty:
+        st.warning("No saved scenarios match the selected filters.")
+    else:
+        summary_col1, summary_col2, summary_col3 = st.columns(3)
+
+        scenario_count = len(filtered_history_df)
+        average_risk_score = filtered_history_df["Scenario Risk Score"].mean()
+        total_value_delta = filtered_history_df["Value Delta"].sum()
+
+        summary_col1.metric("Saved Scenarios", scenario_count)
+        summary_col2.metric("Average Risk Score", f"{average_risk_score:.0f}/100")
+        summary_col3.metric("Total Value Delta", f"${total_value_delta:,.2f}")
+
+        best_scenario = filtered_history_df.sort_values(
+            by="Value Delta",
+            ascending=False,
+        ).iloc[0]
+
+        worst_scenario = filtered_history_df.sort_values(
+            by="Value Delta",
+            ascending=True,
+        ).iloc[0]
+
+        st.markdown("**Best saved scenario by value delta:**")
+        st.info(
+            f"{best_scenario['Ticker']} | {best_scenario['Action']} | "
+            f"Value Delta: ${float(best_scenario['Value Delta']):,.2f} | "
+            f"Risk: {best_scenario['Scenario Risk Level']} "
+            f"({float(best_scenario['Scenario Risk Score']):.0f}/100)"
+        )
+
+        st.markdown("**Worst saved scenario by value delta:**")
+        st.warning(
+            f"{worst_scenario['Ticker']} | {worst_scenario['Action']} | "
+            f"Value Delta: ${float(worst_scenario['Value Delta']):,.2f} | "
+            f"Risk: {worst_scenario['Scenario Risk Level']} "
+            f"({float(worst_scenario['Scenario Risk Score']):.0f}/100)"
+        )
+
+        st.dataframe(
+            filtered_history_df,
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        scenario_history_timestamp = pd.Timestamp.now().strftime("%Y-%m-%d_%H%M")
+
+        st.download_button(
+            label="Download Filtered Scenario History CSV",
+            data=filtered_history_df.to_csv(index=False).encode("utf-8-sig"),
+            file_name=f"portfolio_filtered_scenario_history_{scenario_history_timestamp}.csv",
+            mime="text/csv",
+            key="download_filtered_scenario_history_csv",
+        )
 
     if st.button(
         "Clear Scenario History",
