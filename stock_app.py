@@ -201,7 +201,8 @@ snapshot_count = len(portfolio_snapshots) if portfolio_snapshots else 0
 
 render_latest_snapshot_status_panel(portfolio_df, portfolio_snapshots)
 
-render_portfolio_report_summary(portfolio_df, portfolio_snapshots)
+with st.expander("Portfolio Report Center", expanded=False):
+    render_portfolio_report_summary(portfolio_df, portfolio_snapshots)
 
 st.header("Portfolio Performance History")
 st.caption(
