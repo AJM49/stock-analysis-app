@@ -202,6 +202,10 @@ snapshot_count = len(portfolio_snapshots) if portfolio_snapshots else 0
 render_latest_snapshot_status_panel(portfolio_df, portfolio_snapshots)
 
 with st.expander("Portfolio Report Center", expanded=False):
+    st.caption(
+        "Use the TXT export for copy-ready written updates. "
+        "Use the CSV export for Excel, Google Sheets, dashboards, and structured reporting."
+    )
     render_portfolio_report_summary(portfolio_df, portfolio_snapshots)
 
 st.header("Portfolio Performance History")
