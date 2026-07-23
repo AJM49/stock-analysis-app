@@ -1894,3 +1894,95 @@ def build_snapshot_decision_summary(
         f"{value_message} {gain_loss_message} {risk_message} "
         f"{action_message}"
     )
+
+
+def render_portfolio_report_summary(
+    portfolio_df: pd.DataFrame,
+    snapshots,
+) -> None:
+    """Render a copy-ready plain-English portfolio report summary."""
+    st.subheader("Portfolio Report Summary")
+
+    if portfolio_df is None or portfolio_df.empty:
+        st.info(
+            "No portfolio positions available. Add positions from the sidebar "
+            "to generate a report summary."
+        )
+        return
+
+    total_cost_basis = float(portfolio_df["Cost Basis"].sum())
+    total_current_value = float(portfolio_df["Current Value"].sum())
+    total_gain_loss = float(portfolio_df["Gain/Loss"].sum())
+
+    if total_cost_basis > 0:
+        total_gain_loss_pct = (total_gain_loss / total_cost_basis) * 100
+    else:
+        total_gain_loss_pct = 0.0
+
+    risk_score, risk_level, risk_notes = calculate_portfolio_risk_score(
+        portfolio_df
+    )
+
+    main_risk_driver = (
+        risk_notes[0]
+        if risk_notes
+        else "No major risk triggers detected."
+    )
+
+    if risk_score >= 75:
+        recommended_action = (
+            "Review concentration and risk exposure before adding more capital."
+        )
+    elif risk_score >= 50:
+        recommended_action = (
+            "Monitor high-impact positions and consider gradual diversification."
+        )
+    elif risk_score >= 25:
+        recommended_action = (
+            "Continue monitoring risk drivers and save snapshots regularly."
+        )
+    else:
+        recommended_action = (
+            "Portfolio risk appears low. Continue tracking performance over time."
+        )
+
+    if snapshots:
+        latest_snapshot = sorted(
+            snapshots,
+            key=lambda snapshot: snapshot.snapshot_date,
+            reverse=True,
+        )[0]
+
+        latest_snapshot_text = (
+            f"Latest saved snapshot was recorded on "
+            f"{latest_snapshot.snapshot_date.strftime('%Y-%m-%d %H:%M:%S')}."
+        )
+    else:
+        latest_snapshot_text = (
+            "No saved portfolio snapshot exists yet."
+        )
+
+    report_summary = f"""Portfolio Report Summary
+
+Portfolio value: ${total_current_value:,.2f}
+Total unrealized gain/loss: ${total_gain_loss:,.2f} ({total_gain_loss_pct:.2f}%)
+Current risk level: {risk_level} ({risk_score}/100)
+Main risk driver: {main_risk_driver}
+Recommended next action: {recommended_action}
+Latest snapshot status: {latest_snapshot_text}
+"""
+
+    st.text_area(
+        "Copy-ready portfolio report",
+        value=report_summary,
+        height=220,
+        key="copy_ready_portfolio_report_summary",
+    )
+
+    st.download_button(
+        label="Download Portfolio Report Summary TXT",
+        data=report_summary.encode("utf-8"),
+        file_name="portfolio_report_summary.txt",
+        mime="text/plain",
+        key="download_portfolio_report_summary_txt",
+    )
