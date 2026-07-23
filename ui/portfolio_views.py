@@ -2011,6 +2011,12 @@ def render_portfolio_what_if_scenario(portfolio_df: pd.DataFrame) -> None:
         )
         return
 
+    if st.button(
+        "Reset Scenario Inputs",
+        key="reset_portfolio_scenario_inputs_button",
+    ):
+        reset_portfolio_scenario_inputs()
+
     scenario_ticker = st.selectbox(
         "Scenario ticker",
         options=portfolio_df["Ticker"].astype(str).tolist(),
@@ -2378,3 +2384,20 @@ def build_scenario_risk_threshold_warnings(
             )
 
     return warnings
+
+
+def reset_portfolio_scenario_inputs() -> None:
+    """Reset what-if scenario planner widget state."""
+    scenario_keys = [
+        "scenario_ticker_select",
+        "scenario_action_select",
+        "scenario_add_shares_input",
+        "scenario_reduce_shares_input",
+        "scenario_price_input",
+    ]
+
+    for key in scenario_keys:
+        if key in st.session_state:
+            del st.session_state[key]
+
+    st.rerun()
