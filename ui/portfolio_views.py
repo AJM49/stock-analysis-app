@@ -2184,6 +2184,86 @@ def render_portfolio_what_if_scenario(portfolio_df: pd.DataFrame) -> None:
     st.info(scenario_comparison_summary)
     st.caption(f"Scenario decision label: {scenario_decision}")
 
+    current_selected_position = portfolio_df[
+        portfolio_df["Ticker"].astype(str) == scenario_ticker
+    ].iloc[0]
+
+    scenario_selected_position = scenario_df[
+        scenario_df["Ticker"].astype(str) == scenario_ticker
+    ].iloc[0]
+
+    comparison_rows = [
+        {
+            "Metric": "Portfolio Value",
+            "Current": current_total_value,
+            "Scenario": scenario_total_value,
+            "Change": value_delta,
+        },
+        {
+            "Metric": "Total Gain/Loss",
+            "Current": current_total_gain_loss,
+            "Scenario": scenario_total_gain_loss,
+            "Change": gain_loss_delta,
+        },
+        {
+            "Metric": "Risk Score",
+            "Current": current_risk_score,
+            "Scenario": scenario_risk_score,
+            "Change": risk_delta,
+        },
+        {
+            "Metric": "Risk Level",
+            "Current": current_risk_level,
+            "Scenario": scenario_risk_level,
+            "Change": scenario_decision,
+        },
+        {
+            "Metric": f"{scenario_ticker} Shares",
+            "Current": float(current_selected_position["Shares"]),
+            "Scenario": float(scenario_selected_position["Shares"]),
+            "Change": (
+                float(scenario_selected_position["Shares"])
+                - float(current_selected_position["Shares"])
+            ),
+        },
+        {
+            "Metric": f"{scenario_ticker} Current Price",
+            "Current": float(current_selected_position["Current Price"]),
+            "Scenario": float(scenario_selected_position["Current Price"]),
+            "Change": (
+                float(scenario_selected_position["Current Price"])
+                - float(current_selected_position["Current Price"])
+            ),
+        },
+        {
+            "Metric": f"{scenario_ticker} Current Value",
+            "Current": float(current_selected_position["Current Value"]),
+            "Scenario": float(scenario_selected_position["Current Value"]),
+            "Change": (
+                float(scenario_selected_position["Current Value"])
+                - float(current_selected_position["Current Value"])
+            ),
+        },
+        {
+            "Metric": f"{scenario_ticker} Allocation %",
+            "Current": float(current_selected_position["Allocation %"]),
+            "Scenario": float(scenario_selected_position["Allocation %"]),
+            "Change": (
+                float(scenario_selected_position["Allocation %"])
+                - float(current_selected_position["Allocation %"])
+            ),
+        },
+    ]
+
+    scenario_comparison_df = pd.DataFrame(comparison_rows)
+
+    st.subheader("Scenario Baseline Comparison")
+    st.dataframe(
+        scenario_comparison_df,
+        use_container_width=True,
+        hide_index=True,
+    )
+
     scenario_threshold_warnings = build_scenario_risk_threshold_warnings(
         scenario_df=scenario_df,
         current_risk_score=current_risk_score,
@@ -2272,6 +2352,18 @@ Scenario risk drivers:
         file_name=f"portfolio_scenario_data_{scenario_filename_timestamp}.csv",
         mime="text/csv",
         key="download_scenario_data_csv",
+    )
+
+    scenario_comparison_csv = scenario_comparison_df.to_csv(
+        index=False
+    ).encode("utf-8-sig")
+
+    st.download_button(
+        label="Download Scenario Comparison CSV",
+        data=scenario_comparison_csv,
+        file_name=f"portfolio_scenario_comparison_{scenario_filename_timestamp}.csv",
+        mime="text/csv",
+        key="download_scenario_comparison_csv",
     )
 
     st.caption(
