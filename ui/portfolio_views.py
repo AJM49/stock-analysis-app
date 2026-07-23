@@ -1986,3 +1986,51 @@ Latest snapshot status: {latest_snapshot_text}
         mime="text/plain",
         key="download_portfolio_report_summary_txt",
     )
+
+    latest_snapshot_date = ""
+    latest_snapshot_value = ""
+    latest_snapshot_risk_score = ""
+    latest_snapshot_risk_level = ""
+
+    if snapshots:
+        latest_snapshot_date = latest_snapshot.snapshot_date.strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+        latest_snapshot_value = float(latest_snapshot.total_current_value)
+        latest_snapshot_risk_score = getattr(latest_snapshot, "risk_score", "")
+        latest_snapshot_risk_level = getattr(latest_snapshot, "risk_level", "")
+
+    report_export_df = pd.DataFrame(
+        [
+            {
+                "Report Date": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "Portfolio Value": total_current_value,
+                "Total Cost Basis": total_cost_basis,
+                "Total Gain/Loss": total_gain_loss,
+                "Total Gain/Loss %": total_gain_loss_pct,
+                "Risk Score": risk_score,
+                "Risk Level": risk_level,
+                "Main Risk Driver": main_risk_driver,
+                "Recommended Action": recommended_action,
+                "Latest Snapshot Date": latest_snapshot_date,
+                "Latest Snapshot Value": latest_snapshot_value,
+                "Latest Snapshot Risk Score": latest_snapshot_risk_score,
+                "Latest Snapshot Risk Level": latest_snapshot_risk_level,
+            }
+        ]
+    )
+
+    report_csv_data = report_export_df.to_csv(index=False).encode("utf-8-sig")
+
+    st.download_button(
+        label="Download Portfolio Report Summary CSV",
+        data=report_csv_data,
+        file_name="portfolio_report_summary.csv",
+        mime="text/csv",
+        key="download_portfolio_report_summary_csv",
+    )
+
+    st.caption(
+        "The TXT file is best for notes or written updates. The CSV file is "
+        "best for Excel, Google Sheets, dashboards, and structured reporting."
+    )
