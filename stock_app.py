@@ -29,6 +29,7 @@ from ui.portfolio_views import render_portfolio_snapshot_history
 from ui.portfolio_views import render_portfolio_snapshot_export
 from ui.portfolio_views import render_portfolio_value_history_chart
 from ui.portfolio_views import render_portfolio_performance_summary_cards
+from ui.portfolio_views import render_latest_snapshot_status_panel
 from ui.portfolio_views import render_portfolio_gain_loss_history_chart
 from ui.portfolio_views import render_portfolio_risk_score_history_chart
 from ui_components import render_portfolio_sidebar
@@ -196,6 +197,8 @@ if snapshot_risk_notes_search.strip():
     ]
 
 snapshot_count = len(portfolio_snapshots) if portfolio_snapshots else 0
+
+render_latest_snapshot_status_panel(portfolio_df, portfolio_snapshots)
 
 st.header("Portfolio Performance History")
 st.caption(

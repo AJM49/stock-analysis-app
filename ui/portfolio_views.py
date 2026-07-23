@@ -1708,3 +1708,109 @@ def render_portfolio_executive_summary(portfolio_df: pd.DataFrame) -> None:
         **Recommended next action:** {recommended_action}
         """
     )
+
+
+def render_latest_snapshot_status_panel(
+    portfolio_df: pd.DataFrame,
+    snapshots,
+) -> None:
+    """Render status comparing current portfolio state to latest snapshot."""
+    st.subheader("Latest Snapshot Status")
+
+    if portfolio_df is None or portfolio_df.empty:
+        st.info("No portfolio positions available for snapshot status.")
+        return
+
+    if not snapshots:
+        st.info(
+            "No portfolio snapshots saved yet. Use Save Portfolio Snapshot "
+            "in the sidebar to record the current portfolio state."
+        )
+        return
+
+    current_cost_basis = float(portfolio_df["Cost Basis"].sum())
+    current_value = float(portfolio_df["Current Value"].sum())
+    current_gain_loss = float(portfolio_df["Gain/Loss"].sum())
+
+    if current_cost_basis > 0:
+        current_gain_loss_pct = (current_gain_loss / current_cost_basis) * 100
+    else:
+        current_gain_loss_pct = 0.0
+
+    current_risk_score, current_risk_level, _ = calculate_portfolio_risk_score(
+        portfolio_df
+    )
+
+    latest_snapshot = sorted(
+        snapshots,
+        key=lambda snapshot: snapshot.snapshot_date,
+        reverse=True,
+    )[0]
+
+    latest_value = float(latest_snapshot.total_current_value)
+    latest_gain_loss = float(latest_snapshot.total_gain_loss)
+    latest_risk_score = getattr(latest_snapshot, "risk_score", None)
+    latest_risk_level = getattr(latest_snapshot, "risk_level", None) or "No Data"
+
+    value_delta = current_value - latest_value
+    gain_loss_delta = current_gain_loss - latest_gain_loss
+
+    if latest_risk_score is None:
+        risk_delta_text = "No saved risk score"
+    else:
+        risk_delta = current_risk_score - float(latest_risk_score)
+        risk_delta_text = f"{risk_delta:+.0f} points"
+
+    value_is_close = abs(value_delta) < 0.01
+    gain_loss_is_close = abs(gain_loss_delta) < 0.01
+
+    if latest_risk_score is None:
+        risk_is_close = False
+    else:
+        risk_is_close = abs(current_risk_score - float(latest_risk_score)) < 0.01
+
+    if value_is_close and gain_loss_is_close and risk_is_close:
+        status_message = "Current portfolio appears to match the latest saved snapshot."
+        status_type = "success"
+    else:
+        status_message = (
+            "Current portfolio may differ from the latest saved snapshot. "
+            "Save a new snapshot if you want to record the current state."
+        )
+        status_type = "warning"
+
+    col1, col2, col3 = st.columns(3)
+
+    col1.metric(
+        "Latest Snapshot Value",
+        f"${latest_value:,.2f}",
+        f"{value_delta:+,.2f} current delta",
+    )
+
+    col2.metric(
+        "Latest Snapshot Gain/Loss",
+        f"${latest_gain_loss:,.2f}",
+        f"{gain_loss_delta:+,.2f} current delta",
+    )
+
+    col3.metric(
+        "Latest Snapshot Risk",
+        latest_risk_level,
+        risk_delta_text,
+    )
+
+    st.caption(
+        f"Latest snapshot date: {latest_snapshot.snapshot_date.strftime('%Y-%m-%d %H:%M:%S')}"
+    )
+
+    st.caption(
+        f"Current value: ${current_value:,.2f} | "
+        f"Current gain/loss: ${current_gain_loss:,.2f} "
+        f"({current_gain_loss_pct:.2f}%) | "
+        f"Current risk: {current_risk_level} ({current_risk_score}/100)"
+    )
+
+    if status_type == "success":
+        st.success(status_message)
+    else:
+        st.warning(status_message)
