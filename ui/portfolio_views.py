@@ -2152,6 +2152,21 @@ def render_portfolio_what_if_scenario(portfolio_df: pd.DataFrame) -> None:
     st.info(scenario_comparison_summary)
     st.caption(f"Scenario decision label: {scenario_decision}")
 
+    scenario_threshold_warnings = build_scenario_risk_threshold_warnings(
+        scenario_df=scenario_df,
+        current_risk_score=current_risk_score,
+        scenario_risk_score=scenario_risk_score,
+        scenario_risk_level=scenario_risk_level,
+    )
+
+    st.subheader("Scenario Risk Threshold Warning")
+
+    if scenario_threshold_warnings:
+        for warning in scenario_threshold_warnings:
+            st.error(warning)
+    else:
+        st.success("No major scenario risk thresholds were triggered.")
+
     with st.expander("Scenario risk drivers", expanded=False):
         for note in scenario_risk_notes:
             st.info(note)
@@ -2186,6 +2201,9 @@ Risk score change: {risk_delta:+.0f} point(s)
 Scenario decision: {scenario_decision}
 Scenario comparison summary: {scenario_comparison_summary}
 
+Scenario threshold warnings:
+{chr(10).join(f"- {warning}" for warning in scenario_threshold_warnings) if scenario_threshold_warnings else "- No major scenario risk thresholds were triggered."}
+
 Scenario risk drivers:
 {chr(10).join(f"- {note}" for note in scenario_risk_notes)}
 """
@@ -2198,6 +2216,13 @@ Scenario risk drivers:
     scenario_export_df.insert(4, "Scenario Risk Level", scenario_risk_level)
     scenario_export_df.insert(5, "Scenario Decision", scenario_decision)
     scenario_export_df.insert(6, "Scenario Comparison Summary", scenario_comparison_summary)
+    scenario_export_df.insert(
+        7,
+        "Scenario Threshold Warnings",
+        "; ".join(scenario_threshold_warnings)
+        if scenario_threshold_warnings
+        else "No major scenario risk thresholds were triggered.",
+    )
 
     scenario_csv_data = scenario_export_df.to_csv(index=False).encode("utf-8-sig")
 
@@ -2285,3 +2310,71 @@ def build_scenario_comparison_summary(
     )
 
     return summary, decision
+
+
+def build_scenario_risk_threshold_warnings(
+    scenario_df: pd.DataFrame,
+    current_risk_score: int | float,
+    scenario_risk_score: int | float,
+    scenario_risk_level: str,
+) -> list[str]:
+    """Build threshold warnings for risky what-if scenarios."""
+    warnings = []
+
+    risk_delta = float(scenario_risk_score) - float(current_risk_score)
+
+    if risk_delta >= 15:
+        warnings.append(
+            f"Risk score increases by {risk_delta:.0f} point(s), which is a major risk jump."
+        )
+
+    if scenario_risk_level == "High Risk":
+        warnings.append(
+            "Scenario risk level becomes High Risk."
+        )
+
+    if "Allocation %" in scenario_df.columns and "Ticker" in scenario_df.columns:
+        largest_position = scenario_df.sort_values(
+            by="Allocation %",
+            ascending=False,
+        ).iloc[0]
+
+        ticker = str(largest_position["Ticker"])
+        allocation_pct = float(largest_position["Allocation %"])
+
+        if allocation_pct >= 50:
+            warnings.append(
+                f"Largest position warning: {ticker} becomes {allocation_pct:.2f}% of the portfolio."
+            )
+
+    try:
+        sector_df = build_sector_exposure_dataframe(scenario_df)
+    except Exception:
+        sector_df = pd.DataFrame()
+
+    if sector_df is not None and not sector_df.empty:
+        if "Sector" in sector_df.columns and "Exposure %" in sector_df.columns:
+            largest_sector = sector_df.sort_values(
+                by="Exposure %",
+                ascending=False,
+            ).iloc[0]
+
+            sector = str(largest_sector["Sector"])
+            exposure_pct = float(largest_sector["Exposure %"])
+
+            if exposure_pct >= 50:
+                warnings.append(
+                    f"Sector exposure warning: {sector} becomes {exposure_pct:.2f}% of the portfolio."
+                )
+
+    if "Price Status" in scenario_df.columns:
+        missing_price_count = int(
+            (scenario_df["Price Status"] == "Missing").sum()
+        )
+
+        if missing_price_count > 0:
+            warnings.append(
+                f"{missing_price_count} scenario position(s) have missing price data."
+            )
+
+    return warnings
