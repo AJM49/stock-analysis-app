@@ -2151,7 +2151,58 @@ def render_portfolio_what_if_scenario(portfolio_df: pd.DataFrame) -> None:
             hide_index=True,
         )
 
+    scenario_generated_at = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
+    scenario_filename_timestamp = pd.Timestamp.now().strftime("%Y-%m-%d_%H%M")
+
+    scenario_summary = f"""Portfolio What-If Scenario Summary
+
+Scenario generated at: {scenario_generated_at}
+Scenario ticker: {scenario_ticker}
+Scenario action: {scenario_action}
+
+Current portfolio value: ${current_total_value:,.2f}
+Scenario portfolio value: ${scenario_total_value:,.2f}
+Value change: ${value_delta:,.2f}
+
+Current gain/loss: ${current_total_gain_loss:,.2f}
+Scenario gain/loss: ${scenario_total_gain_loss:,.2f}
+Gain/loss change: ${gain_loss_delta:,.2f}
+
+Current risk level: {current_risk_level} ({current_risk_score}/100)
+Scenario risk level: {scenario_risk_level} ({scenario_risk_score}/100)
+Risk score change: {risk_delta:+.0f} point(s)
+
+Scenario risk drivers:
+{chr(10).join(f"- {note}" for note in scenario_risk_notes)}
+"""
+
+    scenario_export_df = scenario_df.copy()
+    scenario_export_df.insert(0, "Scenario Generated At", scenario_generated_at)
+    scenario_export_df.insert(1, "Scenario Ticker", scenario_ticker)
+    scenario_export_df.insert(2, "Scenario Action", scenario_action)
+    scenario_export_df.insert(3, "Scenario Risk Score", scenario_risk_score)
+    scenario_export_df.insert(4, "Scenario Risk Level", scenario_risk_level)
+
+    scenario_csv_data = scenario_export_df.to_csv(index=False).encode("utf-8-sig")
+
+    st.download_button(
+        label="Download Scenario Summary TXT",
+        data=scenario_summary.encode("utf-8"),
+        file_name=f"portfolio_scenario_summary_{scenario_filename_timestamp}.txt",
+        mime="text/plain",
+        key="download_scenario_summary_txt",
+    )
+
+    st.download_button(
+        label="Download Scenario Data CSV",
+        data=scenario_csv_data,
+        file_name=f"portfolio_scenario_data_{scenario_filename_timestamp}.csv",
+        mime="text/csv",
+        key="download_scenario_data_csv",
+    )
+
     st.caption(
         "This scenario is temporary and does not change saved portfolio "
-        "positions or snapshots."
+        "positions or snapshots. TXT is best for notes. CSV is best for "
+        "Excel, Google Sheets, and scenario comparison."
     )
