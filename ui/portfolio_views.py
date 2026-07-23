@@ -106,6 +106,9 @@ def render_portfolio_dashboard(portfolio_df):
     render_portfolio_risk_alert_banner(portfolio_df)
     render_portfolio_executive_summary(portfolio_df)
 
+    with st.expander("Portfolio What-If Scenario Planner", expanded=False):
+        render_portfolio_what_if_scenario(portfolio_df)
+
     st.divider()
 
     with st.expander("Portfolio Overview", expanded=True):
@@ -1971,4 +1974,184 @@ Latest snapshot status: {latest_snapshot_text}
     st.caption(
         "The TXT file is best for notes or written updates. The CSV file is "
         "best for Excel, Google Sheets, dashboards, and structured reporting."
+    )
+
+
+def render_portfolio_what_if_scenario(portfolio_df: pd.DataFrame) -> None:
+    """Render portfolio what-if scenario planner without changing saved data."""
+    st.subheader("Portfolio What-If Scenario Planner")
+
+    if portfolio_df is None or portfolio_df.empty:
+        st.info(
+            "No portfolio positions available. Add positions before running "
+            "what-if scenarios."
+        )
+        return
+
+    required_columns = [
+        "Ticker",
+        "Shares",
+        "Buy Price",
+        "Current Price",
+        "Cost Basis",
+        "Current Value",
+        "Gain/Loss",
+        "Allocation %",
+    ]
+
+    missing_columns = [
+        column for column in required_columns
+        if column not in portfolio_df.columns
+    ]
+
+    if missing_columns:
+        st.warning(
+            "What-if scenario planner unavailable. Missing columns: "
+            + ", ".join(missing_columns)
+        )
+        return
+
+    scenario_ticker = st.selectbox(
+        "Scenario ticker",
+        options=portfolio_df["Ticker"].astype(str).tolist(),
+        key="scenario_ticker_select",
+    )
+
+    scenario_action = st.selectbox(
+        "Scenario action",
+        options=[
+            "Add shares",
+            "Reduce shares",
+            "Change price",
+        ],
+        key="scenario_action_select",
+    )
+
+    selected_position = portfolio_df[
+        portfolio_df["Ticker"].astype(str) == scenario_ticker
+    ].iloc[0]
+
+    current_shares = float(selected_position["Shares"])
+    current_price = float(selected_position["Current Price"])
+    buy_price = float(selected_position["Buy Price"])
+
+    scenario_shares_delta = 0.0
+    scenario_price = current_price
+
+    if scenario_action == "Add shares":
+        scenario_shares_delta = st.number_input(
+            "Shares to add",
+            min_value=0.0,
+            value=1.0,
+            step=1.0,
+            key="scenario_add_shares_input",
+        )
+    elif scenario_action == "Reduce shares":
+        scenario_shares_delta = -st.number_input(
+            "Shares to reduce",
+            min_value=0.0,
+            max_value=current_shares,
+            value=min(1.0, current_shares),
+            step=1.0,
+            key="scenario_reduce_shares_input",
+        )
+    else:
+        scenario_price = st.number_input(
+            "Scenario current price",
+            min_value=0.0,
+            value=current_price,
+            step=1.0,
+            key="scenario_price_input",
+        )
+
+    scenario_df = portfolio_df.copy()
+
+    ticker_mask = scenario_df["Ticker"].astype(str) == scenario_ticker
+
+    scenario_df.loc[ticker_mask, "Shares"] = (
+        scenario_df.loc[ticker_mask, "Shares"].astype(float)
+        + scenario_shares_delta
+    )
+
+    scenario_df.loc[ticker_mask, "Shares"] = scenario_df.loc[
+        ticker_mask,
+        "Shares",
+    ].clip(lower=0)
+
+    scenario_df.loc[ticker_mask, "Current Price"] = scenario_price
+
+    scenario_df.loc[ticker_mask, "Cost Basis"] = (
+        scenario_df.loc[ticker_mask, "Shares"].astype(float) * buy_price
+    )
+
+    scenario_df.loc[ticker_mask, "Current Value"] = (
+        scenario_df.loc[ticker_mask, "Shares"].astype(float) * scenario_price
+    )
+
+    scenario_df.loc[ticker_mask, "Gain/Loss"] = (
+        scenario_df.loc[ticker_mask, "Current Value"].astype(float)
+        - scenario_df.loc[ticker_mask, "Cost Basis"].astype(float)
+    )
+
+    total_scenario_value = float(scenario_df["Current Value"].sum())
+
+    if total_scenario_value > 0:
+        scenario_df["Allocation %"] = (
+            scenario_df["Current Value"].astype(float) / total_scenario_value
+        ) * 100
+    else:
+        scenario_df["Allocation %"] = 0.0
+
+    current_total_value = float(portfolio_df["Current Value"].sum())
+    current_total_gain_loss = float(portfolio_df["Gain/Loss"].sum())
+
+    scenario_total_value = float(scenario_df["Current Value"].sum())
+    scenario_total_gain_loss = float(scenario_df["Gain/Loss"].sum())
+
+    current_risk_score, current_risk_level, _ = calculate_portfolio_risk_score(
+        portfolio_df
+    )
+
+    scenario_risk_score, scenario_risk_level, scenario_risk_notes = (
+        calculate_portfolio_risk_score(scenario_df)
+    )
+
+    value_delta = scenario_total_value - current_total_value
+    gain_loss_delta = scenario_total_gain_loss - current_total_gain_loss
+    risk_delta = scenario_risk_score - current_risk_score
+
+    col1, col2, col3 = st.columns(3)
+
+    col1.metric(
+        "Scenario Portfolio Value",
+        f"${scenario_total_value:,.2f}",
+        f"{value_delta:+,.2f}",
+    )
+
+    col2.metric(
+        "Scenario Gain/Loss",
+        f"${scenario_total_gain_loss:,.2f}",
+        f"{gain_loss_delta:+,.2f}",
+    )
+
+    col3.metric(
+        "Scenario Risk Level",
+        scenario_risk_level,
+        f"{risk_delta:+.0f} points",
+    )
+
+    with st.expander("Scenario risk drivers", expanded=False):
+        for note in scenario_risk_notes:
+            st.info(note)
+
+    with st.expander("Scenario position table", expanded=False):
+        st.dataframe(
+            scenario_df,
+            use_container_width=True,
+            hide_index=True,
+        )
+
+    st.caption(
+        "This scenario is temporary and does not change saved portfolio "
+        "positions or snapshots."
     )
