@@ -2279,6 +2279,35 @@ def render_portfolio_what_if_scenario(portfolio_df: pd.DataFrame) -> None:
     else:
         st.success("No major scenario risk thresholds were triggered.")
 
+    scenario_user_notes = st.session_state.get(
+        "scenario_user_notes_text_area",
+        "",
+    )
+
+    scenario_generated_at = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
+    scenario_filename_timestamp = pd.Timestamp.now().strftime("%Y-%m-%d_%H%M")
+
+    if st.button(
+        "Save Scenario to History",
+        key="save_scenario_to_history_button",
+    ):
+        save_scenario_to_session_history(
+            scenario_generated_at=scenario_generated_at,
+            scenario_ticker=scenario_ticker,
+            scenario_action=scenario_action,
+            scenario_total_value=scenario_total_value,
+            value_delta=value_delta,
+            scenario_total_gain_loss=scenario_total_gain_loss,
+            gain_loss_delta=gain_loss_delta,
+            scenario_risk_score=scenario_risk_score,
+            scenario_risk_level=scenario_risk_level,
+            scenario_decision=scenario_decision,
+            scenario_user_notes=scenario_user_notes,
+        )
+        st.success("Scenario saved to this session's history.")
+
+    render_scenario_session_history()
+
     with st.expander("Scenario risk drivers", expanded=False):
         for note in scenario_risk_notes:
             st.info(note)
@@ -2534,3 +2563,77 @@ def apply_scenario_price_preset(current_price: float, percent_change: float) -> 
     st.session_state["pending_scenario_price"] = float(scenario_price)
 
     st.rerun()
+
+
+def save_scenario_to_session_history(
+    scenario_generated_at: str,
+    scenario_ticker: str,
+    scenario_action: str,
+    scenario_total_value: float,
+    value_delta: float,
+    scenario_total_gain_loss: float,
+    gain_loss_delta: float,
+    scenario_risk_score: int | float,
+    scenario_risk_level: str,
+    scenario_decision: str,
+    scenario_user_notes: str,
+) -> None:
+    """Save a what-if scenario record to session-state history."""
+    if "portfolio_scenario_history" not in st.session_state:
+        st.session_state["portfolio_scenario_history"] = []
+
+    st.session_state["portfolio_scenario_history"].append(
+        {
+            "Scenario Generated At": scenario_generated_at,
+            "Ticker": scenario_ticker,
+            "Action": scenario_action,
+            "Scenario Portfolio Value": float(scenario_total_value),
+            "Value Delta": float(value_delta),
+            "Scenario Gain/Loss": float(scenario_total_gain_loss),
+            "Gain/Loss Delta": float(gain_loss_delta),
+            "Scenario Risk Score": float(scenario_risk_score),
+            "Scenario Risk Level": scenario_risk_level,
+            "Scenario Decision": scenario_decision,
+            "Scenario Notes": (
+                scenario_user_notes.strip()
+                if scenario_user_notes.strip()
+                else "No user notes entered."
+            ),
+        }
+    )
+
+
+def render_scenario_session_history() -> None:
+    """Render saved what-if scenarios from session-state history."""
+    scenario_history = st.session_state.get("portfolio_scenario_history", [])
+
+    st.subheader("Scenario History")
+
+    if not scenario_history:
+        st.info("No scenarios saved in this session yet.")
+        return
+
+    scenario_history_df = pd.DataFrame(scenario_history)
+
+    st.dataframe(
+        scenario_history_df,
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    scenario_history_timestamp = pd.Timestamp.now().strftime("%Y-%m-%d_%H%M")
+
+    st.download_button(
+        label="Download Scenario History CSV",
+        data=scenario_history_df.to_csv(index=False).encode("utf-8-sig"),
+        file_name=f"portfolio_scenario_history_{scenario_history_timestamp}.csv",
+        mime="text/csv",
+        key="download_scenario_history_csv",
+    )
+
+    if st.button(
+        "Clear Scenario History",
+        key="clear_portfolio_scenario_history_button",
+    ):
+        st.session_state["portfolio_scenario_history"] = []
+        st.rerun()
