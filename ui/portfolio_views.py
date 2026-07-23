@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import pandas as pd
 import streamlit as st
+
+REPORT_SPRINT_VERSION = "Sprint 64"
+REPORT_FEATURE_LABEL = "Portfolio Reporting and Decision Support"
 import plotly.express as px
 from services.portfolio_analytics_service import build_portfolio_risk_flags, build_sector_exposure_dataframe, build_position_weight_dataframe, calculate_portfolio_risk_score
 from portfolio import calculate_target_price
@@ -1962,7 +1965,13 @@ def render_portfolio_report_summary(
             "No saved portfolio snapshot exists yet."
         )
 
+    report_generated_at = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
+
     report_summary = f"""Portfolio Report Summary
+
+Report generated at: {report_generated_at}
+Sprint version: {REPORT_SPRINT_VERSION}
+Report type: TXT portfolio report summary
 
 Portfolio value: ${total_current_value:,.2f}
 Total unrealized gain/loss: ${total_gain_loss:,.2f} ({total_gain_loss_pct:.2f}%)
@@ -2003,7 +2012,10 @@ Latest snapshot status: {latest_snapshot_text}
     report_export_df = pd.DataFrame(
         [
             {
-                "Report Date": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "Report Generated At": report_generated_at,
+                "Sprint Version": REPORT_SPRINT_VERSION,
+                "Report Feature": REPORT_FEATURE_LABEL,
+                "Report Type": "CSV portfolio report summary",
                 "Portfolio Value": total_current_value,
                 "Total Cost Basis": total_cost_basis,
                 "Total Gain/Loss": total_gain_loss,
