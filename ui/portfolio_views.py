@@ -1966,6 +1966,7 @@ def render_portfolio_report_summary(
         )
 
     report_generated_at = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
+    report_filename_timestamp = pd.Timestamp.now().strftime("%Y-%m-%d_%H%M")
 
     report_summary = f"""Portfolio Report Summary
 
@@ -1991,7 +1992,7 @@ Latest snapshot status: {latest_snapshot_text}
     st.download_button(
         label="Download Portfolio Report Summary TXT",
         data=report_summary.encode("utf-8"),
-        file_name="portfolio_report_summary.txt",
+        file_name=f"portfolio_report_summary_{report_filename_timestamp}.txt",
         mime="text/plain",
         key="download_portfolio_report_summary_txt",
     )
@@ -2037,7 +2038,7 @@ Latest snapshot status: {latest_snapshot_text}
     st.download_button(
         label="Download Portfolio Report Summary CSV",
         data=report_csv_data,
-        file_name="portfolio_report_summary.csv",
+        file_name=f"portfolio_report_summary_{report_filename_timestamp}.csv",
         mime="text/csv",
         key="download_portfolio_report_summary_csv",
     )
