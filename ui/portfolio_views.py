@@ -2140,6 +2140,18 @@ def render_portfolio_what_if_scenario(portfolio_df: pd.DataFrame) -> None:
         f"{risk_delta:+.0f} points",
     )
 
+    scenario_comparison_summary, scenario_decision = (
+        build_scenario_comparison_summary(
+            value_delta=value_delta,
+            gain_loss_delta=gain_loss_delta,
+            risk_delta=risk_delta,
+        )
+    )
+
+    st.subheader("Scenario Comparison Summary")
+    st.info(scenario_comparison_summary)
+    st.caption(f"Scenario decision label: {scenario_decision}")
+
     with st.expander("Scenario risk drivers", expanded=False):
         for note in scenario_risk_notes:
             st.info(note)
@@ -2171,6 +2183,8 @@ Gain/loss change: ${gain_loss_delta:,.2f}
 Current risk level: {current_risk_level} ({current_risk_score}/100)
 Scenario risk level: {scenario_risk_level} ({scenario_risk_score}/100)
 Risk score change: {risk_delta:+.0f} point(s)
+Scenario decision: {scenario_decision}
+Scenario comparison summary: {scenario_comparison_summary}
 
 Scenario risk drivers:
 {chr(10).join(f"- {note}" for note in scenario_risk_notes)}
@@ -2182,6 +2196,8 @@ Scenario risk drivers:
     scenario_export_df.insert(2, "Scenario Action", scenario_action)
     scenario_export_df.insert(3, "Scenario Risk Score", scenario_risk_score)
     scenario_export_df.insert(4, "Scenario Risk Level", scenario_risk_level)
+    scenario_export_df.insert(5, "Scenario Decision", scenario_decision)
+    scenario_export_df.insert(6, "Scenario Comparison Summary", scenario_comparison_summary)
 
     scenario_csv_data = scenario_export_df.to_csv(index=False).encode("utf-8-sig")
 
@@ -2206,3 +2222,66 @@ Scenario risk drivers:
         "positions or snapshots. TXT is best for notes. CSV is best for "
         "Excel, Google Sheets, and scenario comparison."
     )
+
+
+def build_scenario_comparison_summary(
+    value_delta: float,
+    gain_loss_delta: float,
+    risk_delta: int | float,
+) -> tuple[str, str]:
+    """Build plain-English scenario comparison summary and decision label."""
+    if value_delta > 0:
+        value_message = f"This scenario increases portfolio value by ${value_delta:,.2f}."
+    elif value_delta < 0:
+        value_message = f"This scenario decreases portfolio value by ${abs(value_delta):,.2f}."
+    else:
+        value_message = "This scenario leaves portfolio value unchanged."
+
+    if gain_loss_delta > 0:
+        gain_loss_message = (
+            f"This scenario improves unrealized gain/loss by ${gain_loss_delta:,.2f}."
+        )
+    elif gain_loss_delta < 0:
+        gain_loss_message = (
+            f"This scenario weakens unrealized gain/loss by ${abs(gain_loss_delta):,.2f}."
+        )
+    else:
+        gain_loss_message = "This scenario leaves unrealized gain/loss unchanged."
+
+    if risk_delta > 0:
+        risk_message = f"This scenario raises risk score by {risk_delta:.0f} point(s)."
+    elif risk_delta < 0:
+        risk_message = f"This scenario reduces risk score by {abs(risk_delta):.0f} point(s)."
+    else:
+        risk_message = "This scenario leaves risk score unchanged."
+
+    if risk_delta >= 15:
+        decision = "Risky scenario"
+        decision_message = (
+            "Decision: risky scenario. Review concentration, sector exposure, "
+            "or missing price data before acting."
+        )
+    elif value_delta > 0 and gain_loss_delta >= 0 and risk_delta <= 0:
+        decision = "Favorable scenario"
+        decision_message = (
+            "Decision: favorable scenario. Value improves without increasing "
+            "the risk score."
+        )
+    elif value_delta < 0 and gain_loss_delta < 0:
+        decision = "Unfavorable scenario"
+        decision_message = (
+            "Decision: unfavorable scenario. Value and gain/loss both decline."
+        )
+    else:
+        decision = "Neutral scenario"
+        decision_message = (
+            "Decision: neutral scenario. Review the trade-off between value, "
+            "gain/loss, and risk before acting."
+        )
+
+    summary = (
+        f"{value_message} {gain_loss_message} {risk_message} "
+        f"{decision_message}"
+    )
+
+    return summary, decision
