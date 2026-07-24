@@ -22,3 +22,4 @@ app.log
 
 .ipynb_checkpoints/
 requirements.full-backup.txt
+.streamlit/

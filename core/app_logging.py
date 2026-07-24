@@ -1,35 +1,69 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 
-LOGGER_NAME = "stock_analysis_app"
+LOG_FILE = Path("app.log")
 
 
-def get_app_logger() -> logging.Logger:
-    logger = logging.getLogger(LOGGER_NAME)
-    if not logger.handlers:
-        handler = logging.StreamHandler()
-        formatter = logging.Formatter(
-            "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
-        )
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
+def get_app_logger(name: str = "stock_analysis_app") -> logging.Logger:
+    """Return configured app logger."""
+    logger = logging.getLogger(name)
+
+    if logger.handlers:
+        return logger
+
     logger.setLevel(logging.INFO)
+
+    formatter = logging.Formatter(
+        "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
+    )
+
+    file_handler = logging.FileHandler(LOG_FILE)
+    file_handler.setFormatter(formatter)
+    file_handler.setLevel(logging.INFO)
+
+    logger.addHandler(file_handler)
+
     return logger
 
 
-def log_info(message: str) -> None:
-    get_app_logger().info(message)
-
-
-def log_warning(message: str) -> None:
-    get_app_logger().warning(message)
-
-
-def log_error(message: str, exc: Exception | None = None) -> None:
+def log_error(error: Exception | str, context: str = "") -> None:
+    """Log an error with optional context."""
     logger = get_app_logger()
-    if exc is None:
-        logger.error(message)
+
+    if isinstance(error, Exception):
+        logger.exception("%s | %s", context, error)
     else:
-        logger.exception("%s | error=%s", message, exc)
+        logger.error("%s | %s", context, error)
+
+
+def log_info(message: str, context: str = "") -> None:
+    """Log an info message."""
+    logger = get_app_logger()
+
+    if context:
+        logger.info("%s | %s", context, message)
+    else:
+        logger.info(message)
+
+
+def log_warning(message: str, context: str = "") -> None:
+    """Log a warning message."""
+    logger = get_app_logger()
+
+    if context:
+        logger.warning("%s | %s", context, message)
+    else:
+        logger.warning(message)
+
+
+def log_app_error(error: Exception, context: str) -> None:
+    """Backward-compatible app error logger."""
+    log_error(error=error, context=context)
+
+
+def log_app_info(message: str) -> None:
+    """Backward-compatible app info logger."""
+    log_info(message)

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from app_logger import log_app_error
+from core.app_logging import log_app_error
 from database import save_portfolio_scenario, get_portfolio_scenarios, delete_portfolio_scenario, ensure_portfolio_scenario_table, get_portfolio_scenario_database_health, delete_duplicate_portfolio_scenarios, get_app_database_health
 
 import pandas as pd
