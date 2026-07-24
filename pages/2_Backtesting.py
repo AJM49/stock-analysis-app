@@ -5,6 +5,8 @@ import streamlit as st
 import yfinance as yf
 
 from backtesting.engine import BacktestEngine
+from strategies.buy_and_hold import BuyAndHoldStrategy
+from backtesting.comparison import compare_strategies
 from strategies.moving_average import MovingAverageCrossoverStrategy
 from factors.technical import build_technical_factor_table
 
@@ -155,6 +157,128 @@ def render_metric_row(result: dict) -> None:
         f"Strategy: {result['strategy_name']} | "
         f"Benchmark: {result['benchmark_name']}"
     )
+
+
+def render_strategy_comparison_section(
+    price_data: pd.DataFrame,
+    ticker: str,
+    starting_cash: float,
+    short_window: int,
+    long_window: int,
+    trade_size_pct: float,
+) -> None:
+    """Render side-by-side strategy comparison results."""
+    st.subheader("Strategy Comparison")
+
+    st.markdown(
+        """
+Compare the moving-average crossover strategy against a buy-and-hold strategy using the same ticker, period, and starting cash.
+"""
+    )
+
+    try:
+        comparison = compare_strategies(
+            price_data=price_data,
+            ticker=ticker,
+            strategies=[
+                MovingAverageCrossoverStrategy(
+                    short_window=int(short_window),
+                    long_window=int(long_window),
+                ),
+                BuyAndHoldStrategy(),
+            ],
+            starting_cash=float(starting_cash),
+            trade_size_pct=float(trade_size_pct),
+        )
+    except Exception as error:
+        st.error(f"Strategy comparison failed: {error}")
+        return
+
+    summary = comparison["summary"]
+
+    if summary.empty:
+        st.info("No strategy comparison results available.")
+        return
+
+    best_return_strategy = comparison["best_return_strategy"]
+    lowest_drawdown_strategy = comparison["lowest_drawdown_strategy"]
+
+    summary_col1, summary_col2 = st.columns(2)
+
+    summary_col1.metric(
+        "Best Return Strategy",
+        best_return_strategy,
+    )
+
+    summary_col2.metric(
+        "Lowest Drawdown Strategy",
+        lowest_drawdown_strategy,
+    )
+
+    display_summary = summary.copy()
+
+    numeric_columns = [
+        "starting_cash",
+        "ending_value",
+        "total_return_pct",
+        "max_drawdown_pct",
+        "win_rate_pct",
+        "exposure_pct",
+    ]
+
+    for column in numeric_columns:
+        if column in display_summary.columns:
+            display_summary[column] = display_summary[column].round(2)
+
+    st.dataframe(
+        display_summary,
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    chart_frames = []
+
+    for row in comparison["results"]:
+        result = row["result"]
+        equity_curve = result["equity_curve"]
+
+        if equity_curve.empty:
+            continue
+
+        strategy_chart = equity_curve[["Date", "total_value"]].copy()
+        strategy_chart = strategy_chart.rename(
+            columns={"total_value": row["strategy_name"]}
+        )
+
+        chart_frames.append(strategy_chart)
+
+    if chart_frames:
+        chart_data = chart_frames[0]
+
+        for next_frame in chart_frames[1:]:
+            chart_data = chart_data.merge(
+                next_frame,
+                on="Date",
+                how="inner",
+            )
+
+        chart_data = chart_data.set_index("Date")
+
+        st.subheader("Strategy Equity Curve Comparison")
+        st.line_chart(chart_data)
+    else:
+        st.info("No strategy equity curves available.")
+
+    comparison_csv = display_summary.to_csv(index=False)
+
+    st.download_button(
+        label="Download Strategy Comparison CSV",
+        data=comparison_csv,
+        file_name="strategy_comparison.csv",
+        mime="text/csv",
+        key="download_strategy_comparison_csv",
+    )
+
 
 
 def render_technical_factor_section(price_data: pd.DataFrame) -> None:
@@ -425,6 +549,15 @@ and `strategies/` modules.
     else:
         st.info("No equity curve data available.")
 
+    render_strategy_comparison_section(
+        price_data=price_data,
+        ticker=ticker,
+        starting_cash=float(starting_cash),
+        short_window=int(short_window),
+        long_window=int(long_window),
+        trade_size_pct=float(trade_size_pct),
+    )
+
     render_technical_factor_section(price_data)
 
     st.subheader("Strategy Signals")
@@ -483,6 +616,27 @@ The backtesting engine:
 4. Tracks cash, shares, position value, and total portfolio value.
 5. Builds an equity curve.
 6. Returns basic metrics.
+
+### Strategy Comparison Logic
+
+The strategy comparison section uses `backtesting/comparison.py` to run multiple strategies against the same standardized price data.
+
+Current comparison:
+
+- Moving Average Crossover
+- Buy and Hold
+
+The comparison table shows:
+
+- Ending value
+- Total return
+- Maximum drawdown
+- Number of trades
+- Completed trades
+- Win rate
+- Exposure
+
+This creates the foundation for comparing more strategies later, including momentum, mean reversion, and machine-learning-driven strategies.
 
 ### Technical Factor Logic
 
