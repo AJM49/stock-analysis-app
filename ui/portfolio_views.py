@@ -1,4 +1,5 @@
 from __future__ import annotations
+from database import save_portfolio_scenario, get_portfolio_scenarios, delete_portfolio_scenario
 
 import pandas as pd
 import streamlit as st
@@ -2287,8 +2288,10 @@ def render_portfolio_what_if_scenario(portfolio_df: pd.DataFrame) -> None:
     scenario_generated_at = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
     scenario_filename_timestamp = pd.Timestamp.now().strftime("%Y-%m-%d_%H%M")
 
-    if st.button(
-        "Save Scenario to History",
+    save_col1, save_col2 = st.columns(2)
+
+    if save_col1.button(
+        "Save Scenario to Session History",
         key="save_scenario_to_history_button",
     ):
         save_scenario_to_session_history(
@@ -2306,7 +2309,36 @@ def render_portfolio_what_if_scenario(portfolio_df: pd.DataFrame) -> None:
         )
         st.success("Scenario saved to this session's history.")
 
+    if save_col2.button(
+        "Save Scenario to Database",
+        key="save_scenario_to_database_button",
+    ):
+        saved_to_database = save_portfolio_scenario(
+            ticker=scenario_ticker,
+            action=scenario_action,
+            scenario_portfolio_value=scenario_total_value,
+            value_delta=value_delta,
+            scenario_gain_loss=scenario_total_gain_loss,
+            gain_loss_delta=gain_loss_delta,
+            scenario_risk_score=scenario_risk_score,
+            scenario_risk_level=scenario_risk_level,
+            scenario_decision=scenario_decision,
+            scenario_notes=(
+                scenario_user_notes.strip()
+                if scenario_user_notes.strip()
+                else "No user notes entered."
+            ),
+        )
+
+        if saved_to_database:
+            st.success("Scenario saved to database.")
+        else:
+            st.error("Scenario could not be saved to database.")
+
     render_scenario_session_history()
+
+    with st.expander("Database Scenario History", expanded=False):
+        render_database_scenario_history()
 
     with st.expander("Scenario risk drivers", expanded=False):
         for note in scenario_risk_notes:
@@ -2716,3 +2748,72 @@ def render_scenario_session_history() -> None:
     ):
         st.session_state["portfolio_scenario_history"] = []
         st.rerun()
+
+
+def render_database_scenario_history(limit: int = 100) -> None:
+    """Render saved what-if scenarios from the database."""
+    st.subheader("Saved Scenario Database History")
+
+    scenarios = get_portfolio_scenarios(limit=limit)
+
+    if not scenarios:
+        st.info("No database-saved scenarios yet.")
+        return
+
+    scenario_rows = []
+
+    for scenario in scenarios:
+        scenario_rows.append(
+            {
+                "ID": scenario.id,
+                "Scenario Date": scenario.scenario_date,
+                "Ticker": scenario.ticker,
+                "Action": scenario.action,
+                "Scenario Portfolio Value": scenario.scenario_portfolio_value,
+                "Value Delta": scenario.value_delta,
+                "Scenario Gain/Loss": scenario.scenario_gain_loss,
+                "Gain/Loss Delta": scenario.gain_loss_delta,
+                "Scenario Risk Score": scenario.scenario_risk_score,
+                "Scenario Risk Level": scenario.scenario_risk_level,
+                "Scenario Decision": scenario.scenario_decision,
+                "Scenario Notes": scenario.scenario_notes,
+            }
+        )
+
+    scenario_db_df = pd.DataFrame(scenario_rows)
+
+    st.dataframe(
+        scenario_db_df,
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    scenario_db_timestamp = pd.Timestamp.now().strftime("%Y-%m-%d_%H%M")
+
+    st.download_button(
+        label="Download Database Scenario History CSV",
+        data=scenario_db_df.to_csv(index=False).encode("utf-8-sig"),
+        file_name=f"portfolio_database_scenario_history_{scenario_db_timestamp}.csv",
+        mime="text/csv",
+        key="download_database_scenario_history_csv",
+    )
+
+    scenario_ids = scenario_db_df["ID"].tolist()
+
+    selected_scenario_id = st.selectbox(
+        "Delete saved database scenario",
+        options=scenario_ids,
+        key="delete_database_scenario_selectbox",
+    )
+
+    if st.button(
+        "Delete Selected Database Scenario",
+        key="delete_database_scenario_button",
+    ):
+        deleted = delete_portfolio_scenario(int(selected_scenario_id))
+
+        if deleted:
+            st.success("Selected database scenario deleted.")
+            st.rerun()
+        else:
+            st.error("Selected database scenario could not be deleted.")

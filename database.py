@@ -762,3 +762,109 @@ def ensure_portfolio_snapshot_risk_columns() -> None:
             )
 
 ensure_portfolio_snapshot_risk_columns()
+
+
+class PortfolioScenario(Base):
+    """Saved what-if scenario history."""
+
+    __tablename__ = "portfolio_scenarios"
+
+    id = Column(Integer, primary_key=True, index=True)
+    scenario_date = Column(DateTime, default=datetime.utcnow, nullable=False)
+    ticker = Column(String, nullable=False)
+    action = Column(String, nullable=False)
+    scenario_portfolio_value = Column(Float, nullable=False)
+    value_delta = Column(Float, nullable=False)
+    scenario_gain_loss = Column(Float, nullable=False)
+    gain_loss_delta = Column(Float, nullable=False)
+    scenario_risk_score = Column(Float, nullable=True)
+    scenario_risk_level = Column(String, nullable=True)
+    scenario_decision = Column(String, nullable=True)
+    scenario_notes = Column(Text, nullable=True)
+
+
+def save_portfolio_scenario(
+    ticker: str,
+    action: str,
+    scenario_portfolio_value: float,
+    value_delta: float,
+    scenario_gain_loss: float,
+    gain_loss_delta: float,
+    scenario_risk_score: float | None,
+    scenario_risk_level: str | None,
+    scenario_decision: str | None,
+    scenario_notes: str | None,
+) -> bool:
+    """Save a what-if scenario to the database."""
+    session = SessionLocal()
+
+    try:
+        scenario = PortfolioScenario(
+            ticker=str(ticker).upper(),
+            action=str(action),
+            scenario_portfolio_value=float(scenario_portfolio_value),
+            value_delta=float(value_delta),
+            scenario_gain_loss=float(scenario_gain_loss),
+            gain_loss_delta=float(gain_loss_delta),
+            scenario_risk_score=(
+                float(scenario_risk_score)
+                if scenario_risk_score is not None
+                else None
+            ),
+            scenario_risk_level=scenario_risk_level,
+            scenario_decision=scenario_decision,
+            scenario_notes=scenario_notes,
+        )
+
+        session.add(scenario)
+        session.commit()
+        return True
+
+    except Exception:
+        session.rollback()
+        return False
+
+    finally:
+        session.close()
+
+
+def get_portfolio_scenarios(limit: int = 100) -> list[PortfolioScenario]:
+    """Return saved what-if scenarios from newest to oldest."""
+    session = SessionLocal()
+
+    try:
+        return (
+            session.query(PortfolioScenario)
+            .order_by(PortfolioScenario.scenario_date.desc())
+            .limit(limit)
+            .all()
+        )
+
+    finally:
+        session.close()
+
+
+def delete_portfolio_scenario(scenario_id: int) -> bool:
+    """Delete one saved what-if scenario."""
+    session = SessionLocal()
+
+    try:
+        scenario = (
+            session.query(PortfolioScenario)
+            .filter(PortfolioScenario.id == scenario_id)
+            .first()
+        )
+
+        if scenario is None:
+            return False
+
+        session.delete(scenario)
+        session.commit()
+        return True
+
+    except Exception:
+        session.rollback()
+        return False
+
+    finally:
+        session.close()
