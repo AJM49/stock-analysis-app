@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app_logger import log_app_error
 from database import save_portfolio_scenario, get_portfolio_scenarios, delete_portfolio_scenario, ensure_portfolio_scenario_table, get_portfolio_scenario_database_health, delete_duplicate_portfolio_scenarios, get_app_database_health
 
 import pandas as pd
@@ -65,6 +66,7 @@ def format_portfolio_dataframe(portfolio_df: pd.DataFrame) -> pd.DataFrame:
 def render_portfolio_dashboard(portfolio_df):
     """Render the full portfolio analytics dashboard."""
     st.subheader("Portfolio Analytics")
+    render_production_status_banner()
 
     if portfolio_df is None or portfolio_df.empty:
         st.info(
@@ -2757,7 +2759,15 @@ def render_database_scenario_history(limit: int = 100) -> None:
     with st.expander("Scenario Database Health and Cleanup", expanded=False):
         render_database_scenario_cleanup_panel()
 
-    scenarios = get_portfolio_scenarios(limit=limit)
+    try:
+        scenarios = get_portfolio_scenarios(limit=limit)
+    except Exception as error:
+        render_safe_error(
+            message="Database scenario history could not be loaded.",
+            error=error,
+            context="render_database_scenario_history",
+        )
+        return
 
     if not scenarios:
         st.info("No database-saved scenarios yet.")
@@ -3158,7 +3168,15 @@ def render_database_scenario_cleanup_panel() -> None:
     """Render scenario database health and cleanup controls."""
     st.subheader("Scenario Database Health and Cleanup")
 
-    health = get_portfolio_scenario_database_health()
+    try:
+        health = get_portfolio_scenario_database_health()
+    except Exception as error:
+        render_safe_error(
+            message="Scenario database health check could not be loaded.",
+            error=error,
+            context="render_database_scenario_cleanup_panel",
+        )
+        return
 
     health_col1, health_col2 = st.columns(2)
 
@@ -3263,7 +3281,15 @@ def render_app_health_check_panel() -> None:
     """Render production health checks for the portfolio app."""
     st.subheader("App Health Check")
 
-    health = get_app_database_health()
+    try:
+        health = get_app_database_health()
+    except Exception as error:
+        render_safe_error(
+            message="App health check could not be loaded.",
+            error=error,
+            context="render_app_health_check_panel",
+        )
+        return
 
     database_ready = bool(health.get("database_ready"))
     scenario_table_ready = bool(health.get("scenario_table_ready"))
@@ -3355,3 +3381,45 @@ def render_app_health_check_panel() -> None:
         use_container_width=True,
         hide_index=True,
     )
+
+
+def render_safe_error(message: str, error: Exception, context: str) -> None:
+    """Show user-friendly error and log technical details."""
+    log_app_error(error, context)
+    st.error(message)
+    st.caption(
+        "Technical details were logged for debugging. "
+        "Check app.log in the project directory."
+    )
+
+
+def render_production_status_banner() -> None:
+    """Render compact production readiness status banner."""
+    try:
+        health = get_app_database_health()
+    except Exception as error:
+        render_safe_error(
+            message="Production status could not be loaded.",
+            error=error,
+            context="render_production_status_banner",
+        )
+        return
+
+    database_ready = bool(health.get("database_ready"))
+    scenario_table_ready = bool(health.get("scenario_table_ready"))
+    overall_ready = database_ready and scenario_table_ready
+
+    checked_at = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    if overall_ready:
+        st.success(
+            f"Production Status: Ready | Database: Ready | "
+            f"Scenario Table: Ready | Last checked: {checked_at}"
+        )
+    else:
+        st.error(
+            f"Production Status: Needs Attention | "
+            f"Database: {'Ready' if database_ready else 'Needs Attention'} | "
+            f"Scenario Table: {'Ready' if scenario_table_ready else 'Needs Attention'} | "
+            f"Last checked: {checked_at}"
+        )
