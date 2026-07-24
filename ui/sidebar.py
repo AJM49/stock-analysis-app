@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import streamlit as st
 
-from database import add_portfolio_position
-from database import add_to_watchlist
+from database import add_portfolio_position, remove_portfolio_position
+from database import add_to_watchlist, remove_from_watchlist
 from database import get_portfolio_positions
 from database import get_watchlist
 from market_data import validate_ticker
