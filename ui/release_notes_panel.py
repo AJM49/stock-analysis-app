@@ -8,6 +8,27 @@ def render_release_notes_panel() -> None:
     with st.expander("Release Notes", expanded=False):
         st.markdown(
             """
+### Sprint 67 — Production Hardening and Portfolio Packaging
+
+**Completed features:**
+
+- Added production status banner.
+- Added app health check panel.
+- Added error logging through `core/app_logging.py`.
+- Added deployment checklist panel.
+- Added portfolio user guide panel.
+- Added project metadata panel.
+- Updated README for portfolio presentation.
+- Added security ignores for local secrets, runtime logs, and local database files.
+- Verified local and live Streamlit deployment readiness.
+- Packaged the project for GitHub, recruiter review, and portfolio demonstration.
+
+**Result:**
+
+Sprint 67 moved the app from a functional portfolio project into a production-hardened presentation build. The app now includes user-facing guidance, deployment checks, release notes, health visibility, and project metadata for reviewers.
+
+---
+
 ### Sprint 66 — Portfolio Forecast Persistence and Database Integration
 
 **Completed features:**

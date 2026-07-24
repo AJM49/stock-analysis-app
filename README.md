@@ -1,41 +1,15 @@
-# Stock Analysis Dashboard
+# Stock Analysis App
 
-A Python and Streamlit stock analysis application with portfolio tracking, 
-technical indicators, risk analytics, and SQLite persistence.
+A Python Streamlit application for stock research, portfolio tracking, risk analysis, scenario planning, and persistent portfolio reporting.
 
-## Features
+This project started as a basic stock dashboard and evolved into a full portfolio analytics platform with database-backed watchlists, saved portfolio positions, snapshot history, what-if scenario modeling, scenario persistence, reporting exports, production health checks, and deployment hardening.
 
-- Stock dashboard with company profile and market metrics
-- Stock comparison dashboard
-- Moving averages
-- RSI indicator
-- MACD indicator
-- Daily return chart
-- Volatility analysis
-- SQLite watchlist
-- Portfolio tracker
-- Portfolio allocation analytics
-- Risk dashboard
-- Stop-loss and target price calculator
-- Portfolio CSV export
-- Stock data CSV export
-- Ticker validation
-- Cached market data
-- Basic application logging
+## Live App
 
-## Project Structure
+Add your Streamlit Cloud link here:
 
 ```text
-stock-analysis-app/
-├── stock_app.py
-├── database.py
-├── market_data.py
-├── indicators.py
-├── portfolio.py
-├── ui_components.py
-├── config.py
-├── requirements.txt
-├── README.md
-├── .gitignore
-└── stocks.db
-# stock-analysis-app
+https://your-streamlit-app-url.streamlit.app
+https://ajm49appio-7wf27c54dht8q23cmhftst.streamlit.app/
+
+
