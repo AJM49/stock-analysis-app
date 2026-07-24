@@ -1,5 +1,5 @@
 from __future__ import annotations
-from database import save_portfolio_scenario, get_portfolio_scenarios, delete_portfolio_scenario, ensure_portfolio_scenario_table, get_portfolio_scenario_database_health, delete_duplicate_portfolio_scenarios
+from database import save_portfolio_scenario, get_portfolio_scenarios, delete_portfolio_scenario, ensure_portfolio_scenario_table, get_portfolio_scenario_database_health, delete_duplicate_portfolio_scenarios, get_app_database_health
 
 import pandas as pd
 import streamlit as st
@@ -3257,3 +3257,101 @@ def build_scenario_action_plan(
         )
 
     return action_plan
+
+
+def render_app_health_check_panel() -> None:
+    """Render production health checks for the portfolio app."""
+    st.subheader("App Health Check")
+
+    health = get_app_database_health()
+
+    database_ready = bool(health.get("database_ready"))
+    scenario_table_ready = bool(health.get("scenario_table_ready"))
+
+    ready_checks = [
+        database_ready,
+        scenario_table_ready,
+    ]
+
+    overall_ready = all(ready_checks)
+
+    status_col1, status_col2, status_col3 = st.columns(3)
+
+    status_col1.metric(
+        "Overall App Status",
+        "Ready" if overall_ready else "Needs Attention",
+    )
+
+    status_col2.metric(
+        "Database Status",
+        "Ready" if database_ready else "Needs Attention",
+    )
+
+    status_col3.metric(
+        "Scenario Table",
+        "Ready" if scenario_table_ready else "Needs Attention",
+    )
+
+    count_col1, count_col2, count_col3, count_col4 = st.columns(4)
+
+    count_col1.metric(
+        "Watchlist Records",
+        int(health.get("watchlist_count", 0)),
+    )
+
+    count_col2.metric(
+        "Portfolio Positions",
+        int(health.get("portfolio_position_count", 0)),
+    )
+
+    count_col3.metric(
+        "Portfolio Snapshots",
+        int(health.get("portfolio_snapshot_count", 0)),
+    )
+
+    count_col4.metric(
+        "Saved Scenarios",
+        int(health.get("portfolio_scenario_count", 0)),
+    )
+
+    if overall_ready:
+        st.success(
+            "Core app storage is ready. Database, scenario table, and saved records are accessible."
+        )
+    else:
+        st.error(
+            "One or more app health checks need attention before final packaging."
+        )
+
+    health_rows = [
+        {
+            "Check": "Database connection",
+            "Status": "Ready" if database_ready else "Needs Attention",
+        },
+        {
+            "Check": "Portfolio scenario table",
+            "Status": "Ready" if scenario_table_ready else "Needs Attention",
+        },
+        {
+            "Check": "Watchlist records",
+            "Status": str(int(health.get("watchlist_count", 0))),
+        },
+        {
+            "Check": "Portfolio positions",
+            "Status": str(int(health.get("portfolio_position_count", 0))),
+        },
+        {
+            "Check": "Portfolio snapshots",
+            "Status": str(int(health.get("portfolio_snapshot_count", 0))),
+        },
+        {
+            "Check": "Saved scenarios",
+            "Status": str(int(health.get("portfolio_scenario_count", 0))),
+        },
+    ]
+
+    st.dataframe(
+        pd.DataFrame(health_rows),
+        use_container_width=True,
+        hide_index=True,
+    )

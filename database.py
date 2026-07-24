@@ -868,3 +868,158 @@ def delete_portfolio_scenario(scenario_id: int) -> bool:
 
     finally:
         session.close()
+
+
+def ensure_portfolio_scenario_table() -> bool:
+    """Ensure the portfolio_scenarios table exists."""
+    try:
+        Base.metadata.create_all(bind=engine)
+        return True
+    except Exception:
+        return False
+
+
+def get_portfolio_scenario_count() -> int:
+    """Return the number of saved portfolio scenarios."""
+    session = SessionLocal()
+
+    try:
+        return int(session.query(PortfolioScenario).count())
+    except Exception:
+        return 0
+    finally:
+        session.close()
+
+
+def delete_duplicate_portfolio_scenarios() -> tuple[int, str]:
+    """
+    Delete duplicate portfolio scenario records.
+
+    A duplicate is defined as same:
+    ticker, action, scenario_portfolio_value, value_delta,
+    scenario_gain_loss, gain_loss_delta, scenario_risk_score,
+    scenario_risk_level, scenario_decision, scenario_notes.
+    """
+    session = SessionLocal()
+
+    try:
+        scenarios = (
+            session.query(PortfolioScenario)
+            .order_by(PortfolioScenario.scenario_date.asc())
+            .all()
+        )
+
+        seen = set()
+        duplicate_ids = []
+
+        for scenario in scenarios:
+            scenario_key = (
+                str(scenario.ticker),
+                str(scenario.action),
+                round(float(scenario.scenario_portfolio_value or 0), 4),
+                round(float(scenario.value_delta or 0), 4),
+                round(float(scenario.scenario_gain_loss or 0), 4),
+                round(float(scenario.gain_loss_delta or 0), 4),
+                round(float(scenario.scenario_risk_score or 0), 4),
+                str(scenario.scenario_risk_level),
+                str(scenario.scenario_decision),
+                str(scenario.scenario_notes),
+            )
+
+            if scenario_key in seen:
+                duplicate_ids.append(scenario.id)
+            else:
+                seen.add(scenario_key)
+
+        if not duplicate_ids:
+            return 0, "No duplicate portfolio scenarios found."
+
+        deleted_count = (
+            session.query(PortfolioScenario)
+            .filter(PortfolioScenario.id.in_(duplicate_ids))
+            .delete(synchronize_session=False)
+        )
+
+        session.commit()
+
+        return int(deleted_count), f"Deleted {int(deleted_count)} duplicate scenario record(s)."
+
+    except Exception as error:
+        session.rollback()
+        return 0, f"Duplicate cleanup failed: {error}"
+
+    finally:
+        session.close()
+
+
+def get_portfolio_scenario_database_health() -> dict:
+    """Return basic health information for the portfolio scenario database."""
+    table_ready = ensure_portfolio_scenario_table()
+    scenario_count = get_portfolio_scenario_count() if table_ready else 0
+
+    return {
+        "table_ready": table_ready,
+        "scenario_count": scenario_count,
+    }
+
+
+def get_watchlist_count() -> int:
+    """Return saved watchlist count."""
+    session = SessionLocal()
+
+    try:
+        return int(session.query(WatchlistStock).count())
+    except Exception:
+        return 0
+    finally:
+        session.close()
+
+
+def get_portfolio_position_count() -> int:
+    """Return saved portfolio position count."""
+    session = SessionLocal()
+
+    try:
+        return int(session.query(PortfolioPosition).count())
+    except Exception:
+        return 0
+    finally:
+        session.close()
+
+
+def get_portfolio_snapshot_count() -> int:
+    """Return saved portfolio snapshot count."""
+    session = SessionLocal()
+
+    try:
+        return int(session.query(PortfolioSnapshot).count())
+    except Exception:
+        return 0
+    finally:
+        session.close()
+
+
+def get_app_database_health() -> dict:
+    """Return app-level database health summary."""
+    scenario_health = get_portfolio_scenario_database_health()
+
+    try:
+        Base.metadata.create_all(bind=engine)
+        database_ready = True
+    except Exception:
+        database_ready = False
+
+    return {
+        "database_ready": database_ready,
+        "scenario_table_ready": scenario_health.get("table_ready", False),
+        "watchlist_count": get_watchlist_count() if database_ready else 0,
+        "portfolio_position_count": (
+            get_portfolio_position_count() if database_ready else 0
+        ),
+        "portfolio_snapshot_count": (
+            get_portfolio_snapshot_count() if database_ready else 0
+        ),
+        "portfolio_scenario_count": (
+            scenario_health.get("scenario_count", 0) if database_ready else 0
+        ),
+    }
