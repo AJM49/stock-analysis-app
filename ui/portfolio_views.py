@@ -68,6 +68,9 @@ def render_portfolio_dashboard(portfolio_df):
     st.subheader("Portfolio Analytics")
     render_production_status_banner()
 
+    with st.expander("Deployment Checklist", expanded=False):
+        render_deployment_checklist_panel()
+
     if portfolio_df is None or portfolio_df.empty:
         render_empty_state_guidance(
             title="No portfolio positions available yet.",
@@ -3467,3 +3470,69 @@ def render_empty_state_guidance(
         st.markdown("**Next steps:**")
         for step in next_steps:
             st.markdown(f"- {step}")
+
+
+def render_deployment_checklist_panel() -> None:
+    """Render final deployment readiness checklist."""
+    st.subheader("Deployment Checklist")
+
+    checklist_rows = [
+        {
+            "Check": "Python compile checks",
+            "Status": "Manual verification required",
+            "Command or Evidence": "python3 -m py_compile ...",
+        },
+        {
+            "Check": "Deployment verifier",
+            "Status": "Manual verification required",
+            "Command or Evidence": "python3 scripts/verify_deployment.py",
+        },
+        {
+            "Check": "Streamlit secrets ignored",
+            "Status": "Expected",
+            "Command or Evidence": ".streamlit/secrets.toml in .gitignore",
+        },
+        {
+            "Check": "Runtime logs ignored",
+            "Status": "Expected",
+            "Command or Evidence": "app.log and *.log in .gitignore",
+        },
+        {
+            "Check": "Local database ignored",
+            "Status": "Expected",
+            "Command or Evidence": "stocks.db, *.db, *.sqlite in .gitignore",
+        },
+        {
+            "Check": "Production status banner",
+            "Status": "Implemented",
+            "Command or Evidence": "Visible near portfolio dashboard top",
+        },
+        {
+            "Check": "App health check",
+            "Status": "Implemented",
+            "Command or Evidence": "App Health Check expander",
+        },
+        {
+            "Check": "Release notes",
+            "Status": "Implemented",
+            "Command or Evidence": "Release Notes panel",
+        },
+        {
+            "Check": "README portfolio upgrade",
+            "Status": "Implemented",
+            "Command or Evidence": "README.md",
+        },
+    ]
+
+    checklist_df = pd.DataFrame(checklist_rows)
+
+    st.dataframe(
+        checklist_df,
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    st.info(
+        "Use this checklist before pushing changes or presenting the project. "
+        "The manual checks should be confirmed from the terminal before each release."
+    )
