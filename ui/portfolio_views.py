@@ -2922,6 +2922,48 @@ def render_database_scenario_history(limit: int = 100) -> None:
 
         scenario_db_timestamp = pd.Timestamp.now().strftime("%Y-%m-%d_%H%M")
 
+        database_report_summary = f"""Database Scenario Report Summary
+
+Report generated at: {pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")}
+
+Filters:
+Ticker filter: {selected_ticker_filter}
+Risk filter: {selected_risk_filter}
+Decision filter: {selected_decision_filter}
+Search term: {database_scenario_notes_search or "None"}
+
+Scenario summary:
+Total matching scenarios: {len(filtered_db_df)}
+Average risk score: {database_average_risk_score:.0f}/100
+Total value delta: ${database_total_value_delta:,.2f}
+
+Best database scenario:
+Ticker: {best_database_scenario['Ticker']}
+Action: {best_database_scenario['Action']}
+Value delta: ${float(best_database_scenario['Value Delta']):,.2f}
+Risk level: {best_database_scenario['Scenario Risk Level']}
+Risk score: {float(best_database_scenario['Scenario Risk Score']):.0f}/100
+Decision: {best_database_scenario['Scenario Decision']}
+
+Worst database scenario:
+Ticker: {worst_database_scenario['Ticker']}
+Action: {worst_database_scenario['Action']}
+Value delta: ${float(worst_database_scenario['Value Delta']):,.2f}
+Risk level: {worst_database_scenario['Scenario Risk Level']}
+Risk score: {float(worst_database_scenario['Scenario Risk Score']):.0f}/100
+Decision: {worst_database_scenario['Scenario Decision']}
+"""
+
+        st.subheader("Database Scenario Reporting Pack")
+
+        st.download_button(
+            label="Download Database Scenario Report TXT",
+            data=database_report_summary.encode("utf-8"),
+            file_name=f"portfolio_database_scenario_report_{scenario_db_timestamp}.txt",
+            mime="text/plain",
+            key="download_database_scenario_report_txt",
+        )
+
         st.download_button(
             label="Download Filtered Database Scenario History CSV",
             data=filtered_db_df.to_csv(index=False).encode("utf-8-sig"),
