@@ -128,7 +128,32 @@ def render_metric_row(result: dict) -> None:
         f"${result['worst_trade']:,.2f}",
     )
 
-    st.caption(f"Strategy: {result['strategy_name']}")
+    benchmark_col1, benchmark_col2, benchmark_col3, benchmark_col4 = st.columns(4)
+
+    benchmark_col1.metric(
+        "Benchmark Ending Value",
+        f"${result['benchmark_ending_value']:,.2f}",
+    )
+
+    benchmark_col2.metric(
+        "Benchmark Return",
+        f"{result['benchmark_total_return_pct']:.2f}%",
+    )
+
+    benchmark_col3.metric(
+        "Benchmark Drawdown",
+        f"{result['benchmark_max_drawdown_pct']:.2f}%",
+    )
+
+    benchmark_col4.metric(
+        "Strategy Excess Return",
+        f"{result['strategy_excess_return_pct']:.2f}%",
+    )
+
+    st.caption(
+        f"Strategy: {result['strategy_name']} | "
+        f"Benchmark: {result['benchmark_name']}"
+    )
 
 
 def render_backtesting_page() -> None:
@@ -246,13 +271,34 @@ and `strategies/` modules.
     render_metric_row(result)
 
     equity_curve = result["equity_curve"]
+    benchmark_equity_curve = result["benchmark_equity_curve"]
     trades = result["trades"]
     completed_trade_details = result["completed_trade_details"]
     signals = result["signals"]
 
-    st.subheader("Equity Curve")
+    st.subheader("Strategy vs Benchmark Equity Curve")
 
-    if not equity_curve.empty:
+    if not equity_curve.empty and not benchmark_equity_curve.empty:
+        strategy_chart = equity_curve[["Date", "total_value"]].copy()
+        strategy_chart = strategy_chart.rename(
+            columns={"total_value": "Strategy Value"}
+        )
+
+        benchmark_chart = benchmark_equity_curve[
+            ["Date", "benchmark_total_value"]
+        ].copy()
+        benchmark_chart = benchmark_chart.rename(
+            columns={"benchmark_total_value": "Buy-and-Hold Value"}
+        )
+
+        chart_data = strategy_chart.merge(
+            benchmark_chart,
+            on="Date",
+            how="inner",
+        ).set_index("Date")
+
+        st.line_chart(chart_data)
+    elif not equity_curve.empty:
         chart_data = equity_curve.set_index("Date")[["total_value"]]
         st.line_chart(chart_data)
     else:
@@ -314,6 +360,14 @@ The backtesting engine:
 4. Tracks cash, shares, position value, and total portfolio value.
 5. Builds an equity curve.
 6. Returns basic metrics.
+
+### Benchmark Logic
+
+The benchmark uses a simple buy-and-hold approach:
+
+1. Invest all starting cash at the first available close price.
+2. Hold the same number of shares through the full historical period.
+3. Compare ending value, total return, and drawdown against the strategy.
 
 ### Current Limitations
 

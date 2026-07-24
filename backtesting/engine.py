@@ -5,6 +5,7 @@ from typing import Any
 
 import pandas as pd
 
+from backtesting.benchmarks import run_buy_and_hold_benchmark
 from backtesting.metrics import calculate_max_drawdown, calculate_total_return
 from backtesting.trade import Trade
 from strategies.base_strategy import BaseStrategy
@@ -145,6 +146,15 @@ class BacktestEngine:
 
         max_drawdown = calculate_max_drawdown(equity_curve["total_value"])
 
+        benchmark_result = run_buy_and_hold_benchmark(
+            price_data=price_data,
+            starting_cash=self.starting_cash,
+        )
+
+        strategy_excess_return_pct = (
+            total_return - benchmark_result["benchmark_total_return_pct"]
+        )
+
         metrics = self._build_trade_metrics(
             trades_df=trades_df,
             completed_trades_df=completed_trades_df,
@@ -166,6 +176,12 @@ class BacktestEngine:
             "best_trade": metrics["best_trade"],
             "worst_trade": metrics["worst_trade"],
             "exposure_pct": metrics["exposure_pct"],
+            "benchmark_name": benchmark_result["benchmark_name"],
+            "benchmark_ending_value": benchmark_result["benchmark_ending_value"],
+            "benchmark_total_return_pct": benchmark_result["benchmark_total_return_pct"],
+            "benchmark_max_drawdown_pct": benchmark_result["benchmark_max_drawdown_pct"],
+            "strategy_excess_return_pct": strategy_excess_return_pct,
+            "benchmark_equity_curve": benchmark_result["benchmark_equity_curve"],
             "equity_curve": equity_curve,
             "trades": trades_df,
             "completed_trade_details": completed_trades_df,

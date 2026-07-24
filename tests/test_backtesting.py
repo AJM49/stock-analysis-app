@@ -46,6 +46,12 @@ def test_backtest_engine_returns_expected_keys() -> None:
         "best_trade",
         "worst_trade",
         "exposure_pct",
+        "benchmark_name",
+        "benchmark_ending_value",
+        "benchmark_total_return_pct",
+        "benchmark_max_drawdown_pct",
+        "strategy_excess_return_pct",
+        "benchmark_equity_curve",
         "equity_curve",
         "trades",
         "completed_trade_details",
@@ -56,7 +62,9 @@ def test_backtest_engine_returns_expected_keys() -> None:
     assert result["ticker"] == "AAPL"
     assert result["starting_cash"] == 10_000
     assert not result["equity_curve"].empty
+    assert not result["benchmark_equity_curve"].empty
     assert not result["signals"].empty
+    assert result["benchmark_name"] == "Buy and Hold"
 
 
 def test_backtest_engine_rejects_empty_data() -> None:
