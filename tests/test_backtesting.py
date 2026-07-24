@@ -51,6 +51,15 @@ def test_backtest_engine_returns_expected_keys() -> None:
         "benchmark_total_return_pct",
         "benchmark_max_drawdown_pct",
         "strategy_excess_return_pct",
+        "annualized_return_pct",
+        "annualized_volatility_pct",
+        "sharpe_ratio",
+        "sortino_ratio",
+        "risk_max_drawdown_pct",
+        "drawdown_duration",
+        "value_at_risk_95_pct",
+        "conditional_value_at_risk_95_pct",
+        "calmar_ratio",
         "benchmark_equity_curve",
         "equity_curve",
         "trades",
@@ -65,6 +74,15 @@ def test_backtest_engine_returns_expected_keys() -> None:
     assert not result["benchmark_equity_curve"].empty
     assert not result["signals"].empty
     assert result["benchmark_name"] == "Buy and Hold"
+    assert isinstance(result["annualized_return_pct"], float)
+    assert isinstance(result["annualized_volatility_pct"], float)
+    assert isinstance(result["sharpe_ratio"], float)
+    assert isinstance(result["sortino_ratio"], float)
+    assert isinstance(result["risk_max_drawdown_pct"], float)
+    assert isinstance(result["drawdown_duration"], int)
+    assert isinstance(result["value_at_risk_95_pct"], float)
+    assert isinstance(result["conditional_value_at_risk_95_pct"], float)
+    assert isinstance(result["calmar_ratio"], float)
 
 
 def test_backtest_engine_rejects_empty_data() -> None:

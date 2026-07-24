@@ -9,6 +9,7 @@ from backtesting.benchmarks import run_buy_and_hold_benchmark
 from backtesting.metrics import calculate_max_drawdown, calculate_total_return
 from backtesting.trade import Trade
 from strategies.base_strategy import BaseStrategy
+from risk.risk_metrics import build_risk_metric_summary
 
 
 class BacktestEngine:
@@ -161,6 +162,8 @@ class BacktestEngine:
             equity_curve=equity_curve,
         )
 
+        risk_metrics = build_risk_metric_summary(equity_curve)
+
         result = {
             "ticker": self.ticker,
             "strategy_name": self.strategy.name,
@@ -181,6 +184,17 @@ class BacktestEngine:
             "benchmark_total_return_pct": benchmark_result["benchmark_total_return_pct"],
             "benchmark_max_drawdown_pct": benchmark_result["benchmark_max_drawdown_pct"],
             "strategy_excess_return_pct": strategy_excess_return_pct,
+            "annualized_return_pct": risk_metrics["annualized_return_pct"],
+            "annualized_volatility_pct": risk_metrics["annualized_volatility_pct"],
+            "sharpe_ratio": risk_metrics["sharpe_ratio"],
+            "sortino_ratio": risk_metrics["sortino_ratio"],
+            "risk_max_drawdown_pct": risk_metrics["max_drawdown_pct"],
+            "drawdown_duration": risk_metrics["drawdown_duration"],
+            "value_at_risk_95_pct": risk_metrics["value_at_risk_95_pct"],
+            "conditional_value_at_risk_95_pct": risk_metrics[
+                "conditional_value_at_risk_95_pct"
+            ],
+            "calmar_ratio": risk_metrics["calmar_ratio"],
             "benchmark_equity_curve": benchmark_result["benchmark_equity_curve"],
             "equity_curve": equity_curve,
             "trades": trades_df,
