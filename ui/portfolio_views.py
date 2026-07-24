@@ -2853,13 +2853,23 @@ def render_database_scenario_history(limit: int = 100) -> None:
             "Scenario Date",
         ]
 
-        search_text = filtered_db_df[searchable_columns].astype(str).agg(
-            " ".join,
+        available_search_columns = [
+            column
+            for column in searchable_columns
+            if column in filtered_db_df.columns
+        ]
+
+        search_text = filtered_db_df[available_search_columns].apply(
+            lambda row: " ".join(row.astype(str).tolist()),
             axis=1,
         )
 
         filtered_db_df = filtered_db_df[
-            search_text.str.lower().str.contains(search_term, na=False)
+            search_text.str.lower().str.contains(
+                search_term,
+                na=False,
+                regex=False,
+            )
         ]
 
     st.caption(
@@ -2986,6 +2996,30 @@ def render_database_scenario_history(limit: int = 100) -> None:
                 hide_index=True,
             )
 
+        st.subheader("Database Scenario Trend Charts")
+
+        trend_df = filtered_db_df.copy()
+        trend_df["Scenario Date"] = pd.to_datetime(
+            trend_df["Scenario Date"],
+            errors="coerce",
+        )
+        trend_df = trend_df.dropna(subset=["Scenario Date"])
+        trend_df = trend_df.sort_values(by="Scenario Date")
+
+        if trend_df.empty:
+            st.info("No valid scenario dates available for trend charts.")
+        else:
+            chart_df = trend_df.set_index("Scenario Date")
+
+            with st.expander("Scenario Value Delta Over Time", expanded=False):
+                st.line_chart(chart_df["Value Delta"])
+
+            with st.expander("Scenario Risk Score Over Time", expanded=False):
+                st.line_chart(chart_df["Scenario Risk Score"])
+
+            with st.expander("Scenario Gain/Loss Delta Over Time", expanded=False):
+                st.line_chart(chart_df["Gain/Loss Delta"])
+
         scenario_db_timestamp = pd.Timestamp.now().strftime("%Y-%m-%d_%H%M")
 
         database_report_summary = f"""Database Scenario Report Summary
@@ -3005,6 +3039,7 @@ Total value delta: ${database_total_value_delta:,.2f}
 Positive value scenarios: {positive_scenario_count}
 Negative value scenarios: {negative_scenario_count}
 Neutral value scenarios: {neutral_scenario_count}
+Trend chart records: {len(trend_df) if "trend_df" in locals() else 0}
 
 Best database scenario:
 Ticker: {best_database_scenario['Ticker']}
