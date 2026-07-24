@@ -71,6 +71,9 @@ def render_portfolio_dashboard(portfolio_df):
     with st.expander("Deployment Checklist", expanded=False):
         render_deployment_checklist_panel()
 
+    with st.expander("Portfolio User Guide", expanded=False):
+        render_portfolio_user_guide_panel()
+
     if portfolio_df is None or portfolio_df.empty:
         render_empty_state_guidance(
             title="No portfolio positions available yet.",
@@ -3535,4 +3538,156 @@ def render_deployment_checklist_panel() -> None:
     st.info(
         "Use this checklist before pushing changes or presenting the project. "
         "The manual checks should be confirmed from the terminal before each release."
+    )
+
+
+def render_portfolio_user_guide_panel() -> None:
+    """Render in-app user guide for the portfolio project."""
+    st.subheader("Portfolio App User Guide")
+
+    st.markdown(
+        """
+### 1. Stock Search
+
+Use the primary ticker input to search for a stock symbol. The app loads market data, recent price history, current price metrics, and company overview information when available.
+
+### 2. Watchlist
+
+Use the sidebar watchlist controls to save ticker symbols you want to monitor. You can add a primary ticker to the watchlist and remove saved tickers when they are no longer needed.
+
+### 3. Portfolio Positions
+
+Use the portfolio section in the sidebar to add saved positions.
+
+Each position should include:
+
+- Ticker symbol
+- Number of shares
+- Buy price
+
+After adding positions, refresh saved prices to update current values.
+
+### 4. Portfolio Analytics
+
+The portfolio dashboard shows:
+
+- Current portfolio value
+- Total cost basis
+- Unrealized gain/loss
+- Position allocation
+- Sector exposure
+- Best and worst performers
+- Risk score
+- Risk level
+- Risk recommendations
+
+### 5. Portfolio Snapshots
+
+Use portfolio snapshots to save point-in-time records of portfolio value, gain/loss, and risk score. Snapshot history helps track how the portfolio changes over time.
+
+### 6. What-If Scenario Planner
+
+Use the scenario planner to test changes without modifying saved portfolio positions.
+
+Available scenario types:
+
+- Add shares
+- Reduce shares
+- Change price
+
+Preset buttons help test quick price movements:
+
+- Price -10%
+- Price +10%
+- Price -25%
+- Price +25%
+
+### 7. Scenario Decision Tools
+
+Each scenario includes:
+
+- Scenario comparison summary
+- Risk threshold warnings
+- Baseline comparison table
+- Scenario notes
+- Generated action checklist
+- Scenario export buttons
+
+These tools help decide whether a scenario is favorable, neutral, risky, or unfavorable.
+
+### 8. Scenario History
+
+There are two types of scenario history.
+
+**Session Scenario History**
+
+Temporary history for the current app session. Use this for quick comparisons before saving stronger scenarios.
+
+**Database Scenario History**
+
+Persistent scenario history saved to the database. This survives refreshes and restarts.
+
+Database scenario history supports:
+
+- Search
+- Ticker filter
+- Risk-level filter
+- Decision filter
+- Trend charts
+- Reporting exports
+- Safe delete workflow
+- Database cleanup tools
+
+### 9. Reports and Exports
+
+The app supports multiple exports:
+
+- Stock data CSV
+- Portfolio CSV
+- Portfolio report TXT
+- Portfolio report CSV
+- Snapshot history CSV
+- Scenario summary TXT
+- Scenario data CSV
+- Scenario comparison CSV
+- Database scenario report TXT
+- Filtered database scenario CSV
+- Decision summary CSV
+- Risk summary CSV
+- Ticker summary CSV
+
+### 10. App Health and Deployment
+
+Use these sections before presenting or deploying the app:
+
+- Production Status Banner
+- App Health Check
+- Deployment Checklist
+- Scenario Database Health and Cleanup
+- Release Notes
+
+The app should show database and scenario table status as Ready before final use.
+
+### 11. Recommended Demo Flow
+
+For a portfolio presentation or interview:
+
+1. Search a familiar ticker.
+2. Add it to the watchlist.
+3. Add a portfolio position.
+4. Refresh saved prices.
+5. Review portfolio analytics.
+6. Save a portfolio snapshot.
+7. Open the what-if scenario planner.
+8. Run a price-change scenario.
+9. Add scenario notes.
+10. Save the scenario to the database.
+11. Open Database Scenario History.
+12. Show filters, charts, reports, and delete safety.
+13. Open App Health Check and Deployment Checklist.
+
+### 12. Disclaimer
+
+This app is for educational and portfolio purposes. It is not financial advice. Market data should be verified before making real investment decisions.
+"""
     )
