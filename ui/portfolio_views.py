@@ -2920,6 +2920,72 @@ def render_database_scenario_history(limit: int = 100) -> None:
             hide_index=True,
         )
 
+        st.subheader("Database Scenario Decision Dashboard")
+
+        decision_summary_df = (
+            filtered_db_df.groupby("Scenario Decision", dropna=False)
+            .agg(
+                Scenario_Count=("ID", "count"),
+                Average_Risk_Score=("Scenario Risk Score", "mean"),
+                Total_Value_Delta=("Value Delta", "sum"),
+                Average_Value_Delta=("Value Delta", "mean"),
+            )
+            .reset_index()
+        )
+
+        risk_summary_df = (
+            filtered_db_df.groupby("Scenario Risk Level", dropna=False)
+            .agg(
+                Scenario_Count=("ID", "count"),
+                Average_Risk_Score=("Scenario Risk Score", "mean"),
+                Total_Value_Delta=("Value Delta", "sum"),
+                Average_Value_Delta=("Value Delta", "mean"),
+            )
+            .reset_index()
+        )
+
+        ticker_summary_df = (
+            filtered_db_df.groupby("Ticker", dropna=False)
+            .agg(
+                Scenario_Count=("ID", "count"),
+                Average_Risk_Score=("Scenario Risk Score", "mean"),
+                Total_Value_Delta=("Value Delta", "sum"),
+                Average_Value_Delta=("Value Delta", "mean"),
+            )
+            .reset_index()
+            .sort_values(by="Total_Value_Delta", ascending=False)
+        )
+
+        positive_scenario_count = int((filtered_db_df["Value Delta"] > 0).sum())
+        negative_scenario_count = int((filtered_db_df["Value Delta"] < 0).sum())
+        neutral_scenario_count = int((filtered_db_df["Value Delta"] == 0).sum())
+
+        polarity_col1, polarity_col2, polarity_col3 = st.columns(3)
+        polarity_col1.metric("Positive Value Scenarios", positive_scenario_count)
+        polarity_col2.metric("Negative Value Scenarios", negative_scenario_count)
+        polarity_col3.metric("Neutral Value Scenarios", neutral_scenario_count)
+
+        with st.expander("Scenario Decision Summary", expanded=False):
+            st.dataframe(
+                decision_summary_df,
+                use_container_width=True,
+                hide_index=True,
+            )
+
+        with st.expander("Scenario Risk Level Summary", expanded=False):
+            st.dataframe(
+                risk_summary_df,
+                use_container_width=True,
+                hide_index=True,
+            )
+
+        with st.expander("Scenario Ticker Summary", expanded=False):
+            st.dataframe(
+                ticker_summary_df,
+                use_container_width=True,
+                hide_index=True,
+            )
+
         scenario_db_timestamp = pd.Timestamp.now().strftime("%Y-%m-%d_%H%M")
 
         database_report_summary = f"""Database Scenario Report Summary
@@ -2936,6 +3002,9 @@ Scenario summary:
 Total matching scenarios: {len(filtered_db_df)}
 Average risk score: {database_average_risk_score:.0f}/100
 Total value delta: ${database_total_value_delta:,.2f}
+Positive value scenarios: {positive_scenario_count}
+Negative value scenarios: {negative_scenario_count}
+Neutral value scenarios: {neutral_scenario_count}
 
 Best database scenario:
 Ticker: {best_database_scenario['Ticker']}
@@ -2962,6 +3031,30 @@ Decision: {worst_database_scenario['Scenario Decision']}
             file_name=f"portfolio_database_scenario_report_{scenario_db_timestamp}.txt",
             mime="text/plain",
             key="download_database_scenario_report_txt",
+        )
+
+        st.download_button(
+            label="Download Decision Summary CSV",
+            data=decision_summary_df.to_csv(index=False).encode("utf-8-sig"),
+            file_name=f"portfolio_database_scenario_decision_summary_{scenario_db_timestamp}.csv",
+            mime="text/csv",
+            key="download_database_scenario_decision_summary_csv",
+        )
+
+        st.download_button(
+            label="Download Risk Summary CSV",
+            data=risk_summary_df.to_csv(index=False).encode("utf-8-sig"),
+            file_name=f"portfolio_database_scenario_risk_summary_{scenario_db_timestamp}.csv",
+            mime="text/csv",
+            key="download_database_scenario_risk_summary_csv",
+        )
+
+        st.download_button(
+            label="Download Ticker Summary CSV",
+            data=ticker_summary_df.to_csv(index=False).encode("utf-8-sig"),
+            file_name=f"portfolio_database_scenario_ticker_summary_{scenario_db_timestamp}.csv",
+            mime="text/csv",
+            key="download_database_scenario_ticker_summary_csv",
         )
 
         st.download_button(
