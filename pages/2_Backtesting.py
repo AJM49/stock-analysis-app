@@ -6,6 +6,7 @@ import yfinance as yf
 
 from backtesting.engine import BacktestEngine
 from strategies.moving_average import MovingAverageCrossoverStrategy
+from factors.technical import build_technical_factor_table
 
 
 st.set_page_config(
@@ -156,6 +157,126 @@ def render_metric_row(result: dict) -> None:
     )
 
 
+def render_technical_factor_section(price_data: pd.DataFrame) -> None:
+    """Render technical factors generated from standardized price data."""
+    try:
+        factor_table = build_technical_factor_table(price_data)
+    except Exception as error:
+        st.error(f"Technical factor calculation failed: {error}")
+        return
+
+    st.subheader("Technical Factor Research")
+
+    st.markdown(
+        """
+This section uses the reusable `factors/technical.py` module. These indicators can later feed strategy rules, strategy comparison, risk analytics, and machine learning features.
+"""
+    )
+
+    latest_row = factor_table.iloc[-1]
+
+    factor_col1, factor_col2, factor_col3, factor_col4 = st.columns(4)
+
+    factor_col1.metric(
+        "RSI 14",
+        f"{latest_row.get('rsi_14', 0):.2f}",
+    )
+
+    factor_col2.metric(
+        "Volatility 20",
+        f"{latest_row.get('volatility_20', 0) * 100:.2f}%",
+    )
+
+    factor_col3.metric(
+        "Momentum 20",
+        f"{latest_row.get('momentum_20', 0) * 100:.2f}%",
+    )
+
+    factor_col4.metric(
+        "Distance from MA 50",
+        f"{latest_row.get('price_distance_from_ma_50', 0):.2f}%",
+    )
+
+    with st.expander("Moving Averages", expanded=False):
+        moving_average_columns = [
+            column
+            for column in ["Date", "Close", "ma_20", "ma_50", "ma_200"]
+            if column in factor_table.columns
+        ]
+
+        chart_data = factor_table[moving_average_columns].copy()
+
+        if "Date" in chart_data.columns:
+            chart_data = chart_data.set_index("Date")
+
+        st.line_chart(chart_data)
+
+    with st.expander("RSI, MACD, Momentum, and Volatility", expanded=False):
+        indicator_columns = [
+            column
+            for column in [
+                "Date",
+                "rsi_14",
+                "macd",
+                "macd_signal",
+                "macd_histogram",
+                "momentum_20",
+                "volatility_20",
+            ]
+            if column in factor_table.columns
+        ]
+
+        indicator_data = factor_table[indicator_columns].copy()
+
+        if "Date" in indicator_data.columns:
+            indicator_data = indicator_data.set_index("Date")
+
+        st.line_chart(indicator_data)
+
+    with st.expander("Technical Factor Table", expanded=False):
+        display_columns = [
+            column
+            for column in [
+                "Date",
+                "Open",
+                "High",
+                "Low",
+                "Close",
+                "Volume",
+                "daily_return",
+                "cumulative_return",
+                "ma_20",
+                "ma_50",
+                "ma_200",
+                "volatility_20",
+                "momentum_20",
+                "rsi_14",
+                "macd",
+                "macd_signal",
+                "macd_histogram",
+                "volume_average_20",
+                "price_distance_from_ma_50",
+            ]
+            if column in factor_table.columns
+        ]
+
+        st.dataframe(
+            factor_table[display_columns].tail(100),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        factor_csv = factor_table[display_columns].to_csv(index=False)
+
+        st.download_button(
+            label="Download Technical Factors CSV",
+            data=factor_csv,
+            file_name="technical_factors.csv",
+            mime="text/csv",
+            key="download_technical_factors_csv",
+        )
+
+
 def render_backtesting_page() -> None:
     """Render the Streamlit backtesting page."""
     st.title("Backtesting Lab")
@@ -304,6 +425,8 @@ and `strategies/` modules.
     else:
         st.info("No equity curve data available.")
 
+    render_technical_factor_section(price_data)
+
     st.subheader("Strategy Signals")
 
     signal_columns = [
@@ -360,6 +483,24 @@ The backtesting engine:
 4. Tracks cash, shares, position value, and total portfolio value.
 5. Builds an equity curve.
 6. Returns basic metrics.
+
+### Technical Factor Logic
+
+The technical factor section is powered by the reusable `factors/technical.py` module.
+
+Current factors include:
+
+- Daily return
+- Cumulative return
+- Moving averages
+- Rolling volatility
+- Momentum
+- RSI
+- MACD
+- Rolling average volume
+- Price distance from moving average
+
+These factors are not yet used to make trading decisions in this sprint. They are exposed for research and will support future strategy comparison, risk analytics, optimization, and machine learning.
 
 ### Benchmark Logic
 
