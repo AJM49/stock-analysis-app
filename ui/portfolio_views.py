@@ -1,5 +1,5 @@
 from __future__ import annotations
-from database import save_portfolio_scenario, get_portfolio_scenarios, delete_portfolio_scenario
+from database import save_portfolio_scenario, get_portfolio_scenarios, delete_portfolio_scenario, ensure_portfolio_scenario_table, get_portfolio_scenario_database_health, delete_duplicate_portfolio_scenarios
 
 import pandas as pd
 import streamlit as st
@@ -2754,6 +2754,9 @@ def render_database_scenario_history(limit: int = 100) -> None:
     """Render saved what-if scenarios from the database."""
     st.subheader("Saved Scenario Database History")
 
+    with st.expander("Scenario Database Health and Cleanup", expanded=False):
+        render_database_scenario_cleanup_panel()
+
     scenarios = get_portfolio_scenarios(limit=limit)
 
     if not scenarios:
@@ -3149,3 +3152,233 @@ Decision: {worst_database_scenario['Scenario Decision']}
                 st.rerun()
             else:
                 st.error("Selected database scenario could not be deleted.")
+
+
+def render_database_scenario_cleanup_panel() -> None:
+    """Render scenario database health and cleanup controls."""
+    st.subheader("Scenario Database Health and Cleanup")
+
+    health = get_portfolio_scenario_database_health()
+
+    health_col1, health_col2 = st.columns(2)
+
+    health_col1.metric(
+        "Scenario Table Status",
+        "Ready" if health.get("table_ready") else "Needs Repair",
+    )
+
+    health_col2.metric(
+        "Saved Scenario Records",
+        int(health.get("scenario_count", 0)),
+    )
+
+    if not health.get("table_ready"):
+        st.error(
+            "The portfolio_scenarios table is not ready. "
+            "Use the repair button below before saving more scenarios."
+        )
+    else:
+        st.success("Scenario database table is ready.")
+
+    if st.button(
+        "Repair Scenario Database Table",
+        key="repair_scenario_database_table_button",
+    ):
+        repaired = ensure_portfolio_scenario_table()
+
+        if repaired:
+            st.success("Scenario database table verified or repaired.")
+            st.rerun()
+        else:
+            st.error("Scenario database table repair failed.")
+
+    st.divider()
+
+    st.warning(
+        "Duplicate cleanup keeps the oldest matching scenario and removes later duplicate records. "
+        "Use this only after reviewing your saved scenario history."
+    )
+
+    confirm_duplicate_cleanup = st.checkbox(
+        "Confirm duplicate scenario cleanup",
+        value=False,
+        key="confirm_duplicate_scenario_cleanup_checkbox",
+    )
+
+    if st.button(
+        "Delete Duplicate Scenario Records",
+        key="delete_duplicate_scenario_records_button",
+        disabled=not confirm_duplicate_cleanup,
+    ):
+        deleted_count, cleanup_message = delete_duplicate_portfolio_scenarios()
+
+        if deleted_count > 0:
+            st.success(cleanup_message)
+            st.rerun()
+        else:
+            st.info(cleanup_message)
+
+
+def build_scenario_comparison_summary(
+    value_delta: float,
+    gain_loss_delta: float,
+    risk_delta: int | float,
+) -> tuple[str, str]:
+    """Build plain-English scenario comparison summary and decision label."""
+    if value_delta > 0:
+        value_message = f"This scenario increases portfolio value by ${value_delta:,.2f}."
+    elif value_delta < 0:
+        value_message = f"This scenario decreases portfolio value by ${abs(value_delta):,.2f}."
+    else:
+        value_message = "This scenario leaves portfolio value unchanged."
+
+    if gain_loss_delta > 0:
+        gain_loss_message = (
+            f"This scenario improves unrealized gain/loss by ${gain_loss_delta:,.2f}."
+        )
+    elif gain_loss_delta < 0:
+        gain_loss_message = (
+            f"This scenario weakens unrealized gain/loss by ${abs(gain_loss_delta):,.2f}."
+        )
+    else:
+        gain_loss_message = "This scenario leaves unrealized gain/loss unchanged."
+
+    if risk_delta > 0:
+        risk_message = f"This scenario raises risk score by {risk_delta:.0f} point(s)."
+    elif risk_delta < 0:
+        risk_message = f"This scenario reduces risk score by {abs(risk_delta):.0f} point(s)."
+    else:
+        risk_message = "This scenario leaves risk score unchanged."
+
+    if risk_delta >= 15:
+        decision = "Risky scenario"
+        decision_message = (
+            "Decision: risky scenario. Review concentration, sector exposure, "
+            "or missing price data before acting."
+        )
+    elif value_delta > 0 and gain_loss_delta >= 0 and risk_delta <= 0:
+        decision = "Favorable scenario"
+        decision_message = (
+            "Decision: favorable scenario. Value improves without increasing "
+            "the risk score."
+        )
+    elif value_delta < 0 and gain_loss_delta < 0:
+        decision = "Unfavorable scenario"
+        decision_message = (
+            "Decision: unfavorable scenario. Value and gain/loss both decline."
+        )
+    else:
+        decision = "Neutral scenario"
+        decision_message = (
+            "Decision: neutral scenario. Review the trade-off between value, "
+            "gain/loss, and risk before acting."
+        )
+
+    summary = (
+        f"{value_message} {gain_loss_message} {risk_message} "
+        f"{decision_message}"
+    )
+
+    return summary, decision
+
+
+def build_scenario_risk_threshold_warnings(
+    scenario_df: pd.DataFrame,
+    current_risk_score: int | float,
+    scenario_risk_score: int | float,
+    scenario_risk_level: str,
+) -> list[str]:
+    """Build threshold warnings for risky what-if scenarios."""
+    warnings = []
+
+    risk_delta = float(scenario_risk_score) - float(current_risk_score)
+
+    if risk_delta >= 15:
+        warnings.append(
+            f"Risk score increases by {risk_delta:.0f} point(s), which is a major risk jump."
+        )
+
+    if scenario_risk_level == "High Risk":
+        warnings.append("Scenario risk level becomes High Risk.")
+
+    if "Allocation %" in scenario_df.columns and "Ticker" in scenario_df.columns:
+        largest_position = scenario_df.sort_values(
+            by="Allocation %",
+            ascending=False,
+        ).iloc[0]
+
+        ticker = str(largest_position["Ticker"])
+        allocation_pct = float(largest_position["Allocation %"])
+
+        if allocation_pct >= 50:
+            warnings.append(
+                f"Largest position warning: {ticker} becomes {allocation_pct:.2f}% of the portfolio."
+            )
+
+    try:
+        sector_df = build_sector_exposure_dataframe(scenario_df)
+    except Exception:
+        sector_df = pd.DataFrame()
+
+    if sector_df is not None and not sector_df.empty:
+        if "Sector" in sector_df.columns and "Exposure %" in sector_df.columns:
+            largest_sector = sector_df.sort_values(
+                by="Exposure %",
+                ascending=False,
+            ).iloc[0]
+
+            sector = str(largest_sector["Sector"])
+            exposure_pct = float(largest_sector["Exposure %"])
+
+            if exposure_pct >= 50:
+                warnings.append(
+                    f"Sector exposure warning: {sector} becomes {exposure_pct:.2f}% of the portfolio."
+                )
+
+    if "Price Status" in scenario_df.columns:
+        missing_price_count = int(
+            (scenario_df["Price Status"] == "Missing").sum()
+        )
+
+        if missing_price_count > 0:
+            warnings.append(
+                f"{missing_price_count} scenario position(s) have missing price data."
+            )
+
+    return warnings
+
+
+def build_scenario_action_plan(
+    scenario_decision: str,
+    scenario_risk_level: str,
+    scenario_threshold_warnings: list[str],
+) -> list[str]:
+    """Build a simple action checklist for a what-if scenario."""
+    action_plan = []
+
+    if scenario_decision == "Favorable scenario":
+        action_plan.append("Confirm the scenario aligns with your portfolio goal.")
+        action_plan.append("Review whether the position size remains reasonable.")
+        action_plan.append("Consider saving a portfolio snapshot before acting.")
+    elif scenario_decision == "Risky scenario":
+        action_plan.append("Do not act until the risk drivers are reviewed.")
+        action_plan.append("Reduce position or sector concentration before proceeding.")
+        action_plan.append("Compare a smaller version of this scenario.")
+    elif scenario_decision == "Unfavorable scenario":
+        action_plan.append("Review why value and gain/loss decline.")
+        action_plan.append("Consider rejecting this scenario or testing a smaller change.")
+        action_plan.append("Check whether the downside is intentional.")
+    else:
+        action_plan.append("Review the trade-off between value, gain/loss, and risk.")
+        action_plan.append("Compare this scenario against a smaller adjustment.")
+        action_plan.append("Use the exported report before making a decision.")
+
+    if scenario_risk_level == "High Risk":
+        action_plan.append("High Risk scenario: verify concentration before acting.")
+
+    if scenario_threshold_warnings:
+        action_plan.append(
+            "Resolve threshold warnings before treating this scenario as actionable."
+        )
+
+    return action_plan
