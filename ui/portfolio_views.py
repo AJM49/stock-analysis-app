@@ -2782,21 +2782,124 @@ def render_database_scenario_history(limit: int = 100) -> None:
 
     scenario_db_df = pd.DataFrame(scenario_rows)
 
-    st.dataframe(
-        scenario_db_df,
-        use_container_width=True,
-        hide_index=True,
+    ticker_options = ["All Tickers"] + sorted(
+        scenario_db_df["Ticker"].dropna().astype(str).unique().tolist()
     )
 
-    scenario_db_timestamp = pd.Timestamp.now().strftime("%Y-%m-%d_%H%M")
-
-    st.download_button(
-        label="Download Database Scenario History CSV",
-        data=scenario_db_df.to_csv(index=False).encode("utf-8-sig"),
-        file_name=f"portfolio_database_scenario_history_{scenario_db_timestamp}.csv",
-        mime="text/csv",
-        key="download_database_scenario_history_csv",
+    risk_options = ["All Risk Levels"] + sorted(
+        scenario_db_df["Scenario Risk Level"].dropna().astype(str).unique().tolist()
     )
+
+    decision_options = ["All Decisions"] + sorted(
+        scenario_db_df["Scenario Decision"].dropna().astype(str).unique().tolist()
+    )
+
+    filter_col1, filter_col2, filter_col3 = st.columns(3)
+
+    selected_ticker_filter = filter_col1.selectbox(
+        "Database scenario ticker filter",
+        options=ticker_options,
+        index=0,
+        key="database_scenario_ticker_filter",
+    )
+
+    selected_risk_filter = filter_col2.selectbox(
+        "Database scenario risk filter",
+        options=risk_options,
+        index=0,
+        key="database_scenario_risk_filter",
+    )
+
+    selected_decision_filter = filter_col3.selectbox(
+        "Database scenario decision filter",
+        options=decision_options,
+        index=0,
+        key="database_scenario_decision_filter",
+    )
+
+    filtered_db_df = scenario_db_df.copy()
+
+    if selected_ticker_filter != "All Tickers":
+        filtered_db_df = filtered_db_df[
+            filtered_db_df["Ticker"].astype(str) == selected_ticker_filter
+        ]
+
+    if selected_risk_filter != "All Risk Levels":
+        filtered_db_df = filtered_db_df[
+            filtered_db_df["Scenario Risk Level"].astype(str) == selected_risk_filter
+        ]
+
+    if selected_decision_filter != "All Decisions":
+        filtered_db_df = filtered_db_df[
+            filtered_db_df["Scenario Decision"].astype(str) == selected_decision_filter
+        ]
+
+    st.caption(
+        f"Showing {len(filtered_db_df)} of {len(scenario_db_df)} database-saved scenario(s)."
+    )
+
+    if filtered_db_df.empty:
+        st.warning("No database-saved scenarios match the selected filters.")
+    else:
+        summary_col1, summary_col2, summary_col3 = st.columns(3)
+
+        database_scenario_count = len(filtered_db_df)
+        database_average_risk_score = filtered_db_df["Scenario Risk Score"].mean()
+        database_total_value_delta = filtered_db_df["Value Delta"].sum()
+
+        summary_col1.metric("Database Scenarios", database_scenario_count)
+        summary_col2.metric(
+            "Average DB Risk Score",
+            f"{database_average_risk_score:.0f}/100",
+        )
+        summary_col3.metric(
+            "Total DB Value Delta",
+            f"${database_total_value_delta:,.2f}",
+        )
+
+        best_database_scenario = filtered_db_df.sort_values(
+            by="Value Delta",
+            ascending=False,
+        ).iloc[0]
+
+        worst_database_scenario = filtered_db_df.sort_values(
+            by="Value Delta",
+            ascending=True,
+        ).iloc[0]
+
+        st.markdown("**Best database scenario by value delta:**")
+        st.info(
+            f"{best_database_scenario['Ticker']} | "
+            f"{best_database_scenario['Action']} | "
+            f"Value Delta: ${float(best_database_scenario['Value Delta']):,.2f} | "
+            f"Risk: {best_database_scenario['Scenario Risk Level']} "
+            f"({float(best_database_scenario['Scenario Risk Score']):.0f}/100)"
+        )
+
+        st.markdown("**Worst database scenario by value delta:**")
+        st.warning(
+            f"{worst_database_scenario['Ticker']} | "
+            f"{worst_database_scenario['Action']} | "
+            f"Value Delta: ${float(worst_database_scenario['Value Delta']):,.2f} | "
+            f"Risk: {worst_database_scenario['Scenario Risk Level']} "
+            f"({float(worst_database_scenario['Scenario Risk Score']):.0f}/100)"
+        )
+
+        st.dataframe(
+            filtered_db_df,
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        scenario_db_timestamp = pd.Timestamp.now().strftime("%Y-%m-%d_%H%M")
+
+        st.download_button(
+            label="Download Filtered Database Scenario History CSV",
+            data=filtered_db_df.to_csv(index=False).encode("utf-8-sig"),
+            file_name=f"portfolio_filtered_database_scenario_history_{scenario_db_timestamp}.csv",
+            mime="text/csv",
+            key="download_filtered_database_scenario_history_csv",
+        )
 
     scenario_ids = scenario_db_df["ID"].tolist()
 
