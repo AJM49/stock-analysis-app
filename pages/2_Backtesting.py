@@ -84,7 +84,7 @@ def render_metric_row(result: dict) -> None:
         f"{result['max_drawdown_pct']:.2f}%",
     )
 
-    trade_col1, trade_col2 = st.columns(2)
+    trade_col1, trade_col2, trade_col3, trade_col4 = st.columns(4)
 
     trade_col1.metric(
         "Number of Trades",
@@ -92,9 +92,43 @@ def render_metric_row(result: dict) -> None:
     )
 
     trade_col2.metric(
-        "Strategy",
-        result["strategy_name"],
+        "Completed Trades",
+        result["completed_trades"],
     )
+
+    trade_col3.metric(
+        "Win Rate",
+        f"{result['win_rate_pct']:.2f}%",
+    )
+
+    trade_col4.metric(
+        "Exposure",
+        f"{result['exposure_pct']:.2f}%",
+    )
+
+    pnl_col1, pnl_col2, pnl_col3, pnl_col4 = st.columns(4)
+
+    pnl_col1.metric(
+        "Average Gain",
+        f"${result['average_gain']:,.2f}",
+    )
+
+    pnl_col2.metric(
+        "Average Loss",
+        f"${result['average_loss']:,.2f}",
+    )
+
+    pnl_col3.metric(
+        "Best Trade",
+        f"${result['best_trade']:,.2f}",
+    )
+
+    pnl_col4.metric(
+        "Worst Trade",
+        f"${result['worst_trade']:,.2f}",
+    )
+
+    st.caption(f"Strategy: {result['strategy_name']}")
 
 
 def render_backtesting_page() -> None:
@@ -213,6 +247,7 @@ and `strategies/` modules.
 
     equity_curve = result["equity_curve"]
     trades = result["trades"]
+    completed_trade_details = result["completed_trade_details"]
     signals = result["signals"]
 
     st.subheader("Equity Curve")
@@ -244,6 +279,17 @@ and `strategies/` modules.
     else:
         st.dataframe(
             trades,
+            use_container_width=True,
+            hide_index=True,
+        )
+
+    st.subheader("Completed Trade PnL")
+
+    if completed_trade_details.empty:
+        st.info("No completed buy/sell trade pairs available yet.")
+    else:
+        st.dataframe(
+            completed_trade_details,
             use_container_width=True,
             hide_index=True,
         )

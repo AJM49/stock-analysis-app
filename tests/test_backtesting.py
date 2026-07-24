@@ -39,8 +39,16 @@ def test_backtest_engine_returns_expected_keys() -> None:
         "total_return_pct",
         "max_drawdown_pct",
         "number_of_trades",
+        "completed_trades",
+        "win_rate_pct",
+        "average_gain",
+        "average_loss",
+        "best_trade",
+        "worst_trade",
+        "exposure_pct",
         "equity_curve",
         "trades",
+        "completed_trade_details",
         "signals",
     }
 

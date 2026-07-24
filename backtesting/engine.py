@@ -40,7 +40,10 @@ class BacktestEngine:
         cash = self.starting_cash
         shares = 0.0
         trades: list[Trade] = []
+        completed_trade_rows: list[dict[str, Any]] = []
         equity_rows: list[dict[str, Any]] = []
+        open_trade_price: float | None = None
+        open_trade_shares: float = 0.0
 
         for _, row in signals.iterrows():
             date = row["Date"]
@@ -53,6 +56,9 @@ class BacktestEngine:
 
                 shares += shares_to_buy
                 cash -= cash_to_use
+
+                open_trade_price = close_price
+                open_trade_shares = shares_to_buy
 
                 trades.append(
                     Trade(
@@ -72,6 +78,28 @@ class BacktestEngine:
 
                 cash += cash_from_sale
                 shares = 0.0
+
+                pnl = 0.0
+                pnl_pct = 0.0
+
+                if open_trade_price is not None and open_trade_price > 0:
+                    pnl = (close_price - open_trade_price) * shares_sold
+                    pnl_pct = ((close_price - open_trade_price) / open_trade_price) * 100
+
+                    completed_trade_rows.append(
+                        {
+                            "entry_price": open_trade_price,
+                            "exit_price": close_price,
+                            "shares": shares_sold,
+                            "pnl": pnl,
+                            "pnl_pct": pnl_pct,
+                            "exit_date": date,
+                            "ticker": self.ticker,
+                        }
+                    )
+
+                open_trade_price = None
+                open_trade_shares = 0.0
 
                 trades.append(
                     Trade(
@@ -102,6 +130,7 @@ class BacktestEngine:
 
         equity_curve = pd.DataFrame(equity_rows)
         trades_df = pd.DataFrame([asdict(trade) for trade in trades])
+        completed_trades_df = pd.DataFrame(completed_trade_rows)
 
         ending_value = (
             float(equity_curve["total_value"].iloc[-1])
@@ -116,6 +145,12 @@ class BacktestEngine:
 
         max_drawdown = calculate_max_drawdown(equity_curve["total_value"])
 
+        metrics = self._build_trade_metrics(
+            trades_df=trades_df,
+            completed_trades_df=completed_trades_df,
+            equity_curve=equity_curve,
+        )
+
         result = {
             "ticker": self.ticker,
             "strategy_name": self.strategy.name,
@@ -124,12 +159,58 @@ class BacktestEngine:
             "total_return_pct": total_return,
             "max_drawdown_pct": max_drawdown,
             "number_of_trades": len(trades_df),
+            "completed_trades": len(completed_trades_df),
+            "win_rate_pct": metrics["win_rate_pct"],
+            "average_gain": metrics["average_gain"],
+            "average_loss": metrics["average_loss"],
+            "best_trade": metrics["best_trade"],
+            "worst_trade": metrics["worst_trade"],
+            "exposure_pct": metrics["exposure_pct"],
             "equity_curve": equity_curve,
             "trades": trades_df,
+            "completed_trade_details": completed_trades_df,
             "signals": signals,
         }
 
         return result
+
+    @staticmethod
+    def _build_trade_metrics(
+        trades_df: pd.DataFrame,
+        completed_trades_df: pd.DataFrame,
+        equity_curve: pd.DataFrame,
+    ) -> dict[str, float]:
+        """Build completed-trade and exposure metrics."""
+        if completed_trades_df.empty or "pnl" not in completed_trades_df.columns:
+            win_rate_pct = 0.0
+            average_gain = 0.0
+            average_loss = 0.0
+            best_trade = 0.0
+            worst_trade = 0.0
+        else:
+            wins = completed_trades_df[completed_trades_df["pnl"] > 0]
+            losses = completed_trades_df[completed_trades_df["pnl"] < 0]
+
+            win_rate_pct = (len(wins) / len(completed_trades_df)) * 100
+            average_gain = float(wins["pnl"].mean()) if not wins.empty else 0.0
+            average_loss = float(losses["pnl"].mean()) if not losses.empty else 0.0
+            best_trade = float(completed_trades_df["pnl"].max())
+            worst_trade = float(completed_trades_df["pnl"].min())
+
+        if equity_curve.empty or "position_value" not in equity_curve.columns:
+            exposure_pct = 0.0
+        else:
+            invested_rows = equity_curve[equity_curve["position_value"] > 0]
+            exposure_pct = (len(invested_rows) / len(equity_curve)) * 100
+
+        return {
+            "win_rate_pct": float(win_rate_pct),
+            "average_gain": float(average_gain),
+            "average_loss": float(average_loss),
+            "best_trade": float(best_trade),
+            "worst_trade": float(worst_trade),
+            "exposure_pct": float(exposure_pct),
+        }
 
     @staticmethod
     def _validate_price_data(price_data: pd.DataFrame) -> None:
