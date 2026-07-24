@@ -2932,20 +2932,50 @@ def render_database_scenario_history(limit: int = 100) -> None:
 
     scenario_ids = scenario_db_df["ID"].tolist()
 
+    st.divider()
+    st.subheader("Delete Database Scenario")
+
     selected_scenario_id = st.selectbox(
-        "Delete saved database scenario",
+        "Select database scenario ID to delete",
         options=scenario_ids,
         key="delete_database_scenario_selectbox",
     )
 
-    if st.button(
-        "Delete Selected Database Scenario",
-        key="delete_database_scenario_button",
-    ):
-        deleted = delete_portfolio_scenario(int(selected_scenario_id))
+    selected_delete_row = scenario_db_df[
+        scenario_db_df["ID"] == selected_scenario_id
+    ]
 
-        if deleted:
-            st.success("Selected database scenario deleted.")
-            st.rerun()
-        else:
-            st.error("Selected database scenario could not be deleted.")
+    if not selected_delete_row.empty:
+        selected_delete_record = selected_delete_row.iloc[0]
+
+        st.warning(
+            "You are preparing to delete this saved database scenario. "
+            "This action removes the record from persistent storage."
+        )
+
+        st.dataframe(
+            selected_delete_row,
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        confirm_database_delete = st.checkbox(
+            "Confirm database scenario deletion",
+            value=False,
+            key="confirm_database_scenario_deletion_checkbox",
+        )
+
+        if st.button(
+            "Delete Selected Database Scenario",
+            key="delete_database_scenario_button",
+            disabled=not confirm_database_delete,
+        ):
+            deleted = delete_portfolio_scenario(int(selected_scenario_id))
+
+            if deleted:
+                st.success(
+                    f"Deleted database scenario ID {int(selected_scenario_id)}."
+                )
+                st.rerun()
+            else:
+                st.error("Selected database scenario could not be deleted.")
