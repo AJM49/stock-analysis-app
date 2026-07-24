@@ -2794,6 +2794,13 @@ def render_database_scenario_history(limit: int = 100) -> None:
         scenario_db_df["Scenario Decision"].dropna().astype(str).unique().tolist()
     )
 
+    database_scenario_notes_search = st.text_input(
+        "Database scenario search",
+        value="",
+        placeholder="Search ticker, action, risk level, decision, notes, or date",
+        key="database_scenario_notes_search",
+    )
+
     filter_col1, filter_col2, filter_col3 = st.columns(3)
 
     selected_ticker_filter = filter_col1.selectbox(
@@ -2834,8 +2841,30 @@ def render_database_scenario_history(limit: int = 100) -> None:
             filtered_db_df["Scenario Decision"].astype(str) == selected_decision_filter
         ]
 
+    if database_scenario_notes_search.strip():
+        search_term = database_scenario_notes_search.strip().lower()
+
+        searchable_columns = [
+            "Ticker",
+            "Action",
+            "Scenario Risk Level",
+            "Scenario Decision",
+            "Scenario Notes",
+            "Scenario Date",
+        ]
+
+        search_text = filtered_db_df[searchable_columns].astype(str).agg(
+            " ".join,
+            axis=1,
+        )
+
+        filtered_db_df = filtered_db_df[
+            search_text.str.lower().str.contains(search_term, na=False)
+        ]
+
     st.caption(
-        f"Showing {len(filtered_db_df)} of {len(scenario_db_df)} database-saved scenario(s)."
+        f"Showing {len(filtered_db_df)} of {len(scenario_db_df)} database-saved scenario(s). "
+        f"Search: {database_scenario_notes_search or 'None'}."
     )
 
     if filtered_db_df.empty:
