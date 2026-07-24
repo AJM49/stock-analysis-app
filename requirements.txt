@@ -7,3 +7,4 @@ requests
 python-dotenv
 yfinance
 matplotlib
+peewee
