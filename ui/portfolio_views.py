@@ -74,6 +74,9 @@ def render_portfolio_dashboard(portfolio_df):
     with st.expander("Portfolio User Guide", expanded=False):
         render_portfolio_user_guide_panel()
 
+    with st.expander("Project Metadata", expanded=False):
+        render_project_metadata_panel()
+
     if portfolio_df is None or portfolio_df.empty:
         render_empty_state_guidance(
             title="No portfolio positions available yet.",
@@ -3690,4 +3693,48 @@ For a portfolio presentation or interview:
 
 This app is for educational and portfolio purposes. It is not financial advice. Market data should be verified before making real investment decisions.
 """
+    )
+
+
+PROJECT_VERSION_LABEL = "Sprint 67 Production Hardening"
+PROJECT_STATUS_LABEL = "Portfolio Ready"
+PROJECT_BUILD_TYPE = "Streamlit Portfolio App"
+PROJECT_LAST_UPDATED = "2026-07-24"
+
+
+def render_project_metadata_panel() -> None:
+    """Render project metadata for portfolio presentation."""
+    st.subheader("Project Metadata")
+
+    metadata_rows = [
+        {
+            "Field": "Version",
+            "Value": PROJECT_VERSION_LABEL,
+        },
+        {
+            "Field": "Project Status",
+            "Value": PROJECT_STATUS_LABEL,
+        },
+        {
+            "Field": "Build Type",
+            "Value": PROJECT_BUILD_TYPE,
+        },
+        {
+            "Field": "Last Updated",
+            "Value": PROJECT_LAST_UPDATED,
+        },
+    ]
+
+    metadata_df = pd.DataFrame(metadata_rows)
+
+    meta_col1, meta_col2, meta_col3 = st.columns(3)
+
+    meta_col1.metric("Version", PROJECT_VERSION_LABEL)
+    meta_col2.metric("Status", PROJECT_STATUS_LABEL)
+    meta_col3.metric("Build Type", PROJECT_BUILD_TYPE)
+
+    st.dataframe(
+        metadata_df,
+        use_container_width=True,
+        hide_index=True,
     )
