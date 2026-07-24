@@ -69,13 +69,18 @@ def render_portfolio_dashboard(portfolio_df):
     render_production_status_banner()
 
     if portfolio_df is None or portfolio_df.empty:
-        st.info(
-            "No portfolio positions found. Add a ticker, share count, and "
-            "buy price from the sidebar to activate portfolio analytics."
-        )
-        st.caption(
-            "After positions are added, this dashboard will show allocation, "
-            "gain/loss, concentration risk, sector exposure, and export tools."
+        render_empty_state_guidance(
+            title="No portfolio positions available yet.",
+            message=(
+                "The portfolio dashboard will activate after at least one "
+                "position is added from the sidebar."
+            ),
+            next_steps=[
+                "Use the Portfolio section in the sidebar.",
+                "Add a ticker, share count, and buy price.",
+                "Refresh saved prices after adding positions.",
+                "Return here to view value, gain/loss, risk, and scenarios.",
+            ],
         )
         return
 
@@ -2644,7 +2649,19 @@ def render_scenario_session_history() -> None:
     st.subheader("Scenario History")
 
     if not scenario_history:
-        st.info("No scenarios saved in this session yet.")
+        render_empty_state_guidance(
+            title="No scenarios saved in this session yet.",
+            message=(
+                "Session scenario history is temporary. It is useful for "
+                "quick comparisons before saving stronger scenarios to the database."
+            ),
+            next_steps=[
+                "Run a what-if scenario.",
+                "Add notes if needed.",
+                "Click Save Scenario to Session History.",
+                "Use Save Scenario to Database for persistent storage.",
+            ],
+        )
         return
 
     scenario_history_df = pd.DataFrame(scenario_history)
@@ -2770,7 +2787,19 @@ def render_database_scenario_history(limit: int = 100) -> None:
         return
 
     if not scenarios:
-        st.info("No database-saved scenarios yet.")
+        render_empty_state_guidance(
+            title="No database-saved scenarios yet.",
+            message=(
+                "Persistent scenario history will appear here after you save "
+                "what-if scenarios to the database."
+            ),
+            next_steps=[
+                "Open the Portfolio What-If Scenario Planner.",
+                "Run a price, add-shares, or reduce-shares scenario.",
+                "Add scenario notes if needed.",
+                "Click Save Scenario to Database.",
+            ],
+        )
         return
 
     scenario_rows = []
@@ -3423,3 +3452,18 @@ def render_production_status_banner() -> None:
             f"Scenario Table: {'Ready' if scenario_table_ready else 'Needs Attention'} | "
             f"Last checked: {checked_at}"
         )
+
+
+def render_empty_state_guidance(
+    title: str,
+    message: str,
+    next_steps: list[str],
+) -> None:
+    """Render consistent empty-state guidance."""
+    st.info(title)
+    st.caption(message)
+
+    if next_steps:
+        st.markdown("**Next steps:**")
+        for step in next_steps:
+            st.markdown(f"- {step}")
