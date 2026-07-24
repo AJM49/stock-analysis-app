@@ -25,3 +25,25 @@ The next major sprint is:
 - Sprint 68 — Backtesting Engine Foundation
 
 The roadmap moves the app from a stock research and portfolio dashboard toward a modular quant platform with backtesting, technical factors, strategy comparison, risk analytics, portfolio optimization, paper trading, broker integration, and machine learning.
+
+---
+
+## Sprint 68 Quant Platform Foundation
+
+Sprint 68 added the first quant-platform layer to the Stock Analysis App.
+
+New capabilities:
+
+- Backtesting page
+- Moving-average crossover strategy
+- Buy-and-hold strategy
+- Simulated trades
+- Equity curve tracking
+- Trade PnL metrics
+- Buy-and-hold benchmark comparison
+- Technical factor library
+- Strategy comparison UI
+- CSV exports for technical factors and strategy comparison
+- Pytest coverage for quant modules
+
+The project now has a modular foundation for backtesting, strategy research, and future risk analytics.

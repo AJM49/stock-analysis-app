@@ -8,6 +8,49 @@ def render_release_notes_panel() -> None:
     with st.expander("Release Notes", expanded=False):
         st.markdown(
             """
+### Sprint 68 — Backtesting Engine and Quant Platform Foundation
+
+**Completed features:**
+
+- Added modular backtesting package.
+- Added base strategy interface.
+- Added moving-average crossover strategy.
+- Added simulated trade model.
+- Added backtesting performance metrics.
+- Added long-only backtesting engine.
+- Added pytest coverage for the backtesting engine.
+- Added Streamlit Backtesting page.
+- Added trade PnL tracking.
+- Added completed-trade detail table.
+- Added win rate, average gain, average loss, best trade, worst trade, and exposure metrics.
+- Added buy-and-hold benchmark comparison.
+- Added benchmark equity curve.
+- Added strategy excess return.
+- Added technical factor library.
+- Added reusable daily return, cumulative return, moving average, volatility, momentum, RSI, MACD, volume average, and price-distance factors.
+- Added technical factor display to the Backtesting page.
+- Added technical factor CSV export.
+- Added buy-and-hold strategy class.
+- Added strategy registry.
+- Added strategy comparison runner.
+- Added strategy comparison UI to the Backtesting page.
+- Added strategy comparison CSV export.
+- Added test coverage for technical factors and strategy comparison.
+
+**Result:**
+
+Sprint 68 moves the project from a stock research and portfolio dashboard into the foundation of a modular quant platform. The app now supports historical backtesting, strategy signals, simulated trades, equity curves, trade-level PnL, benchmark comparison, technical factors, and strategy comparison.
+
+**Next roadmap direction:**
+
+- Risk analytics
+- Portfolio optimization
+- Paper trading
+- Broker integration
+- Machine learning model lab
+
+---
+
 ### Sprint 67 — Production Hardening and Portfolio Packaging
 
 **Completed features:**
