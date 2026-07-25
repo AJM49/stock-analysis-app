@@ -9,6 +9,7 @@ from strategies.buy_and_hold import BuyAndHoldStrategy
 from backtesting.comparison import compare_strategies
 from strategies.moving_average import MovingAverageCrossoverStrategy
 from factors.technical import build_technical_factor_table
+from risk.risk_metrics import calculate_drawdown_series
 
 
 st.set_page_config(
@@ -141,6 +142,68 @@ def build_risk_report_dataframe(result: dict) -> pd.DataFrame:
     ]
 
     return pd.DataFrame(report_rows)
+
+
+def render_drawdown_section(result: dict) -> None:
+    """Render drawdown chart, worst drawdown table, and export."""
+    st.subheader("Drawdown Analysis")
+
+    equity_curve = result["equity_curve"]
+
+    if equity_curve.empty:
+        st.info("No equity curve available for drawdown analysis.")
+        return
+
+    try:
+        drawdown_series = calculate_drawdown_series(equity_curve)
+    except Exception as error:
+        st.error(f"Drawdown calculation failed: {error}")
+        return
+
+    drawdown_df = equity_curve[["Date", "total_value"]].copy()
+    drawdown_df["drawdown_pct"] = drawdown_series.values
+    drawdown_df["running_peak"] = drawdown_df["total_value"].cummax()
+
+    st.markdown(
+        """
+Drawdown shows how far the strategy falls from its previous equity peak. It helps measure downside risk, not just total return.
+"""
+    )
+
+    chart_data = drawdown_df[["Date", "drawdown_pct"]].copy()
+    chart_data = chart_data.set_index("Date")
+
+    st.line_chart(chart_data)
+
+    worst_drawdowns = (
+        drawdown_df.sort_values(
+            by="drawdown_pct",
+            ascending=True,
+        )
+        .head(10)
+        .copy()
+    )
+
+    worst_drawdowns["drawdown_pct"] = worst_drawdowns["drawdown_pct"].round(2)
+    worst_drawdowns["total_value"] = worst_drawdowns["total_value"].round(2)
+    worst_drawdowns["running_peak"] = worst_drawdowns["running_peak"].round(2)
+
+    with st.expander("Worst Drawdown Periods", expanded=False):
+        st.dataframe(
+            worst_drawdowns,
+            use_container_width=True,
+            hide_index=True,
+        )
+
+    drawdown_csv = drawdown_df.to_csv(index=False)
+
+    st.download_button(
+        label="Download Drawdown CSV",
+        data=drawdown_csv,
+        file_name=f"{str(result['ticker']).lower()}_drawdown.csv",
+        mime="text/csv",
+        key="download_drawdown_csv",
+    )
 
 
 def render_risk_report_export_section(result: dict) -> None:
@@ -772,6 +835,7 @@ and `strategies/` modules.
     render_metric_row(result)
     render_risk_metric_section(result)
     render_risk_report_export_section(result)
+    render_drawdown_section(result)
 
     equity_curve = result["equity_curve"]
     benchmark_equity_curve = result["benchmark_equity_curve"]
@@ -874,6 +938,20 @@ The backtesting engine:
 4. Tracks cash, shares, position value, and total portfolio value.
 5. Builds an equity curve.
 6. Returns basic metrics.
+
+### Drawdown Analysis Logic
+
+The drawdown section uses the strategy equity curve to measure declines from previous portfolio highs.
+
+Drawdown is calculated as:
+
+- Current total value minus running peak
+- Divided by running peak
+- Expressed as a percentage
+
+A drawdown near zero means the strategy is close to its equity high. A deeply negative drawdown means the strategy is far below a prior peak.
+
+This view helps evaluate downside risk and recovery pressure.
 
 ### Risk Report Export Logic
 
