@@ -445,9 +445,27 @@ This page compares three allocation methods:
 - Long-only allocations
 - No short selling
 - Weights must sum to 100%
+- User-defined minimum asset weight
+- User-defined maximum asset weight
 - Uses historical close prices from yfinance
 - Uses annualized return and covariance estimates
 - Uses random simulation search, not a formal convex optimizer
+
+### Portfolio Constraint Logic
+
+The minimum asset weight prevents an optimizer from assigning too little capital to a selected asset.
+
+The maximum asset weight prevents an optimizer from concentrating too much capital in one asset.
+
+The constraint validator checks:
+
+- Minimum weight cannot be negative
+- Maximum weight must be greater than zero
+- Minimum weight cannot be greater than maximum weight
+- Minimum weight cannot be too high for the number of assets
+- Maximum weight cannot be too low for the number of assets
+
+If the constraints are too tight, the optimizer asks you to relax the limits.
 
 ### Export Report Logic
 
@@ -517,6 +535,26 @@ def render_portfolio_optimization_page() -> None:
             step=0.25,
         )
 
+        st.subheader("Portfolio Constraints")
+
+        min_weight_pct = st.number_input(
+            "Minimum Asset Weight %",
+            min_value=0.0,
+            max_value=50.0,
+            value=0.0,
+            step=1.0,
+            help="Smallest allowed allocation for each asset.",
+        )
+
+        max_weight_pct = st.number_input(
+            "Maximum Asset Weight %",
+            min_value=1.0,
+            max_value=100.0,
+            value=100.0,
+            step=1.0,
+            help="Largest allowed allocation for each asset.",
+        )
+
         run_optimization = st.button("Run Portfolio Optimization")
 
     tickers = clean_ticker_list(raw_tickers)
@@ -550,6 +588,8 @@ Use this page to compare portfolio allocation methods across multiple assets.
                 simulation_count=simulation_count,
                 risk_free_rate=risk_free_rate_pct / 100,
                 random_seed=42,
+                min_weight=min_weight_pct / 100,
+                max_weight=max_weight_pct / 100,
             )
     except Exception as error:
         st.error(f"Portfolio optimization failed: {error}")

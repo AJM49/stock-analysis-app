@@ -413,3 +413,88 @@ def test_build_allocation_comparison_table() -> None:
     assert "Maximum Sharpe" in allocation_table.columns
     assert len(allocation_table) == 3
     assert set(allocation_table["ticker"]) == {"AAPL", "MSFT", "NVDA"}
+
+
+from portfolio_optimization.optimizers import validate_weight_constraints
+
+
+def test_validate_weight_constraints_accepts_valid_constraints() -> None:
+    validate_weight_constraints(
+        asset_count=3,
+        min_weight=0.05,
+        max_weight=0.80,
+    )
+
+
+def test_validate_weight_constraints_rejects_negative_min_weight() -> None:
+    with pytest.raises(ValueError, match="min_weight cannot be negative"):
+        validate_weight_constraints(
+            asset_count=3,
+            min_weight=-0.01,
+            max_weight=0.80,
+        )
+
+
+def test_validate_weight_constraints_rejects_bad_max_weight() -> None:
+    with pytest.raises(ValueError, match="max_weight must be greater than 0"):
+        validate_weight_constraints(
+            asset_count=3,
+            min_weight=0.0,
+            max_weight=0.0,
+        )
+
+
+def test_validate_weight_constraints_rejects_min_above_max() -> None:
+    with pytest.raises(ValueError, match="min_weight cannot be greater"):
+        validate_weight_constraints(
+            asset_count=3,
+            min_weight=0.50,
+            max_weight=0.25,
+        )
+
+
+def test_validate_weight_constraints_rejects_min_too_high() -> None:
+    with pytest.raises(ValueError, match="min_weight is too high"):
+        validate_weight_constraints(
+            asset_count=3,
+            min_weight=0.40,
+            max_weight=1.0,
+        )
+
+
+def test_validate_weight_constraints_rejects_max_too_low() -> None:
+    with pytest.raises(ValueError, match="max_weight is too low"):
+        validate_weight_constraints(
+            asset_count=3,
+            min_weight=0.0,
+            max_weight=0.20,
+        )
+
+
+def test_generate_random_weight_matrix_respects_constraints() -> None:
+    weights = generate_random_weight_matrix(
+        asset_count=3,
+        simulation_count=100,
+        random_seed=42,
+        min_weight=0.10,
+        max_weight=0.70,
+    )
+
+    assert np.all(weights >= 0.10)
+    assert np.all(weights <= 0.70)
+    assert np.allclose(weights.sum(axis=1), 1.0)
+
+
+def test_compare_portfolio_optimizers_accepts_constraints() -> None:
+    price_data = build_sample_price_data()
+
+    comparison = compare_portfolio_optimizers(
+        price_data=price_data,
+        simulation_count=500,
+        random_seed=42,
+        min_weight=0.05,
+        max_weight=0.80,
+    )
+
+    assert comparison["min_weight"] == 0.05
+    assert comparison["max_weight"] == 0.80

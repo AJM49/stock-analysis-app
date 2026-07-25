@@ -31,6 +31,8 @@ def compare_portfolio_optimizers(
     simulation_count: int = 5000,
     risk_free_rate: float = 0.0,
     random_seed: int = 42,
+    min_weight: float = 0.0,
+    max_weight: float = 1.0,
 ) -> dict[str, Any]:
     """Run portfolio optimizers and compare results."""
     if price_data.empty:
@@ -46,12 +48,16 @@ def compare_portfolio_optimizers(
             simulation_count=simulation_count,
             risk_free_rate=risk_free_rate,
             random_seed=random_seed,
+            min_weight=min_weight,
+            max_weight=max_weight,
         ),
         run_maximum_sharpe_optimizer(
             price_data=price_data,
             simulation_count=simulation_count,
             risk_free_rate=risk_free_rate,
             random_seed=random_seed,
+            min_weight=min_weight,
+            max_weight=max_weight,
         ),
     ]
 
@@ -86,6 +92,8 @@ def compare_portfolio_optimizers(
         "simulation_count": simulation_count,
         "risk_free_rate": risk_free_rate,
         "asset_count": price_data.shape[1],
+        "min_weight": min_weight,
+        "max_weight": max_weight,
     }
 
 

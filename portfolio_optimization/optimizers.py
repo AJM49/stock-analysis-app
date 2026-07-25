@@ -85,22 +85,69 @@ def run_equal_weight_optimizer(
     }
 
 
+def validate_weight_constraints(
+    asset_count: int,
+    min_weight: float = 0.0,
+    max_weight: float = 1.0,
+) -> None:
+    """Validate long-only portfolio weight constraints."""
+    if asset_count < 2:
+        raise ValueError("asset_count must be at least 2")
+
+    if min_weight < 0:
+        raise ValueError("min_weight cannot be negative")
+
+    if max_weight <= 0:
+        raise ValueError("max_weight must be greater than 0")
+
+    if min_weight > max_weight:
+        raise ValueError("min_weight cannot be greater than max_weight")
+
+    if min_weight * asset_count > 1.0:
+        raise ValueError("min_weight is too high for the number of assets")
+
+    if max_weight * asset_count < 1.0:
+        raise ValueError("max_weight is too low for the number of assets")
+
+
 def generate_random_weight_matrix(
     asset_count: int,
     simulation_count: int = 5000,
     random_seed: int = 42,
+    min_weight: float = 0.0,
+    max_weight: float = 1.0,
 ) -> np.ndarray:
-    """Generate random long-only portfolio weights."""
-    if asset_count < 2:
-        raise ValueError("asset_count must be at least 2")
+    """Generate random long-only portfolio weights with optional constraints."""
+    validate_weight_constraints(
+        asset_count=asset_count,
+        min_weight=min_weight,
+        max_weight=max_weight,
+    )
 
     if simulation_count < 1:
         raise ValueError("simulation_count must be at least 1")
 
     rng = np.random.default_rng(random_seed)
-    raw_weights = rng.random((simulation_count, asset_count))
+    accepted_weights = []
+    attempts = 0
+    max_attempts = simulation_count * 100
 
-    return raw_weights / raw_weights.sum(axis=1, keepdims=True)
+    while len(accepted_weights) < simulation_count and attempts < max_attempts:
+        raw_weights = rng.random(asset_count)
+        weights = raw_weights / raw_weights.sum()
+
+        if np.all(weights >= min_weight) and np.all(weights <= max_weight):
+            accepted_weights.append(weights)
+
+        attempts += 1
+
+    if len(accepted_weights) < simulation_count:
+        raise ValueError(
+            "Could not generate enough portfolios with the selected constraints. "
+            "Relax min_weight or max_weight."
+        )
+
+    return np.array(accepted_weights)
 
 
 def run_minimum_volatility_optimizer(
@@ -108,6 +155,8 @@ def run_minimum_volatility_optimizer(
     simulation_count: int = 5000,
     risk_free_rate: float = 0.0,
     random_seed: int = 42,
+    min_weight: float = 0.0,
+    max_weight: float = 1.0,
 ) -> dict[str, object]:
     """Run minimum volatility optimizer using random portfolio search."""
     assets = list(price_data.columns)
@@ -128,6 +177,8 @@ def run_minimum_volatility_optimizer(
         asset_count=len(assets),
         simulation_count=simulation_count,
         random_seed=random_seed,
+        min_weight=min_weight,
+        max_weight=max_weight,
     )
 
     best_weights = None
@@ -181,6 +232,8 @@ def run_minimum_volatility_optimizer(
         "mean_returns": mean_returns,
         "covariance_matrix": covariance_matrix,
         "simulation_count": simulation_count,
+        "min_weight": min_weight,
+        "max_weight": max_weight,
     }
 
 
@@ -189,6 +242,8 @@ def run_maximum_sharpe_optimizer(
     simulation_count: int = 5000,
     risk_free_rate: float = 0.0,
     random_seed: int = 42,
+    min_weight: float = 0.0,
+    max_weight: float = 1.0,
 ) -> dict[str, object]:
     """Run maximum Sharpe-style optimizer using random portfolio search."""
     assets = list(price_data.columns)
@@ -209,6 +264,8 @@ def run_maximum_sharpe_optimizer(
         asset_count=len(assets),
         simulation_count=simulation_count,
         random_seed=random_seed,
+        min_weight=min_weight,
+        max_weight=max_weight,
     )
 
     best_weights = None
@@ -263,4 +320,6 @@ def run_maximum_sharpe_optimizer(
         "covariance_matrix": covariance_matrix,
         "simulation_count": simulation_count,
         "risk_free_rate": risk_free_rate,
+        "min_weight": min_weight,
+        "max_weight": max_weight,
     }
