@@ -336,3 +336,80 @@ def test_maximum_sharpe_accepts_risk_free_rate() -> None:
     assert result["optimizer_name"] == "Maximum Sharpe"
     assert result["risk_free_rate"] == 0.02
     assert "sharpe_ratio" in result
+
+
+from portfolio_optimization.comparison import (
+    build_allocation_comparison_table,
+    build_optimizer_summary_row,
+    compare_portfolio_optimizers,
+)
+
+
+def test_build_optimizer_summary_row() -> None:
+    price_data = build_sample_price_data()
+    result = run_equal_weight_optimizer(price_data)
+
+    row = build_optimizer_summary_row(result)
+
+    assert row["optimizer_name"] == "Equal Weight"
+    assert "portfolio_return" in row
+    assert "portfolio_return_pct" in row
+    assert "portfolio_volatility" in row
+    assert "portfolio_volatility_pct" in row
+    assert "sharpe_ratio" in row
+    assert row["asset_count"] == 3
+    assert "allocations" in row
+    assert "result" in row
+
+
+def test_compare_portfolio_optimizers() -> None:
+    price_data = build_sample_price_data()
+
+    comparison = compare_portfolio_optimizers(
+        price_data=price_data,
+        simulation_count=500,
+        risk_free_rate=0.0,
+        random_seed=42,
+    )
+
+    assert "summary" in comparison
+    assert "results" in comparison
+    assert "best_return_optimizer" in comparison
+    assert "lowest_volatility_optimizer" in comparison
+    assert "best_sharpe_optimizer" in comparison
+    assert comparison["simulation_count"] == 500
+    assert comparison["risk_free_rate"] == 0.0
+    assert comparison["asset_count"] == 3
+
+    summary = comparison["summary"]
+
+    assert len(summary) == 3
+    assert set(summary["optimizer_name"]) == {
+        "Equal Weight",
+        "Minimum Volatility",
+        "Maximum Sharpe",
+    }
+
+
+def test_compare_portfolio_optimizers_rejects_empty_data() -> None:
+    with pytest.raises(ValueError, match="price_data cannot be empty"):
+        compare_portfolio_optimizers(pd.DataFrame())
+
+
+def test_build_allocation_comparison_table() -> None:
+    price_data = build_sample_price_data()
+
+    comparison = compare_portfolio_optimizers(
+        price_data=price_data,
+        simulation_count=500,
+        random_seed=42,
+    )
+
+    allocation_table = build_allocation_comparison_table(comparison)
+
+    assert "ticker" in allocation_table.columns
+    assert "Equal Weight" in allocation_table.columns
+    assert "Minimum Volatility" in allocation_table.columns
+    assert "Maximum Sharpe" in allocation_table.columns
+    assert len(allocation_table) == 3
+    assert set(allocation_table["ticker"]) == {"AAPL", "MSFT", "NVDA"}
