@@ -65,6 +65,137 @@ def load_backtest_price_data(ticker: str, period: str) -> pd.DataFrame:
     return normalize_yfinance_history(history)
 
 
+def build_risk_alerts(result: dict) -> pd.DataFrame:
+    """Build rule-based risk alerts from a backtest result."""
+    alerts: list[dict[str, str]] = []
+
+    annualized_volatility = float(result.get("annualized_volatility_pct", 0.0))
+    sharpe_ratio = float(result.get("sharpe_ratio", 0.0))
+    max_drawdown = abs(float(result.get("risk_max_drawdown_pct", 0.0)))
+    value_at_risk = abs(float(result.get("value_at_risk_95_pct", 0.0)))
+    total_return = float(result.get("total_return_pct", 0.0))
+    strategy_excess_return = float(result.get("strategy_excess_return_pct", 0.0))
+
+    if annualized_volatility > 30:
+        alerts.append(
+            {
+                "Severity": "High",
+                "Alert": "High volatility",
+                "Metric": "Annualized Volatility",
+                "Value": f"{annualized_volatility:.2f}%",
+                "Action": "Review position sizing, reduce exposure, or test a lower-risk strategy.",
+            }
+        )
+    elif annualized_volatility > 15:
+        alerts.append(
+            {
+                "Severity": "Moderate",
+                "Alert": "Moderate volatility",
+                "Metric": "Annualized Volatility",
+                "Value": f"{annualized_volatility:.2f}%",
+                "Action": "Monitor volatility before scaling the strategy.",
+            }
+        )
+
+    if sharpe_ratio < 0.5:
+        alerts.append(
+            {
+                "Severity": "High",
+                "Alert": "Weak risk-adjusted return",
+                "Metric": "Sharpe Ratio",
+                "Value": f"{sharpe_ratio:.2f}",
+                "Action": "Improve signal quality or compare against simpler strategies.",
+            }
+        )
+    elif sharpe_ratio < 1.0:
+        alerts.append(
+            {
+                "Severity": "Moderate",
+                "Alert": "Moderate risk-adjusted return",
+                "Metric": "Sharpe Ratio",
+                "Value": f"{sharpe_ratio:.2f}",
+                "Action": "Review whether return is sufficient for the volatility taken.",
+            }
+        )
+
+    if max_drawdown > 25:
+        alerts.append(
+            {
+                "Severity": "High",
+                "Alert": "Large drawdown",
+                "Metric": "Risk Max Drawdown",
+                "Value": f"{max_drawdown:.2f}%",
+                "Action": "Add drawdown controls, stop rules, or allocation limits.",
+            }
+        )
+    elif max_drawdown > 10:
+        alerts.append(
+            {
+                "Severity": "Moderate",
+                "Alert": "Moderate drawdown",
+                "Metric": "Risk Max Drawdown",
+                "Value": f"{max_drawdown:.2f}%",
+                "Action": "Review worst drawdown periods before accepting the strategy.",
+            }
+        )
+
+    if value_at_risk > 3:
+        alerts.append(
+            {
+                "Severity": "High",
+                "Alert": "High daily tail-risk estimate",
+                "Metric": "Value at Risk 95%",
+                "Value": f"{value_at_risk:.2f}%",
+                "Action": "Review downside days and consider stricter risk limits.",
+            }
+        )
+    elif value_at_risk > 1:
+        alerts.append(
+            {
+                "Severity": "Moderate",
+                "Alert": "Moderate daily tail-risk estimate",
+                "Metric": "Value at Risk 95%",
+                "Value": f"{value_at_risk:.2f}%",
+                "Action": "Monitor downside risk against strategy goals.",
+            }
+        )
+
+    if total_return < 0:
+        alerts.append(
+            {
+                "Severity": "High",
+                "Alert": "Negative strategy return",
+                "Metric": "Total Return",
+                "Value": f"{total_return:.2f}%",
+                "Action": "Do not advance this strategy without redesign or parameter review.",
+            }
+        )
+
+    if strategy_excess_return < 0:
+        alerts.append(
+            {
+                "Severity": "Moderate",
+                "Alert": "Strategy underperformed benchmark",
+                "Metric": "Strategy Excess Return",
+                "Value": f"{strategy_excess_return:.2f}%",
+                "Action": "Compare against buy-and-hold before adding complexity.",
+            }
+        )
+
+    if not alerts:
+        alerts.append(
+            {
+                "Severity": "Low",
+                "Alert": "No major risk alerts",
+                "Metric": "Composite Review",
+                "Value": "Pass",
+                "Action": "Continue testing across more tickers and time periods.",
+            }
+        )
+
+    return pd.DataFrame(alerts)
+
+
 def classify_risk_level(result: dict) -> dict[str, str]:
     """Classify strategy risk using backtest risk metrics."""
     sharpe_ratio = float(result.get("sharpe_ratio", 0.0))
@@ -449,6 +580,44 @@ def render_risk_report_export_section(result: dict) -> None:
 
     with st.expander("Risk Report Preview", expanded=False):
         st.text(report_text)
+
+
+def render_risk_alerts_section(result: dict) -> None:
+    """Render risk alerts and threshold warnings."""
+    st.subheader("Risk Alerts and Threshold Warnings")
+
+    alerts_df = build_risk_alerts(result)
+
+    high_alerts = alerts_df[alerts_df["Severity"] == "High"]
+    moderate_alerts = alerts_df[alerts_df["Severity"] == "Moderate"]
+
+    if not high_alerts.empty:
+        st.error(
+            f"{len(high_alerts)} high-severity risk alert(s) detected. Review before advancing this strategy."
+        )
+    elif not moderate_alerts.empty:
+        st.warning(
+            f"{len(moderate_alerts)} moderate-severity risk alert(s) detected. Review before scaling this strategy."
+        )
+    else:
+        st.success("No major risk alerts detected for this backtest.")
+
+    with st.expander("Risk Alert Details", expanded=True):
+        st.dataframe(
+            alerts_df,
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        alerts_csv = alerts_df.to_csv(index=False)
+
+        st.download_button(
+            label="Download Risk Alerts CSV",
+            data=alerts_csv,
+            file_name=f"{str(result['ticker']).lower()}_risk_alerts.csv",
+            mime="text/csv",
+            key="download_risk_alerts_csv",
+        )
 
 
 def render_risk_dashboard_summary_section(result: dict) -> None:
@@ -1095,6 +1264,7 @@ and `strategies/` modules.
     st.subheader(f"{ticker} Backtest Results")
     render_metric_row(result)
     render_risk_dashboard_summary_section(result)
+    render_risk_alerts_section(result)
     render_risk_metric_section(result)
     render_risk_report_export_section(result)
     render_drawdown_section(result)
@@ -1246,6 +1416,21 @@ The exported report includes:
 - Risk metrics
 - Trade metrics
 - Educational disclaimer
+
+### Risk Alerts Logic
+
+The risk alerts section applies rule-based threshold checks to the current backtest result.
+
+Current alert checks:
+
+- Annualized volatility above moderate or high thresholds
+- Sharpe ratio below acceptable thresholds
+- Maximum drawdown above moderate or high thresholds
+- Historical Value at Risk above moderate or high thresholds
+- Negative total return
+- Strategy underperformance versus the benchmark
+
+The alerts are not investment advice. They are engineering guardrails that help decide whether a strategy should move forward to optimization, paper trading, or live execution.
 
 ### Risk Dashboard Summary Logic
 
