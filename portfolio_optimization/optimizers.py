@@ -182,3 +182,85 @@ def run_minimum_volatility_optimizer(
         "covariance_matrix": covariance_matrix,
         "simulation_count": simulation_count,
     }
+
+
+def run_maximum_sharpe_optimizer(
+    price_data: pd.DataFrame,
+    simulation_count: int = 5000,
+    risk_free_rate: float = 0.0,
+    random_seed: int = 42,
+) -> dict[str, object]:
+    """Run maximum Sharpe-style optimizer using random portfolio search."""
+    assets = list(price_data.columns)
+    validate_asset_list(assets)
+
+    equal_weights = calculate_equal_weight_vector(len(assets))
+
+    base_statistics = build_portfolio_statistics(
+        price_data=price_data,
+        weights=equal_weights,
+        risk_free_rate=risk_free_rate,
+    )
+
+    mean_returns = base_statistics["mean_returns"]
+    covariance_matrix = base_statistics["covariance_matrix"]
+
+    candidate_weights = generate_random_weight_matrix(
+        asset_count=len(assets),
+        simulation_count=simulation_count,
+        random_seed=random_seed,
+    )
+
+    best_weights = None
+    best_return = 0.0
+    best_volatility = 0.0
+    best_sharpe_ratio = float("-inf")
+
+    for weights in candidate_weights:
+        portfolio_return = calculate_portfolio_return(weights, mean_returns)
+        portfolio_volatility = calculate_portfolio_volatility(
+            weights,
+            covariance_matrix,
+        )
+        sharpe_ratio = calculate_portfolio_sharpe_ratio(
+            portfolio_return=portfolio_return,
+            portfolio_volatility=portfolio_volatility,
+            risk_free_rate=risk_free_rate,
+        )
+
+        if sharpe_ratio > best_sharpe_ratio:
+            best_weights = weights
+            best_return = portfolio_return
+            best_volatility = portfolio_volatility
+            best_sharpe_ratio = sharpe_ratio
+
+    if best_weights is None:
+        raise ValueError("maximum Sharpe optimization failed")
+
+    cleaned_assets = [asset.strip().upper() for asset in assets]
+
+    allocations = pd.DataFrame(
+        {
+            "ticker": cleaned_assets,
+            "weight": best_weights,
+            "weight_pct": best_weights * 100,
+        }
+    ).sort_values(
+        by="weight",
+        ascending=False,
+    ).reset_index(drop=True)
+
+    return {
+        "optimizer_name": "Maximum Sharpe",
+        "assets": cleaned_assets,
+        "weights": best_weights,
+        "allocations": allocations,
+        "portfolio_return": best_return,
+        "portfolio_volatility": best_volatility,
+        "sharpe_ratio": best_sharpe_ratio,
+        "asset_returns": base_statistics["asset_returns"],
+        "mean_returns": mean_returns,
+        "covariance_matrix": covariance_matrix,
+        "simulation_count": simulation_count,
+        "risk_free_rate": risk_free_rate,
+    }

@@ -280,3 +280,59 @@ def test_minimum_volatility_is_no_worse_than_equal_weight_on_sample_data() -> No
     assert minimum_volatility_result["portfolio_volatility"] <= (
         equal_weight_result["portfolio_volatility"] + 1e-9
     )
+
+
+from portfolio_optimization.optimizers import run_maximum_sharpe_optimizer
+
+
+def test_run_maximum_sharpe_optimizer() -> None:
+    price_data = build_sample_price_data()
+
+    result = run_maximum_sharpe_optimizer(
+        price_data=price_data,
+        simulation_count=500,
+        random_seed=42,
+    )
+
+    assert result["optimizer_name"] == "Maximum Sharpe"
+    assert result["assets"] == ["AAPL", "MSFT", "NVDA"]
+    assert "weights" in result
+    assert "allocations" in result
+    assert "portfolio_return" in result
+    assert "portfolio_volatility" in result
+    assert "sharpe_ratio" in result
+    assert result["simulation_count"] == 500
+    assert result["risk_free_rate"] == 0.0
+    assert result["weights"].sum() == pytest.approx(1.0)
+    assert np.all(result["weights"] >= 0)
+    assert result["portfolio_volatility"] >= 0
+
+
+def test_maximum_sharpe_is_no_worse_than_equal_weight_on_sample_data() -> None:
+    price_data = build_sample_price_data()
+
+    equal_weight_result = run_equal_weight_optimizer(price_data)
+    maximum_sharpe_result = run_maximum_sharpe_optimizer(
+        price_data=price_data,
+        simulation_count=1000,
+        random_seed=42,
+    )
+
+    assert maximum_sharpe_result["sharpe_ratio"] >= (
+        equal_weight_result["sharpe_ratio"] - 1e-9
+    )
+
+
+def test_maximum_sharpe_accepts_risk_free_rate() -> None:
+    price_data = build_sample_price_data()
+
+    result = run_maximum_sharpe_optimizer(
+        price_data=price_data,
+        simulation_count=500,
+        risk_free_rate=0.02,
+        random_seed=42,
+    )
+
+    assert result["optimizer_name"] == "Maximum Sharpe"
+    assert result["risk_free_rate"] == 0.02
+    assert "sharpe_ratio" in result
