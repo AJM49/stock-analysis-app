@@ -145,3 +145,77 @@ def test_build_rebalance_summary() -> None:
     assert "total_sell_value" in summary
     assert "max_absolute_drift_pct" in summary
     assert "total_absolute_drift_pct" in summary
+
+
+from portfolio_rebalancing.rebalancing_math import (
+    build_allocation_drift_summary,
+    calculate_target_vs_current_allocations,
+    classify_allocation_drift,
+)
+
+
+def test_classify_allocation_drift() -> None:
+    assert classify_allocation_drift(6.0, rebalance_threshold_pct=5.0) == "Rebalance Needed"
+    assert classify_allocation_drift(-6.0, rebalance_threshold_pct=5.0) == "Rebalance Needed"
+    assert classify_allocation_drift(3.0, rebalance_threshold_pct=5.0) == "Watch"
+    assert classify_allocation_drift(1.0, rebalance_threshold_pct=5.0) == "On Target"
+
+
+def test_calculate_target_vs_current_allocations() -> None:
+    positions = build_sample_positions()
+
+    allocation_view = calculate_target_vs_current_allocations(
+        positions=positions,
+        rebalance_threshold_pct=5.0,
+    )
+
+    expected_columns = [
+        "ticker",
+        "shares",
+        "current_price",
+        "current_value",
+        "current_weight",
+        "current_weight_pct",
+        "target_weight",
+        "target_weight_pct",
+        "allocation_drift_pct",
+        "absolute_drift_pct",
+        "drift_status",
+        "needs_rebalance",
+    ]
+
+    assert list(allocation_view.columns) == expected_columns
+    assert len(allocation_view) == 3
+    assert allocation_view["current_weight"].sum() == pytest.approx(1.0)
+    assert set(allocation_view["drift_status"]).issubset(
+        {"Rebalance Needed", "Watch", "On Target"}
+    )
+    assert allocation_view["needs_rebalance"].dtype == bool
+
+
+def test_calculate_target_vs_current_allocations_rejects_bad_threshold() -> None:
+    positions = build_sample_positions()
+
+    with pytest.raises(ValueError, match="rebalance_threshold_pct"):
+        calculate_target_vs_current_allocations(
+            positions=positions,
+            rebalance_threshold_pct=0,
+        )
+
+
+def test_build_allocation_drift_summary() -> None:
+    positions = build_sample_positions()
+
+    summary = build_allocation_drift_summary(
+        positions=positions,
+        rebalance_threshold_pct=5.0,
+    )
+
+    assert summary["position_count"] == 3
+    assert summary["rebalance_threshold_pct"] == 5.0
+    assert "positions_needing_rebalance" in summary
+    assert "positions_on_watch" in summary
+    assert "positions_on_target" in summary
+    assert "max_absolute_drift_pct" in summary
+    assert "average_absolute_drift_pct" in summary
+    assert "total_absolute_drift_pct" in summary

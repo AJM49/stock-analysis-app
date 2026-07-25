@@ -140,3 +140,96 @@ def build_rebalance_summary(positions: pd.DataFrame) -> dict[str, float | int]:
         "max_absolute_drift_pct": max_absolute_drift_pct,
         "total_absolute_drift_pct": total_absolute_drift_pct,
     }
+
+
+def classify_allocation_drift(
+    drift_weight_pct: float,
+    rebalance_threshold_pct: float = 5.0,
+) -> str:
+    """Classify allocation drift severity."""
+    absolute_drift = abs(float(drift_weight_pct))
+
+    if absolute_drift >= rebalance_threshold_pct:
+        return "Rebalance Needed"
+
+    if absolute_drift >= rebalance_threshold_pct / 2:
+        return "Watch"
+
+    return "On Target"
+
+
+def calculate_target_vs_current_allocations(
+    positions: pd.DataFrame,
+    rebalance_threshold_pct: float = 5.0,
+) -> pd.DataFrame:
+    """Compare current allocation against target allocation."""
+    if rebalance_threshold_pct <= 0:
+        raise ValueError("rebalance_threshold_pct must be greater than zero")
+
+    weighted_positions = calculate_current_weights(positions)
+
+    result = weighted_positions.copy()
+    result["allocation_drift_pct"] = (
+        result["current_weight_pct"] - result["target_weight_pct"]
+    )
+    result["absolute_drift_pct"] = result["allocation_drift_pct"].abs()
+    result["drift_status"] = result["allocation_drift_pct"].apply(
+        lambda drift: classify_allocation_drift(
+            drift_weight_pct=drift,
+            rebalance_threshold_pct=rebalance_threshold_pct,
+        )
+    )
+    result["needs_rebalance"] = (
+        result["absolute_drift_pct"] >= rebalance_threshold_pct
+    )
+
+    ordered_columns = [
+        "ticker",
+        "shares",
+        "current_price",
+        "current_value",
+        "current_weight",
+        "current_weight_pct",
+        "target_weight",
+        "target_weight_pct",
+        "allocation_drift_pct",
+        "absolute_drift_pct",
+        "drift_status",
+        "needs_rebalance",
+    ]
+
+    return result[ordered_columns]
+
+
+def build_allocation_drift_summary(
+    positions: pd.DataFrame,
+    rebalance_threshold_pct: float = 5.0,
+) -> dict[str, float | int]:
+    """Build summary metrics for target-vs-current allocation drift."""
+    allocation_view = calculate_target_vs_current_allocations(
+        positions=positions,
+        rebalance_threshold_pct=rebalance_threshold_pct,
+    )
+
+    return {
+        "position_count": len(allocation_view),
+        "rebalance_threshold_pct": rebalance_threshold_pct,
+        "positions_needing_rebalance": int(
+            allocation_view["needs_rebalance"].sum()
+        ),
+        "positions_on_watch": int(
+            (allocation_view["drift_status"] == "Watch").sum()
+        ),
+        "positions_on_target": int(
+            (allocation_view["drift_status"] == "On Target").sum()
+        ),
+        "max_absolute_drift_pct": float(
+            allocation_view["absolute_drift_pct"].max()
+        ),
+        "average_absolute_drift_pct": float(
+            allocation_view["absolute_drift_pct"].mean()
+        ),
+        "total_absolute_drift_pct": float(
+            allocation_view["absolute_drift_pct"].sum()
+        ),
+    }
