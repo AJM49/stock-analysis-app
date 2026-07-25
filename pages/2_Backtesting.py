@@ -63,6 +63,123 @@ def load_backtest_price_data(ticker: str, period: str) -> pd.DataFrame:
     return normalize_yfinance_history(history)
 
 
+def render_risk_metric_section(result: dict) -> None:
+    """Render risk metrics returned by the backtesting engine."""
+    st.subheader("Risk Analytics")
+
+    st.markdown(
+        """
+These metrics are calculated by the reusable `risk/risk_metrics.py` module and returned by the backtesting engine.
+"""
+    )
+
+    risk_col1, risk_col2, risk_col3 = st.columns(3)
+
+    risk_col1.metric(
+        "Annualized Return",
+        f"{result['annualized_return_pct']:.2f}%",
+    )
+
+    risk_col2.metric(
+        "Annualized Volatility",
+        f"{result['annualized_volatility_pct']:.2f}%",
+    )
+
+    risk_col3.metric(
+        "Sharpe Ratio",
+        f"{result['sharpe_ratio']:.2f}",
+    )
+
+    risk_col4, risk_col5, risk_col6 = st.columns(3)
+
+    risk_col4.metric(
+        "Sortino Ratio",
+        f"{result['sortino_ratio']:.2f}",
+    )
+
+    risk_col5.metric(
+        "Risk Max Drawdown",
+        f"{result['risk_max_drawdown_pct']:.2f}%",
+    )
+
+    risk_col6.metric(
+        "Drawdown Duration",
+        result["drawdown_duration"],
+    )
+
+    risk_col7, risk_col8, risk_col9 = st.columns(3)
+
+    risk_col7.metric(
+        "Value at Risk 95%",
+        f"{result['value_at_risk_95_pct']:.2f}%",
+    )
+
+    risk_col8.metric(
+        "Conditional VaR 95%",
+        f"{result['conditional_value_at_risk_95_pct']:.2f}%",
+    )
+
+    risk_col9.metric(
+        "Calmar Ratio",
+        f"{result['calmar_ratio']:.2f}",
+    )
+
+    risk_summary_rows = [
+        {
+            "Metric": "Annualized Return",
+            "Value": f"{result['annualized_return_pct']:.2f}%",
+            "Meaning": "Estimated yearly return based on the backtest equity curve.",
+        },
+        {
+            "Metric": "Annualized Volatility",
+            "Value": f"{result['annualized_volatility_pct']:.2f}%",
+            "Meaning": "Estimated yearly variability of daily returns.",
+        },
+        {
+            "Metric": "Sharpe Ratio",
+            "Value": f"{result['sharpe_ratio']:.2f}",
+            "Meaning": "Return compared with total volatility.",
+        },
+        {
+            "Metric": "Sortino Ratio",
+            "Value": f"{result['sortino_ratio']:.2f}",
+            "Meaning": "Return compared with downside volatility only.",
+        },
+        {
+            "Metric": "Risk Max Drawdown",
+            "Value": f"{result['risk_max_drawdown_pct']:.2f}%",
+            "Meaning": "Worst peak-to-trough decline in the equity curve.",
+        },
+        {
+            "Metric": "Drawdown Duration",
+            "Value": result["drawdown_duration"],
+            "Meaning": "Longest number of periods spent below a prior equity high.",
+        },
+        {
+            "Metric": "Value at Risk 95%",
+            "Value": f"{result['value_at_risk_95_pct']:.2f}%",
+            "Meaning": "Historical estimate of a bad daily return threshold.",
+        },
+        {
+            "Metric": "Conditional VaR 95%",
+            "Value": f"{result['conditional_value_at_risk_95_pct']:.2f}%",
+            "Meaning": "Average return during the worst tail-return days.",
+        },
+        {
+            "Metric": "Calmar Ratio",
+            "Value": f"{result['calmar_ratio']:.2f}",
+            "Meaning": "Annualized return compared with absolute maximum drawdown.",
+        },
+    ]
+
+    with st.expander("Risk Metric Definitions", expanded=False):
+        st.dataframe(
+            pd.DataFrame(risk_summary_rows),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+
 def render_metric_row(result: dict) -> None:
     """Render top-level backtest metrics."""
     metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
@@ -514,6 +631,7 @@ and `strategies/` modules.
 
     st.subheader(f"{ticker} Backtest Results")
     render_metric_row(result)
+    render_risk_metric_section(result)
 
     equity_curve = result["equity_curve"]
     benchmark_equity_curve = result["benchmark_equity_curve"]
@@ -616,6 +734,24 @@ The backtesting engine:
 4. Tracks cash, shares, position value, and total portfolio value.
 5. Builds an equity curve.
 6. Returns basic metrics.
+
+### Risk Analytics Logic
+
+The risk analytics section uses the reusable `risk/risk_metrics.py` module.
+
+Current risk metrics include:
+
+- Annualized return
+- Annualized volatility
+- Sharpe-style ratio
+- Sortino-style ratio
+- Maximum drawdown
+- Drawdown duration
+- Historical Value at Risk at 95%
+- Historical Conditional Value at Risk at 95%
+- Calmar-style ratio
+
+These metrics help evaluate whether a strategy's return is worth the risk taken.
 
 ### Strategy Comparison Logic
 
