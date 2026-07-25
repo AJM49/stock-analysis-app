@@ -10,6 +10,7 @@ from backtesting.comparison import compare_strategies
 from strategies.moving_average import MovingAverageCrossoverStrategy
 from factors.technical import build_technical_factor_table
 from risk.risk_metrics import calculate_drawdown_series
+from risk.risk_metrics import calculate_rolling_volatility
 
 
 st.set_page_config(
@@ -142,6 +143,81 @@ def build_risk_report_dataframe(result: dict) -> pd.DataFrame:
     ]
 
     return pd.DataFrame(report_rows)
+
+
+def render_rolling_volatility_section(result: dict) -> None:
+    """Render rolling volatility chart, table, and export."""
+    st.subheader("Rolling Volatility Analysis")
+
+    equity_curve = result["equity_curve"]
+
+    if equity_curve.empty:
+        st.info("No equity curve available for rolling volatility analysis.")
+        return
+
+    try:
+        volatility_df = calculate_rolling_volatility(
+            equity_curve=equity_curve,
+            window=20,
+        )
+    except Exception as error:
+        st.error(f"Rolling volatility calculation failed: {error}")
+        return
+
+    volatility_column = "rolling_volatility_20"
+
+    st.markdown(
+        """
+Rolling volatility measures how unstable the strategy's returns are over a moving window. Higher volatility means the equity curve is moving more aggressively.
+"""
+    )
+
+    chart_data = volatility_df[["Date", volatility_column]].copy()
+    chart_data = chart_data.set_index("Date")
+
+    st.line_chart(chart_data)
+
+    latest_volatility = float(volatility_df[volatility_column].iloc[-1])
+    average_volatility = float(volatility_df[volatility_column].mean())
+    max_volatility = float(volatility_df[volatility_column].max())
+
+    vol_col1, vol_col2, vol_col3 = st.columns(3)
+
+    vol_col1.metric(
+        "Latest Rolling Volatility",
+        f"{latest_volatility:.2f}%",
+    )
+
+    vol_col2.metric(
+        "Average Rolling Volatility",
+        f"{average_volatility:.2f}%",
+    )
+
+    vol_col3.metric(
+        "Max Rolling Volatility",
+        f"{max_volatility:.2f}%",
+    )
+
+    with st.expander("Rolling Volatility Table", expanded=False):
+        display_df = volatility_df.copy()
+        display_df[volatility_column] = display_df[volatility_column].round(2)
+        display_df["total_value"] = display_df["total_value"].round(2)
+
+        st.dataframe(
+            display_df.tail(100),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+    volatility_csv = volatility_df.to_csv(index=False)
+
+    st.download_button(
+        label="Download Rolling Volatility CSV",
+        data=volatility_csv,
+        file_name=f"{str(result['ticker']).lower()}_rolling_volatility.csv",
+        mime="text/csv",
+        key="download_rolling_volatility_csv",
+    )
 
 
 def render_drawdown_section(result: dict) -> None:
@@ -836,6 +912,7 @@ and `strategies/` modules.
     render_risk_metric_section(result)
     render_risk_report_export_section(result)
     render_drawdown_section(result)
+    render_rolling_volatility_section(result)
 
     equity_curve = result["equity_curve"]
     benchmark_equity_curve = result["benchmark_equity_curve"]
@@ -938,6 +1015,20 @@ The backtesting engine:
 4. Tracks cash, shares, position value, and total portfolio value.
 5. Builds an equity curve.
 6. Returns basic metrics.
+
+### Rolling Volatility Logic
+
+The rolling volatility section uses the strategy equity curve to measure how unstable daily returns are over time.
+
+Current implementation:
+
+- Calculates daily returns from total portfolio value
+- Uses a 20-period rolling window
+- Annualizes volatility using 252 trading periods per year
+- Displays latest, average, and maximum rolling volatility
+- Exports the full rolling volatility series as CSV
+
+This view helps identify periods where the strategy became more unstable, even if the final return looked acceptable.
 
 ### Drawdown Analysis Logic
 

@@ -9,6 +9,7 @@ from risk.risk_metrics import (
     calculate_daily_returns,
     calculate_drawdown_duration,
     calculate_max_drawdown_pct,
+    calculate_rolling_volatility,
     calculate_sharpe_ratio,
     calculate_value_at_risk,
 )
@@ -105,3 +106,12 @@ def test_build_risk_metric_summary() -> None:
     }
 
     assert expected_keys.issubset(result.keys())
+
+
+def test_calculate_rolling_volatility() -> None:
+    equity_curve = build_sample_equity_curve()
+    result = calculate_rolling_volatility(equity_curve, window=3)
+
+    assert "rolling_volatility_3" in result.columns
+    assert len(result) == len(equity_curve)
+    assert result["rolling_volatility_3"].notna().all()

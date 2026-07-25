@@ -52,6 +52,32 @@ def calculate_annualized_return(
     return float(annualized_return * 100)
 
 
+def calculate_rolling_volatility(
+    equity_curve: pd.DataFrame,
+    window: int = 20,
+    periods_per_year: int = TRADING_DAYS_PER_YEAR,
+) -> pd.DataFrame:
+    """Calculate rolling annualized volatility from an equity curve."""
+    if window <= 1:
+        raise ValueError("window must be greater than 1")
+
+    daily_returns = calculate_daily_returns(equity_curve)
+
+    volatility = (
+        daily_returns
+        .rolling(window=window, min_periods=2)
+        .std()
+        .fillna(0.0)
+        * (periods_per_year ** 0.5)
+        * 100
+    )
+
+    result = equity_curve[["Date", "total_value"]].copy()
+    result[f"rolling_volatility_{window}"] = volatility
+
+    return result
+
+
 def calculate_annualized_volatility(
     equity_curve: pd.DataFrame,
     periods_per_year: int = TRADING_DAYS_PER_YEAR,
