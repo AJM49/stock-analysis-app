@@ -59,6 +59,163 @@ def load_multi_asset_price_data(
     return price_data
 
 
+def get_best_optimizer_result(
+    comparison: dict,
+    optimizer_name: str,
+) -> dict:
+    """Return optimizer result by optimizer name."""
+    for result in comparison["results"]:
+        if result["optimizer_name"] == optimizer_name:
+            return result
+
+    raise ValueError(f"Optimizer not found: {optimizer_name}")
+
+
+def build_optimization_report_text(
+    comparison: dict,
+    tickers: list[str],
+    period: str,
+) -> str:
+    """Build downloadable portfolio optimization report text."""
+    best_return_result = get_best_optimizer_result(
+        comparison,
+        comparison["best_return_optimizer"],
+    )
+    lowest_volatility_result = get_best_optimizer_result(
+        comparison,
+        comparison["lowest_volatility_optimizer"],
+    )
+    best_sharpe_result = get_best_optimizer_result(
+        comparison,
+        comparison["best_sharpe_optimizer"],
+    )
+
+    lines = [
+        "Stock Analysis App — Portfolio Optimization Report",
+        "",
+        "Inputs",
+        f"Tickers: {', '.join(tickers)}",
+        f"Price History Period: {period}",
+        f"Simulation Count: {comparison['simulation_count']}",
+        f"Risk-Free Rate: {comparison['risk_free_rate'] * 100:.2f}%",
+        f"Asset Count: {comparison['asset_count']}",
+        "",
+        "Optimizer Winners",
+        f"Best Return Optimizer: {comparison['best_return_optimizer']}",
+        f"Lowest Volatility Optimizer: {comparison['lowest_volatility_optimizer']}",
+        f"Best Sharpe Optimizer: {comparison['best_sharpe_optimizer']}",
+        "",
+        "Best Return Optimizer Metrics",
+        f"Return: {best_return_result['portfolio_return'] * 100:.2f}%",
+        f"Volatility: {best_return_result['portfolio_volatility'] * 100:.2f}%",
+        f"Sharpe Ratio: {best_return_result['sharpe_ratio']:.2f}",
+        "",
+        "Lowest Volatility Optimizer Metrics",
+        f"Return: {lowest_volatility_result['portfolio_return'] * 100:.2f}%",
+        f"Volatility: {lowest_volatility_result['portfolio_volatility'] * 100:.2f}%",
+        f"Sharpe Ratio: {lowest_volatility_result['sharpe_ratio']:.2f}",
+        "",
+        "Best Sharpe Optimizer Metrics",
+        f"Return: {best_sharpe_result['portfolio_return'] * 100:.2f}%",
+        f"Volatility: {best_sharpe_result['portfolio_volatility'] * 100:.2f}%",
+        f"Sharpe Ratio: {best_sharpe_result['sharpe_ratio']:.2f}",
+        "",
+        "Best Sharpe Allocation",
+    ]
+
+    best_sharpe_allocations = best_sharpe_result["allocations"].copy()
+
+    for _, row in best_sharpe_allocations.iterrows():
+        lines.append(f"{row['ticker']}: {row['weight_pct']:.2f}%")
+
+    lines.extend(
+        [
+            "",
+            "Methodology",
+            "Equal Weight splits capital evenly across selected tickers.",
+            "Minimum Volatility searches random long-only portfolios and selects the lowest-volatility allocation.",
+            "Maximum Sharpe searches random long-only portfolios and selects the highest Sharpe-style allocation.",
+            "",
+            "Disclaimer",
+            "This report is for project research and education only. It is not financial advice.",
+        ]
+    )
+
+    return "\n".join(lines)
+
+
+def build_optimization_report_dataframe(
+    comparison: dict,
+    tickers: list[str],
+    period: str,
+) -> pd.DataFrame:
+    """Build downloadable portfolio optimization report dataframe."""
+    rows = [
+        {"Section": "Input", "Metric": "Tickers", "Value": ", ".join(tickers)},
+        {"Section": "Input", "Metric": "Price History Period", "Value": period},
+        {
+            "Section": "Input",
+            "Metric": "Simulation Count",
+            "Value": comparison["simulation_count"],
+        },
+        {
+            "Section": "Input",
+            "Metric": "Risk-Free Rate %",
+            "Value": comparison["risk_free_rate"] * 100,
+        },
+        {"Section": "Input", "Metric": "Asset Count", "Value": comparison["asset_count"]},
+        {
+            "Section": "Winner",
+            "Metric": "Best Return Optimizer",
+            "Value": comparison["best_return_optimizer"],
+        },
+        {
+            "Section": "Winner",
+            "Metric": "Lowest Volatility Optimizer",
+            "Value": comparison["lowest_volatility_optimizer"],
+        },
+        {
+            "Section": "Winner",
+            "Metric": "Best Sharpe Optimizer",
+            "Value": comparison["best_sharpe_optimizer"],
+        },
+    ]
+
+    for result in comparison["results"]:
+        rows.extend(
+            [
+                {
+                    "Section": result["optimizer_name"],
+                    "Metric": "Portfolio Return %",
+                    "Value": result["portfolio_return"] * 100,
+                },
+                {
+                    "Section": result["optimizer_name"],
+                    "Metric": "Portfolio Volatility %",
+                    "Value": result["portfolio_volatility"] * 100,
+                },
+                {
+                    "Section": result["optimizer_name"],
+                    "Metric": "Sharpe Ratio",
+                    "Value": result["sharpe_ratio"],
+                },
+            ]
+        )
+
+        allocations = result["allocations"]
+
+        for _, row in allocations.iterrows():
+            rows.append(
+                {
+                    "Section": f"{result['optimizer_name']} Allocation",
+                    "Metric": row["ticker"],
+                    "Value": row["weight_pct"],
+                }
+            )
+
+    return pd.DataFrame(rows)
+
+
 def render_optimizer_summary(comparison: dict) -> None:
     """Render optimizer summary metrics and table."""
     st.subheader("Optimization Summary")
@@ -154,6 +311,44 @@ def render_allocation_comparison(comparison: dict) -> None:
     )
 
 
+def render_best_allocation_chart(comparison: dict) -> None:
+    """Render best Sharpe optimizer allocation chart."""
+    st.subheader("Optimized Allocation Chart")
+
+    best_sharpe_result = get_best_optimizer_result(
+        comparison,
+        comparison["best_sharpe_optimizer"],
+    )
+
+    allocations = best_sharpe_result["allocations"].copy()
+    allocations["weight_pct"] = allocations["weight_pct"].round(2)
+
+    st.markdown(
+        f"""
+This chart shows the allocation from the **{comparison['best_sharpe_optimizer']}** optimizer, which had the strongest risk-adjusted result in this run.
+"""
+    )
+
+    chart_data = allocations.set_index("ticker")[["weight_pct"]]
+    st.bar_chart(chart_data)
+
+    st.dataframe(
+        allocations,
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    allocation_csv = allocations.to_csv(index=False)
+
+    st.download_button(
+        label="Download Best Allocation CSV",
+        data=allocation_csv,
+        file_name="best_sharpe_allocation.csv",
+        mime="text/csv",
+        key="download_best_sharpe_allocation_csv",
+    )
+
+
 def render_optimizer_details(comparison: dict) -> None:
     """Render detailed optimizer allocation tables."""
     st.subheader("Optimizer Details")
@@ -188,6 +383,50 @@ def render_optimizer_details(comparison: dict) -> None:
             )
 
 
+def render_optimization_report_export(
+    comparison: dict,
+    tickers: list[str],
+    period: str,
+) -> None:
+    """Render portfolio optimization report export controls."""
+    st.subheader("Optimization Report Export")
+
+    report_text = build_optimization_report_text(
+        comparison=comparison,
+        tickers=tickers,
+        period=period,
+    )
+
+    report_df = build_optimization_report_dataframe(
+        comparison=comparison,
+        tickers=tickers,
+        period=period,
+    )
+
+    report_csv = report_df.to_csv(index=False)
+
+    export_col1, export_col2 = st.columns(2)
+
+    export_col1.download_button(
+        label="Download Optimization Report TXT",
+        data=report_text,
+        file_name="portfolio_optimization_report.txt",
+        mime="text/plain",
+        key="download_optimization_report_txt",
+    )
+
+    export_col2.download_button(
+        label="Download Optimization Report CSV",
+        data=report_csv,
+        file_name="portfolio_optimization_report.csv",
+        mime="text/csv",
+        key="download_optimization_report_csv",
+    )
+
+    with st.expander("Optimization Report Preview", expanded=False):
+        st.text(report_text)
+
+
 def render_methodology() -> None:
     """Render methodology notes."""
     with st.expander("Portfolio Optimization Methodology", expanded=False):
@@ -209,6 +448,24 @@ This page compares three allocation methods:
 - Uses historical close prices from yfinance
 - Uses annualized return and covariance estimates
 - Uses random simulation search, not a formal convex optimizer
+
+### Export Report Logic
+
+The export report converts the optimization result into TXT and CSV files.
+
+The TXT report is designed for human review.
+
+The CSV report is designed for spreadsheet review and future dashboard use.
+
+The exported report includes:
+
+- Input tickers
+- Price history period
+- Simulation count
+- Risk-free rate
+- Optimizer winners
+- Return, volatility, and Sharpe-style metrics
+- Allocation details for each optimizer
 
 ### Interpretation
 
@@ -308,7 +565,13 @@ Use this page to compare portfolio allocation methods across multiple assets.
 
     render_optimizer_summary(comparison)
     render_allocation_comparison(comparison)
+    render_best_allocation_chart(comparison)
     render_optimizer_details(comparison)
+    render_optimization_report_export(
+        comparison=comparison,
+        tickers=tickers,
+        period=period,
+    )
     render_methodology()
 
 
