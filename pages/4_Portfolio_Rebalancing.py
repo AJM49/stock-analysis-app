@@ -6,9 +6,11 @@ import streamlit as st
 from portfolio_rebalancing.rebalancing_math import (
     build_allocation_drift_summary,
     build_dollar_trade_summary,
+    build_rebalance_alert_summary,
     build_rebalance_summary,
     build_share_trade_summary,
     calculate_dollar_trade_recommendations,
+    calculate_rebalance_alerts,
     calculate_rebalance_plan,
     calculate_share_trade_recommendations,
     calculate_target_vs_current_allocations,
@@ -162,6 +164,83 @@ def render_target_vs_current(positions: pd.DataFrame, threshold_pct: float) -> N
     )
 
 
+def render_rebalance_alerts(
+    positions: pd.DataFrame,
+    high_drift_threshold_pct: float,
+    moderate_drift_threshold_pct: float,
+    trade_tolerance: float,
+) -> None:
+    """Render drift detection and rebalance alerts."""
+    st.subheader("Drift Detection and Rebalance Alerts")
+
+    alerts = calculate_rebalance_alerts(
+        positions=positions,
+        high_drift_threshold_pct=high_drift_threshold_pct,
+        moderate_drift_threshold_pct=moderate_drift_threshold_pct,
+        trade_tolerance=trade_tolerance,
+    )
+
+    alert_summary = build_rebalance_alert_summary(
+        positions=positions,
+        high_drift_threshold_pct=high_drift_threshold_pct,
+        moderate_drift_threshold_pct=moderate_drift_threshold_pct,
+        trade_tolerance=trade_tolerance,
+    )
+
+    if alert_summary["high_drift_count"] > 0:
+        st.error(
+            f"{alert_summary['high_drift_count']} high-drift position(s) detected."
+        )
+    elif alert_summary["moderate_drift_count"] > 0:
+        st.warning(
+            f"{alert_summary['moderate_drift_count']} moderate-drift position(s) detected."
+        )
+    else:
+        st.success("All positions are within the selected drift range.")
+
+    alert_col1, alert_col2, alert_col3, alert_col4 = st.columns(4)
+
+    alert_col1.metric(
+        "High Drift",
+        alert_summary["high_drift_count"],
+    )
+
+    alert_col2.metric(
+        "Moderate Drift",
+        alert_summary["moderate_drift_count"],
+    )
+
+    alert_col3.metric(
+        "Within Range",
+        alert_summary["within_range_count"],
+    )
+
+    alert_col4.metric(
+        "Max Drift",
+        f"{alert_summary['max_absolute_drift_pct']:.2f}%",
+    )
+
+    display_df = alerts.copy()
+    numeric_columns = display_df.select_dtypes(include="number").columns
+    display_df[numeric_columns] = display_df[numeric_columns].round(2)
+
+    st.dataframe(
+        display_df,
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    alerts_csv = display_df.to_csv(index=False)
+
+    st.download_button(
+        label="Download Rebalance Alerts CSV",
+        data=alerts_csv,
+        file_name="rebalance_alerts.csv",
+        mime="text/csv",
+        key="download_rebalance_alerts_csv",
+    )
+
+
 def render_dollar_trade_recommendations(
     positions: pd.DataFrame,
     trade_tolerance: float,
@@ -276,6 +355,18 @@ The engine calculates:
 - Share trade recommendation
 - Post-trade allocation estimate
 
+### Drift Alert Logic
+
+The drift alert section flags positions that are too far away from their target allocation.
+
+Current alert levels:
+
+- **High Drift:** Position drift is at or above the high drift threshold.
+- **Moderate Drift:** Position drift is at or above the moderate threshold.
+- **Within Range:** Position is inside the selected drift thresholds.
+
+This helps decide which positions need the most attention before placing rebalance trades.
+
 ### Dollar Trade Logic
 
 If a position is below target, the engine recommends a **Buy** amount.
@@ -317,6 +408,22 @@ def render_portfolio_rebalancing_page() -> None:
             min_value=0.5,
             max_value=50.0,
             value=5.0,
+            step=0.5,
+        )
+
+        moderate_drift_threshold_pct = st.number_input(
+            "Moderate Drift Threshold %",
+            min_value=0.5,
+            max_value=50.0,
+            value=5.0,
+            step=0.5,
+        )
+
+        high_drift_threshold_pct = st.number_input(
+            "High Drift Threshold %",
+            min_value=1.0,
+            max_value=75.0,
+            value=10.0,
             step=0.5,
         )
 

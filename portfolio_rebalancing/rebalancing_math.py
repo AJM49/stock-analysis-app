@@ -514,3 +514,150 @@ def build_share_trade_summary(
             recommendations["post_trade_value"].sum()
         ),
     }
+
+
+def classify_rebalance_alert(
+    absolute_drift_pct: float,
+    high_drift_threshold_pct: float = 10.0,
+    moderate_drift_threshold_pct: float = 5.0,
+) -> str:
+    """Classify rebalance alert severity from absolute allocation drift."""
+    if high_drift_threshold_pct <= 0:
+        raise ValueError("high_drift_threshold_pct must be greater than zero")
+
+    if moderate_drift_threshold_pct <= 0:
+        raise ValueError("moderate_drift_threshold_pct must be greater than zero")
+
+    if moderate_drift_threshold_pct > high_drift_threshold_pct:
+        raise ValueError(
+            "moderate_drift_threshold_pct cannot be greater than high_drift_threshold_pct"
+        )
+
+    absolute_drift = abs(float(absolute_drift_pct))
+
+    if absolute_drift >= high_drift_threshold_pct:
+        return "High Drift"
+
+    if absolute_drift >= moderate_drift_threshold_pct:
+        return "Moderate Drift"
+
+    return "Within Range"
+
+
+def build_rebalance_alert_reason(
+    ticker: str,
+    action: str,
+    absolute_drift_pct: float,
+) -> str:
+    """Build plain-English rebalance alert reason."""
+    if action == "Buy":
+        return f"{ticker} is underweight by {absolute_drift_pct:.2f}% and may need buying."
+
+    if action == "Sell":
+        return f"{ticker} is overweight by {absolute_drift_pct:.2f}% and may need selling."
+
+    return f"{ticker} is within the selected rebalance range."
+
+
+def calculate_rebalance_alerts(
+    positions: pd.DataFrame,
+    high_drift_threshold_pct: float = 10.0,
+    moderate_drift_threshold_pct: float = 5.0,
+    trade_tolerance: float = 1.0,
+) -> pd.DataFrame:
+    """Calculate drift alerts from allocation and dollar trade recommendations."""
+    if trade_tolerance < 0:
+        raise ValueError("trade_tolerance cannot be negative")
+
+    allocation_view = calculate_target_vs_current_allocations(
+        positions=positions,
+        rebalance_threshold_pct=moderate_drift_threshold_pct,
+    )
+
+    dollar_trades = calculate_dollar_trade_recommendations(
+        positions=positions,
+        trade_tolerance=trade_tolerance,
+    )
+
+    trade_lookup = dollar_trades[
+        [
+            "ticker",
+            "trade_value",
+            "trade_direction",
+            "trade_priority",
+        ]
+    ].copy()
+
+    result = allocation_view.merge(
+        trade_lookup,
+        on="ticker",
+        how="left",
+    )
+
+    result["alert_level"] = result["absolute_drift_pct"].apply(
+        lambda drift: classify_rebalance_alert(
+            absolute_drift_pct=drift,
+            high_drift_threshold_pct=high_drift_threshold_pct,
+            moderate_drift_threshold_pct=moderate_drift_threshold_pct,
+        )
+    )
+
+    result["alert_reason"] = result.apply(
+        lambda row: build_rebalance_alert_reason(
+            ticker=row["ticker"],
+            action=row["trade_direction"],
+            absolute_drift_pct=row["absolute_drift_pct"],
+        ),
+        axis=1,
+    )
+
+    result["needs_attention"] = result["alert_level"].isin(
+        [
+            "High Drift",
+            "Moderate Drift",
+        ]
+    )
+
+    ordered_columns = [
+        "ticker",
+        "current_weight_pct",
+        "target_weight_pct",
+        "allocation_drift_pct",
+        "absolute_drift_pct",
+        "drift_status",
+        "trade_value",
+        "trade_direction",
+        "trade_priority",
+        "alert_level",
+        "needs_attention",
+        "alert_reason",
+    ]
+
+    return result[ordered_columns]
+
+
+def build_rebalance_alert_summary(
+    positions: pd.DataFrame,
+    high_drift_threshold_pct: float = 10.0,
+    moderate_drift_threshold_pct: float = 5.0,
+    trade_tolerance: float = 1.0,
+) -> dict[str, float | int]:
+    """Build summary metrics for rebalance alerts."""
+    alerts = calculate_rebalance_alerts(
+        positions=positions,
+        high_drift_threshold_pct=high_drift_threshold_pct,
+        moderate_drift_threshold_pct=moderate_drift_threshold_pct,
+        trade_tolerance=trade_tolerance,
+    )
+
+    return {
+        "alert_count": len(alerts),
+        "high_drift_count": int((alerts["alert_level"] == "High Drift").sum()),
+        "moderate_drift_count": int(
+            (alerts["alert_level"] == "Moderate Drift").sum()
+        ),
+        "within_range_count": int((alerts["alert_level"] == "Within Range").sum()),
+        "positions_needing_attention": int(alerts["needs_attention"].sum()),
+        "max_absolute_drift_pct": float(alerts["absolute_drift_pct"].max()),
+        "total_absolute_drift_pct": float(alerts["absolute_drift_pct"].sum()),
+    }

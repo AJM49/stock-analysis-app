@@ -313,3 +313,115 @@ def test_build_dollar_trade_summary() -> None:
     assert "gross_trade_amount" in summary
     assert "net_trade_amount" in summary
     assert summary["net_trade_amount"] == pytest.approx(0.0)
+
+
+from portfolio_rebalancing.rebalancing_math import (
+    build_rebalance_alert_reason,
+    build_rebalance_alert_summary,
+    calculate_rebalance_alerts,
+    classify_rebalance_alert,
+)
+
+
+def test_classify_rebalance_alert() -> None:
+    assert classify_rebalance_alert(12.0) == "High Drift"
+    assert classify_rebalance_alert(7.0) == "Moderate Drift"
+    assert classify_rebalance_alert(2.0) == "Within Range"
+
+
+def test_classify_rebalance_alert_rejects_bad_thresholds() -> None:
+    with pytest.raises(ValueError, match="high_drift_threshold_pct"):
+        classify_rebalance_alert(5.0, high_drift_threshold_pct=0)
+
+    with pytest.raises(ValueError, match="moderate_drift_threshold_pct"):
+        classify_rebalance_alert(5.0, moderate_drift_threshold_pct=0)
+
+    with pytest.raises(ValueError, match="moderate_drift_threshold_pct cannot be greater"):
+        classify_rebalance_alert(
+            5.0,
+            high_drift_threshold_pct=5.0,
+            moderate_drift_threshold_pct=10.0,
+        )
+
+
+def test_build_rebalance_alert_reason() -> None:
+    assert build_rebalance_alert_reason(
+        "AAPL",
+        "Buy",
+        6.5,
+    ) == "AAPL is underweight by 6.50% and may need buying."
+
+    assert build_rebalance_alert_reason(
+        "MSFT",
+        "Sell",
+        4.5,
+    ) == "MSFT is overweight by 4.50% and may need selling."
+
+    assert build_rebalance_alert_reason(
+        "NVDA",
+        "Hold",
+        1.5,
+    ) == "NVDA is within the selected rebalance range."
+
+
+def test_calculate_rebalance_alerts() -> None:
+    positions = build_sample_positions()
+
+    alerts = calculate_rebalance_alerts(
+        positions=positions,
+        high_drift_threshold_pct=10.0,
+        moderate_drift_threshold_pct=5.0,
+        trade_tolerance=1.0,
+    )
+
+    expected_columns = [
+        "ticker",
+        "current_weight_pct",
+        "target_weight_pct",
+        "allocation_drift_pct",
+        "absolute_drift_pct",
+        "drift_status",
+        "trade_value",
+        "trade_direction",
+        "trade_priority",
+        "alert_level",
+        "needs_attention",
+        "alert_reason",
+    ]
+
+    assert list(alerts.columns) == expected_columns
+    assert len(alerts) == 3
+    assert set(alerts["alert_level"]).issubset(
+        {"High Drift", "Moderate Drift", "Within Range"}
+    )
+    assert alerts["needs_attention"].dtype == bool
+    assert alerts["alert_reason"].notna().all()
+
+
+def test_calculate_rebalance_alerts_rejects_negative_tolerance() -> None:
+    positions = build_sample_positions()
+
+    with pytest.raises(ValueError, match="trade_tolerance"):
+        calculate_rebalance_alerts(
+            positions=positions,
+            trade_tolerance=-1.0,
+        )
+
+
+def test_build_rebalance_alert_summary() -> None:
+    positions = build_sample_positions()
+
+    summary = build_rebalance_alert_summary(
+        positions=positions,
+        high_drift_threshold_pct=10.0,
+        moderate_drift_threshold_pct=5.0,
+        trade_tolerance=1.0,
+    )
+
+    assert summary["alert_count"] == 3
+    assert "high_drift_count" in summary
+    assert "moderate_drift_count" in summary
+    assert "within_range_count" in summary
+    assert "positions_needing_attention" in summary
+    assert "max_absolute_drift_pct" in summary
+    assert "total_absolute_drift_pct" in summary
