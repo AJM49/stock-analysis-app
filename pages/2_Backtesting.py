@@ -63,6 +63,124 @@ def load_backtest_price_data(ticker: str, period: str) -> pd.DataFrame:
     return normalize_yfinance_history(history)
 
 
+def build_risk_report_text(result: dict) -> str:
+    """Build downloadable risk report text from a backtest result."""
+    lines = [
+        "Stock Analysis App — Backtest Risk Report",
+        "",
+        "Backtest Summary",
+        f"Ticker: {result['ticker']}",
+        f"Strategy: {result['strategy_name']}",
+        f"Benchmark: {result['benchmark_name']}",
+        f"Starting Cash: ${result['starting_cash']:,.2f}",
+        f"Ending Value: ${result['ending_value']:,.2f}",
+        f"Total Return: {result['total_return_pct']:.2f}%",
+        f"Benchmark Return: {result['benchmark_total_return_pct']:.2f}%",
+        f"Strategy Excess Return: {result['strategy_excess_return_pct']:.2f}%",
+        "",
+        "Risk Metrics",
+        f"Annualized Return: {result['annualized_return_pct']:.2f}%",
+        f"Annualized Volatility: {result['annualized_volatility_pct']:.2f}%",
+        f"Sharpe Ratio: {result['sharpe_ratio']:.2f}",
+        f"Sortino Ratio: {result['sortino_ratio']:.2f}",
+        f"Risk Max Drawdown: {result['risk_max_drawdown_pct']:.2f}%",
+        f"Drawdown Duration: {result['drawdown_duration']}",
+        f"Value at Risk 95%: {result['value_at_risk_95_pct']:.2f}%",
+        f"Conditional VaR 95%: {result['conditional_value_at_risk_95_pct']:.2f}%",
+        f"Calmar Ratio: {result['calmar_ratio']:.2f}",
+        "",
+        "Trade Metrics",
+        f"Number of Trades: {result['number_of_trades']}",
+        f"Completed Trades: {result['completed_trades']}",
+        f"Win Rate: {result['win_rate_pct']:.2f}%",
+        f"Exposure: {result['exposure_pct']:.2f}%",
+        f"Average Gain: ${result['average_gain']:,.2f}",
+        f"Average Loss: ${result['average_loss']:,.2f}",
+        f"Best Trade: ${result['best_trade']:,.2f}",
+        f"Worst Trade: ${result['worst_trade']:,.2f}",
+        "",
+        "Disclaimer",
+        "This report is for educational and portfolio purposes only. It is not financial advice.",
+    ]
+
+    return "\n".join(lines)
+
+
+def build_risk_report_dataframe(result: dict) -> pd.DataFrame:
+    """Build downloadable risk report table from a backtest result."""
+    report_rows = [
+        {"Category": "Backtest", "Metric": "Ticker", "Value": result["ticker"]},
+        {"Category": "Backtest", "Metric": "Strategy", "Value": result["strategy_name"]},
+        {"Category": "Backtest", "Metric": "Benchmark", "Value": result["benchmark_name"]},
+        {"Category": "Backtest", "Metric": "Starting Cash", "Value": result["starting_cash"]},
+        {"Category": "Backtest", "Metric": "Ending Value", "Value": result["ending_value"]},
+        {"Category": "Backtest", "Metric": "Total Return %", "Value": result["total_return_pct"]},
+        {"Category": "Backtest", "Metric": "Benchmark Return %", "Value": result["benchmark_total_return_pct"]},
+        {"Category": "Backtest", "Metric": "Strategy Excess Return %", "Value": result["strategy_excess_return_pct"]},
+        {"Category": "Risk", "Metric": "Annualized Return %", "Value": result["annualized_return_pct"]},
+        {"Category": "Risk", "Metric": "Annualized Volatility %", "Value": result["annualized_volatility_pct"]},
+        {"Category": "Risk", "Metric": "Sharpe Ratio", "Value": result["sharpe_ratio"]},
+        {"Category": "Risk", "Metric": "Sortino Ratio", "Value": result["sortino_ratio"]},
+        {"Category": "Risk", "Metric": "Risk Max Drawdown %", "Value": result["risk_max_drawdown_pct"]},
+        {"Category": "Risk", "Metric": "Drawdown Duration", "Value": result["drawdown_duration"]},
+        {"Category": "Risk", "Metric": "Value at Risk 95% %", "Value": result["value_at_risk_95_pct"]},
+        {
+            "Category": "Risk",
+            "Metric": "Conditional VaR 95% %",
+            "Value": result["conditional_value_at_risk_95_pct"],
+        },
+        {"Category": "Risk", "Metric": "Calmar Ratio", "Value": result["calmar_ratio"]},
+        {"Category": "Trade", "Metric": "Number of Trades", "Value": result["number_of_trades"]},
+        {"Category": "Trade", "Metric": "Completed Trades", "Value": result["completed_trades"]},
+        {"Category": "Trade", "Metric": "Win Rate %", "Value": result["win_rate_pct"]},
+        {"Category": "Trade", "Metric": "Exposure %", "Value": result["exposure_pct"]},
+        {"Category": "Trade", "Metric": "Average Gain", "Value": result["average_gain"]},
+        {"Category": "Trade", "Metric": "Average Loss", "Value": result["average_loss"]},
+        {"Category": "Trade", "Metric": "Best Trade", "Value": result["best_trade"]},
+        {"Category": "Trade", "Metric": "Worst Trade", "Value": result["worst_trade"]},
+    ]
+
+    return pd.DataFrame(report_rows)
+
+
+def render_risk_report_export_section(result: dict) -> None:
+    """Render risk report export controls."""
+    st.subheader("Risk Report Export")
+
+    report_text = build_risk_report_text(result)
+    report_df = build_risk_report_dataframe(result)
+    report_csv = report_df.to_csv(index=False)
+
+    safe_ticker = str(result["ticker"]).lower()
+    safe_strategy = (
+        str(result["strategy_name"])
+        .lower()
+        .replace(" ", "_")
+        .replace("-", "_")
+    )
+
+    export_col1, export_col2 = st.columns(2)
+
+    export_col1.download_button(
+        label="Download Risk Report TXT",
+        data=report_text,
+        file_name=f"{safe_ticker}_{safe_strategy}_risk_report.txt",
+        mime="text/plain",
+        key="download_risk_report_txt",
+    )
+
+    export_col2.download_button(
+        label="Download Risk Report CSV",
+        data=report_csv,
+        file_name=f"{safe_ticker}_{safe_strategy}_risk_report.csv",
+        mime="text/csv",
+        key="download_risk_report_csv",
+    )
+
+    with st.expander("Risk Report Preview", expanded=False):
+        st.text(report_text)
+
+
 def render_risk_metric_section(result: dict) -> None:
     """Render risk metrics returned by the backtesting engine."""
     st.subheader("Risk Analytics")
@@ -653,6 +771,7 @@ and `strategies/` modules.
     st.subheader(f"{ticker} Backtest Results")
     render_metric_row(result)
     render_risk_metric_section(result)
+    render_risk_report_export_section(result)
 
     equity_curve = result["equity_curve"]
     benchmark_equity_curve = result["benchmark_equity_curve"]
@@ -755,6 +874,23 @@ The backtesting engine:
 4. Tracks cash, shares, position value, and total portfolio value.
 5. Builds an equity curve.
 6. Returns basic metrics.
+
+### Risk Report Export Logic
+
+The risk report export section creates downloadable TXT and CSV summaries from the current backtest result.
+
+The TXT export is designed for human review.
+
+The CSV export is designed for spreadsheet analysis and comparison across runs.
+
+The exported report includes:
+
+- Backtest summary
+- Benchmark comparison
+- Strategy excess return
+- Risk metrics
+- Trade metrics
+- Educational disclaimer
 
 ### Risk Analytics Logic
 
