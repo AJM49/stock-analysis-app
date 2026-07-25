@@ -215,3 +215,68 @@ def test_run_equal_weight_optimizer() -> None:
     assert "sharpe_ratio" in result
     assert result["weights"].sum() == pytest.approx(1.0)
     assert result["portfolio_volatility"] >= 0
+
+
+from portfolio_optimization.optimizers import (
+    generate_random_weight_matrix,
+    run_minimum_volatility_optimizer,
+)
+
+
+def test_generate_random_weight_matrix() -> None:
+    weights = generate_random_weight_matrix(
+        asset_count=3,
+        simulation_count=100,
+        random_seed=42,
+    )
+
+    assert weights.shape == (100, 3)
+    assert np.all(weights >= 0)
+    assert np.allclose(weights.sum(axis=1), 1.0)
+
+
+def test_generate_random_weight_matrix_rejects_single_asset() -> None:
+    with pytest.raises(ValueError, match="at least 2"):
+        generate_random_weight_matrix(asset_count=1)
+
+
+def test_generate_random_weight_matrix_rejects_bad_simulation_count() -> None:
+    with pytest.raises(ValueError, match="simulation_count"):
+        generate_random_weight_matrix(asset_count=3, simulation_count=0)
+
+
+def test_run_minimum_volatility_optimizer() -> None:
+    price_data = build_sample_price_data()
+
+    result = run_minimum_volatility_optimizer(
+        price_data=price_data,
+        simulation_count=500,
+        random_seed=42,
+    )
+
+    assert result["optimizer_name"] == "Minimum Volatility"
+    assert result["assets"] == ["AAPL", "MSFT", "NVDA"]
+    assert "weights" in result
+    assert "allocations" in result
+    assert "portfolio_return" in result
+    assert "portfolio_volatility" in result
+    assert "sharpe_ratio" in result
+    assert result["simulation_count"] == 500
+    assert result["weights"].sum() == pytest.approx(1.0)
+    assert np.all(result["weights"] >= 0)
+    assert result["portfolio_volatility"] >= 0
+
+
+def test_minimum_volatility_is_no_worse_than_equal_weight_on_sample_data() -> None:
+    price_data = build_sample_price_data()
+
+    equal_weight_result = run_equal_weight_optimizer(price_data)
+    minimum_volatility_result = run_minimum_volatility_optimizer(
+        price_data=price_data,
+        simulation_count=1000,
+        random_seed=42,
+    )
+
+    assert minimum_volatility_result["portfolio_volatility"] <= (
+        equal_weight_result["portfolio_volatility"] + 1e-9
+    )
