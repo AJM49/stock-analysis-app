@@ -320,7 +320,10 @@ Compare the moving-average crossover strategy against a buy-and-hold strategy us
     best_return_strategy = comparison["best_return_strategy"]
     lowest_drawdown_strategy = comparison["lowest_drawdown_strategy"]
 
-    summary_col1, summary_col2 = st.columns(2)
+    best_sharpe_strategy = comparison["best_sharpe_strategy"]
+    best_calmar_strategy = comparison["best_calmar_strategy"]
+
+    summary_col1, summary_col2, summary_col3, summary_col4 = st.columns(4)
 
     summary_col1.metric(
         "Best Return Strategy",
@@ -332,6 +335,16 @@ Compare the moving-average crossover strategy against a buy-and-hold strategy us
         lowest_drawdown_strategy,
     )
 
+    summary_col3.metric(
+        "Best Sharpe Strategy",
+        best_sharpe_strategy,
+    )
+
+    summary_col4.metric(
+        "Best Calmar Strategy",
+        best_calmar_strategy,
+    )
+
     display_summary = summary.copy()
 
     numeric_columns = [
@@ -341,6 +354,14 @@ Compare the moving-average crossover strategy against a buy-and-hold strategy us
         "max_drawdown_pct",
         "win_rate_pct",
         "exposure_pct",
+        "annualized_return_pct",
+        "annualized_volatility_pct",
+        "sharpe_ratio",
+        "sortino_ratio",
+        "risk_max_drawdown_pct",
+        "value_at_risk_95_pct",
+        "conditional_value_at_risk_95_pct",
+        "calmar_ratio",
     ]
 
     for column in numeric_columns:
@@ -771,6 +792,18 @@ The comparison table shows:
 - Completed trades
 - Win rate
 - Exposure
+
+Risk-adjusted comparison fields include:
+
+- Annualized return
+- Annualized volatility
+- Sharpe-style ratio
+- Sortino-style ratio
+- Risk maximum drawdown
+- Drawdown duration
+- Value at Risk
+- Conditional Value at Risk
+- Calmar-style ratio
 
 This creates the foundation for comparing more strategies later, including momentum, mean reversion, and machine-learning-driven strategies.
 

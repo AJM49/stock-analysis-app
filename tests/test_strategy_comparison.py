@@ -66,3 +66,19 @@ def test_compare_strategies_returns_summary() -> None:
     assert len(comparison["summary"]) == 2
     assert "best_return_strategy" in comparison
     assert "lowest_drawdown_strategy" in comparison
+    assert "best_sharpe_strategy" in comparison
+    assert "best_calmar_strategy" in comparison
+
+    expected_risk_columns = {
+        "annualized_return_pct",
+        "annualized_volatility_pct",
+        "sharpe_ratio",
+        "sortino_ratio",
+        "risk_max_drawdown_pct",
+        "drawdown_duration",
+        "value_at_risk_95_pct",
+        "conditional_value_at_risk_95_pct",
+        "calmar_ratio",
+    }
+
+    assert expected_risk_columns.issubset(comparison["summary"].columns)

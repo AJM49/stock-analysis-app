@@ -42,6 +42,17 @@ def compare_strategies(
                 "completed_trades": result["completed_trades"],
                 "win_rate_pct": result["win_rate_pct"],
                 "exposure_pct": result["exposure_pct"],
+                "annualized_return_pct": result["annualized_return_pct"],
+                "annualized_volatility_pct": result["annualized_volatility_pct"],
+                "sharpe_ratio": result["sharpe_ratio"],
+                "sortino_ratio": result["sortino_ratio"],
+                "risk_max_drawdown_pct": result["risk_max_drawdown_pct"],
+                "drawdown_duration": result["drawdown_duration"],
+                "value_at_risk_95_pct": result["value_at_risk_95_pct"],
+                "conditional_value_at_risk_95_pct": result[
+                    "conditional_value_at_risk_95_pct"
+                ],
+                "calmar_ratio": result["calmar_ratio"],
                 "result": result,
             }
         )
@@ -67,6 +78,16 @@ def compare_strategies(
         ascending=False,
     ).iloc[0]
 
+    best_sharpe_row = summary_df.sort_values(
+        by="sharpe_ratio",
+        ascending=False,
+    ).iloc[0]
+
+    best_calmar_row = summary_df.sort_values(
+        by="calmar_ratio",
+        ascending=False,
+    ).iloc[0]
+
     return {
         "ticker": ticker.upper(),
         "starting_cash": float(starting_cash),
@@ -74,4 +95,6 @@ def compare_strategies(
         "results": results,
         "best_return_strategy": best_return_row["strategy_name"],
         "lowest_drawdown_strategy": lowest_drawdown_row["strategy_name"],
+        "best_sharpe_strategy": best_sharpe_row["strategy_name"],
+        "best_calmar_strategy": best_calmar_row["strategy_name"],
     }
