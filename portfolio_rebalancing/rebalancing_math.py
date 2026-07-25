@@ -233,3 +233,137 @@ def build_allocation_drift_summary(
             allocation_view["absolute_drift_pct"].sum()
         ),
     }
+
+
+def classify_trade_priority(
+    absolute_trade_value: float,
+    total_portfolio_value: float,
+    high_priority_pct: float = 10.0,
+    medium_priority_pct: float = 5.0,
+) -> str:
+    """Classify trade priority based on trade size relative to portfolio value."""
+    if total_portfolio_value <= 0:
+        raise ValueError("total_portfolio_value must be greater than zero")
+
+    trade_pct = abs(float(absolute_trade_value)) / total_portfolio_value * 100
+
+    if trade_pct >= high_priority_pct:
+        return "High"
+
+    if trade_pct >= medium_priority_pct:
+        return "Medium"
+
+    if trade_pct > 0:
+        return "Low"
+
+    return "None"
+
+
+def build_trade_reason(action: str, drift_weight_pct: float) -> str:
+    """Build plain-English reason for a rebalance trade."""
+    if action == "Buy":
+        return f"Position is under target by {abs(drift_weight_pct):.2f}%."
+
+    if action == "Sell":
+        return f"Position is over target by {abs(drift_weight_pct):.2f}%."
+
+    return "Position is close enough to target allocation."
+
+
+def calculate_dollar_trade_recommendations(
+    positions: pd.DataFrame,
+    trade_tolerance: float = 1.0,
+) -> pd.DataFrame:
+    """Calculate dollar buy/sell recommendations from rebalance plan."""
+    if trade_tolerance < 0:
+        raise ValueError("trade_tolerance cannot be negative")
+
+    plan = calculate_rebalance_plan(positions)
+    total_portfolio_value = float(plan["current_value"].sum())
+
+    result = plan.copy()
+    result["buy_amount"] = result["trade_value"].clip(lower=0.0)
+    result["sell_amount"] = result["trade_value"].clip(upper=0.0).abs()
+    result["absolute_trade_value"] = result["trade_value"].abs()
+
+    result["trade_direction"] = result["trade_value"].apply(
+        lambda value: classify_trade_action(
+            trade_value=value,
+            tolerance=trade_tolerance,
+        )
+    )
+
+    result["trade_priority"] = result["absolute_trade_value"].apply(
+        lambda value: classify_trade_priority(
+            absolute_trade_value=value,
+            total_portfolio_value=total_portfolio_value,
+        )
+    )
+
+    result["trade_reason"] = result.apply(
+        lambda row: build_trade_reason(
+            action=row["trade_direction"],
+            drift_weight_pct=row["drift_weight_pct"],
+        ),
+        axis=1,
+    )
+
+    ordered_columns = [
+        "ticker",
+        "current_value",
+        "target_value",
+        "current_weight_pct",
+        "target_weight_pct",
+        "drift_weight_pct",
+        "trade_value",
+        "buy_amount",
+        "sell_amount",
+        "absolute_trade_value",
+        "trade_direction",
+        "trade_priority",
+        "trade_reason",
+    ]
+
+    return result[ordered_columns]
+
+
+def build_dollar_trade_summary(
+    positions: pd.DataFrame,
+    trade_tolerance: float = 1.0,
+) -> dict[str, float | int]:
+    """Build summary of dollar trade recommendations."""
+    recommendations = calculate_dollar_trade_recommendations(
+        positions=positions,
+        trade_tolerance=trade_tolerance,
+    )
+
+    total_buy_amount = float(recommendations["buy_amount"].sum())
+    total_sell_amount = float(recommendations["sell_amount"].sum())
+    gross_trade_amount = float(recommendations["absolute_trade_value"].sum())
+    net_trade_amount = float(recommendations["trade_value"].sum())
+
+    return {
+        "recommendation_count": len(recommendations),
+        "buy_recommendations": int(
+            (recommendations["trade_direction"] == "Buy").sum()
+        ),
+        "sell_recommendations": int(
+            (recommendations["trade_direction"] == "Sell").sum()
+        ),
+        "hold_recommendations": int(
+            (recommendations["trade_direction"] == "Hold").sum()
+        ),
+        "high_priority_trades": int(
+            (recommendations["trade_priority"] == "High").sum()
+        ),
+        "medium_priority_trades": int(
+            (recommendations["trade_priority"] == "Medium").sum()
+        ),
+        "low_priority_trades": int(
+            (recommendations["trade_priority"] == "Low").sum()
+        ),
+        "total_buy_amount": total_buy_amount,
+        "total_sell_amount": total_sell_amount,
+        "gross_trade_amount": gross_trade_amount,
+        "net_trade_amount": net_trade_amount,
+    }

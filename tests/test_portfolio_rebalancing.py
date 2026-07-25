@@ -219,3 +219,97 @@ def test_build_allocation_drift_summary() -> None:
     assert "max_absolute_drift_pct" in summary
     assert "average_absolute_drift_pct" in summary
     assert "total_absolute_drift_pct" in summary
+
+
+from portfolio_rebalancing.rebalancing_math import (
+    build_dollar_trade_summary,
+    build_trade_reason,
+    calculate_dollar_trade_recommendations,
+    classify_trade_priority,
+)
+
+
+def test_classify_trade_priority() -> None:
+    assert classify_trade_priority(1000.0, 10000.0) == "High"
+    assert classify_trade_priority(500.0, 10000.0) == "Medium"
+    assert classify_trade_priority(100.0, 10000.0) == "Low"
+    assert classify_trade_priority(0.0, 10000.0) == "None"
+
+
+def test_classify_trade_priority_rejects_bad_total_value() -> None:
+    with pytest.raises(ValueError, match="total_portfolio_value"):
+        classify_trade_priority(100.0, 0.0)
+
+
+def test_build_trade_reason() -> None:
+    assert build_trade_reason("Buy", -5.5) == "Position is under target by 5.50%."
+    assert build_trade_reason("Sell", 4.5) == "Position is over target by 4.50%."
+    assert build_trade_reason("Hold", 0.5) == "Position is close enough to target allocation."
+
+
+def test_calculate_dollar_trade_recommendations() -> None:
+    positions = build_sample_positions()
+
+    recommendations = calculate_dollar_trade_recommendations(
+        positions=positions,
+        trade_tolerance=1.0,
+    )
+
+    expected_columns = [
+        "ticker",
+        "current_value",
+        "target_value",
+        "current_weight_pct",
+        "target_weight_pct",
+        "drift_weight_pct",
+        "trade_value",
+        "buy_amount",
+        "sell_amount",
+        "absolute_trade_value",
+        "trade_direction",
+        "trade_priority",
+        "trade_reason",
+    ]
+
+    assert list(recommendations.columns) == expected_columns
+    assert len(recommendations) == 3
+    assert recommendations["buy_amount"].sum() >= 0
+    assert recommendations["sell_amount"].sum() >= 0
+    assert set(recommendations["trade_direction"]).issubset({"Buy", "Sell", "Hold"})
+    assert set(recommendations["trade_priority"]).issubset(
+        {"High", "Medium", "Low", "None"}
+    )
+    assert recommendations["trade_reason"].notna().all()
+    assert recommendations["trade_value"].sum() == pytest.approx(0.0)
+
+
+def test_calculate_dollar_trade_recommendations_rejects_negative_tolerance() -> None:
+    positions = build_sample_positions()
+
+    with pytest.raises(ValueError, match="trade_tolerance"):
+        calculate_dollar_trade_recommendations(
+            positions=positions,
+            trade_tolerance=-1.0,
+        )
+
+
+def test_build_dollar_trade_summary() -> None:
+    positions = build_sample_positions()
+
+    summary = build_dollar_trade_summary(
+        positions=positions,
+        trade_tolerance=1.0,
+    )
+
+    assert summary["recommendation_count"] == 3
+    assert "buy_recommendations" in summary
+    assert "sell_recommendations" in summary
+    assert "hold_recommendations" in summary
+    assert "high_priority_trades" in summary
+    assert "medium_priority_trades" in summary
+    assert "low_priority_trades" in summary
+    assert "total_buy_amount" in summary
+    assert "total_sell_amount" in summary
+    assert "gross_trade_amount" in summary
+    assert "net_trade_amount" in summary
+    assert summary["net_trade_amount"] == pytest.approx(0.0)
