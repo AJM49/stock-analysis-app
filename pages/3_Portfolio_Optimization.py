@@ -6,6 +6,7 @@ import yfinance as yf
 
 from portfolio_optimization.comparison import (
     build_allocation_comparison_table,
+    build_efficient_frontier_simulation,
     compare_portfolio_optimizers,
 )
 
@@ -311,6 +312,105 @@ def render_allocation_comparison(comparison: dict) -> None:
     )
 
 
+def render_efficient_frontier_section(
+    price_data: pd.DataFrame,
+    simulation_count: int,
+    risk_free_rate: float,
+    min_weight: float,
+    max_weight: float,
+) -> None:
+    """Render efficient frontier simulation view."""
+    st.subheader("Efficient Frontier Simulation")
+
+    try:
+        frontier_df = build_efficient_frontier_simulation(
+            price_data=price_data,
+            simulation_count=simulation_count,
+            risk_free_rate=risk_free_rate,
+            random_seed=42,
+            min_weight=min_weight,
+            max_weight=max_weight,
+        )
+    except Exception as error:
+        st.error(f"Efficient frontier simulation failed: {error}")
+        return
+
+    st.markdown(
+        """
+The efficient frontier simulation shows many possible portfolios. Each point represents one simulated allocation.
+"""
+    )
+
+    chart_df = frontier_df[
+        [
+            "portfolio_volatility_pct",
+            "portfolio_return_pct",
+            "sharpe_ratio",
+        ]
+    ].copy()
+
+    st.scatter_chart(
+        chart_df,
+        x="portfolio_volatility_pct",
+        y="portfolio_return_pct",
+        size="sharpe_ratio",
+    )
+
+    best_sharpe_row = frontier_df.sort_values(
+        by="sharpe_ratio",
+        ascending=False,
+    ).iloc[0]
+
+    lowest_volatility_row = frontier_df.sort_values(
+        by="portfolio_volatility",
+        ascending=True,
+    ).iloc[0]
+
+    best_return_row = frontier_df.sort_values(
+        by="portfolio_return",
+        ascending=False,
+    ).iloc[0]
+
+    frontier_col1, frontier_col2, frontier_col3 = st.columns(3)
+
+    frontier_col1.metric(
+        "Best Simulated Return",
+        f"{best_return_row['portfolio_return_pct']:.2f}%",
+    )
+
+    frontier_col2.metric(
+        "Lowest Simulated Volatility",
+        f"{lowest_volatility_row['portfolio_volatility_pct']:.2f}%",
+    )
+
+    frontier_col3.metric(
+        "Best Simulated Sharpe",
+        f"{best_sharpe_row['sharpe_ratio']:.2f}",
+    )
+
+    with st.expander("Efficient Frontier Simulation Table", expanded=False):
+        display_frontier = frontier_df.copy()
+        numeric_columns = display_frontier.select_dtypes(include="number").columns
+
+        display_frontier[numeric_columns] = display_frontier[numeric_columns].round(4)
+
+        st.dataframe(
+            display_frontier,
+            use_container_width=True,
+            hide_index=True,
+        )
+
+    frontier_csv = frontier_df.to_csv(index=False)
+
+    st.download_button(
+        label="Download Efficient Frontier CSV",
+        data=frontier_csv,
+        file_name="efficient_frontier_simulation.csv",
+        mime="text/csv",
+        key="download_efficient_frontier_csv",
+    )
+
+
 def render_best_allocation_chart(comparison: dict) -> None:
     """Render best Sharpe optimizer allocation chart."""
     st.subheader("Optimized Allocation Chart")
@@ -467,6 +567,23 @@ The constraint validator checks:
 
 If the constraints are too tight, the optimizer asks you to relax the limits.
 
+### Efficient Frontier Logic
+
+The efficient frontier section simulates many long-only portfolios using the selected tickers and constraints.
+
+Each simulated portfolio has:
+
+- Expected annualized return
+- Expected annualized volatility
+- Sharpe-style ratio
+- Asset weights
+
+The scatter chart plots volatility on the x-axis and return on the y-axis.
+
+Portfolios toward the upper-left are usually more attractive because they combine higher return with lower volatility.
+
+The current implementation uses random simulation. It is useful for learning, comparison, and project demonstration. It is not a formal institutional optimizer.
+
 ### Export Report Logic
 
 The export report converts the optimization result into TXT and CSV files.
@@ -606,6 +723,13 @@ Use this page to compare portfolio allocation methods across multiple assets.
     render_optimizer_summary(comparison)
     render_allocation_comparison(comparison)
     render_best_allocation_chart(comparison)
+    render_efficient_frontier_section(
+        price_data=price_data,
+        simulation_count=simulation_count,
+        risk_free_rate=risk_free_rate_pct / 100,
+        min_weight=min_weight_pct / 100,
+        max_weight=max_weight_pct / 100,
+    )
     render_optimizer_details(comparison)
     render_optimization_report_export(
         comparison=comparison,

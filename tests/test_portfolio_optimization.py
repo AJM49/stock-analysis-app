@@ -498,3 +498,52 @@ def test_compare_portfolio_optimizers_accepts_constraints() -> None:
 
     assert comparison["min_weight"] == 0.05
     assert comparison["max_weight"] == 0.80
+
+
+from portfolio_optimization.comparison import build_efficient_frontier_simulation
+
+
+def test_build_efficient_frontier_simulation() -> None:
+    price_data = build_sample_price_data()
+
+    frontier = build_efficient_frontier_simulation(
+        price_data=price_data,
+        simulation_count=100,
+        random_seed=42,
+    )
+
+    assert len(frontier) == 100
+    assert "portfolio_id" in frontier.columns
+    assert "portfolio_return" in frontier.columns
+    assert "portfolio_return_pct" in frontier.columns
+    assert "portfolio_volatility" in frontier.columns
+    assert "portfolio_volatility_pct" in frontier.columns
+    assert "sharpe_ratio" in frontier.columns
+    assert "AAPL_weight_pct" in frontier.columns
+    assert "MSFT_weight_pct" in frontier.columns
+    assert "NVDA_weight_pct" in frontier.columns
+
+
+def test_build_efficient_frontier_simulation_rejects_empty_data() -> None:
+    with pytest.raises(ValueError, match="price_data cannot be empty"):
+        build_efficient_frontier_simulation(pd.DataFrame())
+
+
+def test_build_efficient_frontier_simulation_respects_constraints() -> None:
+    price_data = build_sample_price_data()
+
+    frontier = build_efficient_frontier_simulation(
+        price_data=price_data,
+        simulation_count=100,
+        random_seed=42,
+        min_weight=0.10,
+        max_weight=0.80,
+    )
+
+    weight_columns = [
+        column for column in frontier.columns if column.endswith("_weight")
+    ]
+
+    for column in weight_columns:
+        assert frontier[column].min() >= 0.10
+        assert frontier[column].max() <= 0.80

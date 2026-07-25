@@ -118,3 +118,85 @@ def build_allocation_comparison_table(
         merged = merged.merge(frame, on="ticker", how="outer")
 
     return merged.fillna(0.0).sort_values(by="ticker").reset_index(drop=True)
+
+
+def build_efficient_frontier_simulation(
+    price_data: pd.DataFrame,
+    simulation_count: int = 5000,
+    risk_free_rate: float = 0.0,
+    random_seed: int = 42,
+    min_weight: float = 0.0,
+    max_weight: float = 1.0,
+) -> pd.DataFrame:
+    """Build simulated efficient frontier portfolio results."""
+    from portfolio_optimization.optimizers import generate_random_weight_matrix
+    from portfolio_optimization.portfolio_math import (
+        build_portfolio_statistics,
+        calculate_portfolio_return,
+        calculate_portfolio_sharpe_ratio,
+        calculate_portfolio_volatility,
+    )
+
+    if price_data.empty:
+        raise ValueError("price_data cannot be empty")
+
+    assets = list(price_data.columns)
+
+    equal_weights = generate_random_weight_matrix(
+        asset_count=len(assets),
+        simulation_count=1,
+        random_seed=random_seed,
+        min_weight=min_weight,
+        max_weight=max_weight,
+    )[0]
+
+    base_statistics = build_portfolio_statistics(
+        price_data=price_data,
+        weights=equal_weights,
+        risk_free_rate=risk_free_rate,
+    )
+
+    mean_returns = base_statistics["mean_returns"]
+    covariance_matrix = base_statistics["covariance_matrix"]
+
+    candidate_weights = generate_random_weight_matrix(
+        asset_count=len(assets),
+        simulation_count=simulation_count,
+        random_seed=random_seed,
+        min_weight=min_weight,
+        max_weight=max_weight,
+    )
+
+    rows = []
+
+    for index, weights in enumerate(candidate_weights):
+        portfolio_return = calculate_portfolio_return(
+            weights=weights,
+            mean_returns=mean_returns,
+        )
+        portfolio_volatility = calculate_portfolio_volatility(
+            weights=weights,
+            covariance_matrix=covariance_matrix,
+        )
+        sharpe_ratio = calculate_portfolio_sharpe_ratio(
+            portfolio_return=portfolio_return,
+            portfolio_volatility=portfolio_volatility,
+            risk_free_rate=risk_free_rate,
+        )
+
+        row = {
+            "portfolio_id": index + 1,
+            "portfolio_return": portfolio_return,
+            "portfolio_return_pct": portfolio_return * 100,
+            "portfolio_volatility": portfolio_volatility,
+            "portfolio_volatility_pct": portfolio_volatility * 100,
+            "sharpe_ratio": sharpe_ratio,
+        }
+
+        for asset, weight in zip(assets, weights):
+            row[f"{asset}_weight"] = weight
+            row[f"{asset}_weight_pct"] = weight * 100
+
+        rows.append(row)
+
+    return pd.DataFrame(rows)
