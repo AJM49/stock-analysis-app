@@ -367,3 +367,150 @@ def build_dollar_trade_summary(
         "gross_trade_amount": gross_trade_amount,
         "net_trade_amount": net_trade_amount,
     }
+
+
+def calculate_share_quantity(
+    trade_value: float,
+    current_price: float,
+    allow_fractional_shares: bool = True,
+) -> float:
+    """Calculate share quantity from dollar trade value."""
+    if current_price <= 0:
+        raise ValueError("current_price must be greater than zero")
+
+    raw_quantity = abs(float(trade_value)) / float(current_price)
+
+    if allow_fractional_shares:
+        return raw_quantity
+
+    return float(int(raw_quantity))
+
+
+def apply_signed_share_quantity(
+    trade_direction: str,
+    share_quantity: float,
+) -> float:
+    """Apply buy/sell sign to share quantity."""
+    if trade_direction == "Buy":
+        return float(share_quantity)
+
+    if trade_direction == "Sell":
+        return float(-share_quantity)
+
+    return 0.0
+
+
+def calculate_share_trade_recommendations(
+    positions: pd.DataFrame,
+    trade_tolerance: float = 1.0,
+    allow_fractional_shares: bool = True,
+) -> pd.DataFrame:
+    """Convert dollar trade recommendations into share trade recommendations."""
+    dollar_recommendations = calculate_dollar_trade_recommendations(
+        positions=positions,
+        trade_tolerance=trade_tolerance,
+    )
+
+    clean_positions = positions.copy()
+    clean_positions["ticker"] = (
+        clean_positions["ticker"].astype(str).str.strip().str.upper()
+    )
+
+    price_lookup = clean_positions.set_index("ticker")["current_price"].to_dict()
+    share_lookup = clean_positions.set_index("ticker")["shares"].to_dict()
+
+    result = dollar_recommendations.copy()
+
+    result["current_price"] = result["ticker"].map(price_lookup)
+    result["current_shares"] = result["ticker"].map(share_lookup)
+
+    result["share_quantity"] = result.apply(
+        lambda row: calculate_share_quantity(
+            trade_value=row["trade_value"],
+            current_price=row["current_price"],
+            allow_fractional_shares=allow_fractional_shares,
+        ),
+        axis=1,
+    )
+
+    result["signed_share_quantity"] = result.apply(
+        lambda row: apply_signed_share_quantity(
+            trade_direction=row["trade_direction"],
+            share_quantity=row["share_quantity"],
+        ),
+        axis=1,
+    )
+
+    result["estimated_trade_value"] = (
+        result["signed_share_quantity"] * result["current_price"]
+    )
+
+    result["post_trade_shares"] = (
+        result["current_shares"] + result["signed_share_quantity"]
+    )
+
+    result["post_trade_value"] = (
+        result["post_trade_shares"] * result["current_price"]
+    )
+
+    total_post_trade_value = float(result["post_trade_value"].sum())
+
+    if total_post_trade_value <= 0:
+        raise ValueError("post-trade portfolio value must be greater than zero")
+
+    result["post_trade_weight"] = result["post_trade_value"] / total_post_trade_value
+    result["post_trade_weight_pct"] = result["post_trade_weight"] * 100
+
+    ordered_columns = [
+        "ticker",
+        "current_price",
+        "current_shares",
+        "current_value",
+        "target_value",
+        "trade_value",
+        "trade_direction",
+        "trade_priority",
+        "share_quantity",
+        "signed_share_quantity",
+        "estimated_trade_value",
+        "post_trade_shares",
+        "post_trade_value",
+        "post_trade_weight",
+        "post_trade_weight_pct",
+        "trade_reason",
+    ]
+
+    return result[ordered_columns]
+
+
+def build_share_trade_summary(
+    positions: pd.DataFrame,
+    trade_tolerance: float = 1.0,
+    allow_fractional_shares: bool = True,
+) -> dict[str, float | int | bool]:
+    """Build summary for share trade recommendations."""
+    recommendations = calculate_share_trade_recommendations(
+        positions=positions,
+        trade_tolerance=trade_tolerance,
+        allow_fractional_shares=allow_fractional_shares,
+    )
+
+    return {
+        "recommendation_count": len(recommendations),
+        "allow_fractional_shares": allow_fractional_shares,
+        "buy_trades": int((recommendations["trade_direction"] == "Buy").sum()),
+        "sell_trades": int((recommendations["trade_direction"] == "Sell").sum()),
+        "hold_trades": int((recommendations["trade_direction"] == "Hold").sum()),
+        "total_absolute_shares_traded": float(
+            recommendations["signed_share_quantity"].abs().sum()
+        ),
+        "gross_estimated_trade_value": float(
+            recommendations["estimated_trade_value"].abs().sum()
+        ),
+        "net_estimated_trade_value": float(
+            recommendations["estimated_trade_value"].sum()
+        ),
+        "post_trade_portfolio_value": float(
+            recommendations["post_trade_value"].sum()
+        ),
+    }
