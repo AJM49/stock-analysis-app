@@ -148,3 +148,70 @@ def test_build_portfolio_statistics() -> None:
     assert "portfolio_volatility" in stats
     assert "sharpe_ratio" in stats
     assert stats["portfolio_volatility"] >= 0
+
+
+from portfolio_optimization.optimizers import (
+    build_equal_weight_allocations,
+    calculate_equal_weight_vector,
+    run_equal_weight_optimizer,
+    validate_asset_list,
+)
+
+
+def test_validate_asset_list_rejects_empty_list() -> None:
+    with pytest.raises(ValueError, match="assets cannot be empty"):
+        validate_asset_list([])
+
+
+def test_validate_asset_list_rejects_single_asset() -> None:
+    with pytest.raises(ValueError, match="at least two tickers"):
+        validate_asset_list(["AAPL"])
+
+
+def test_validate_asset_list_rejects_blank_ticker() -> None:
+    with pytest.raises(ValueError, match="blank tickers"):
+        validate_asset_list(["AAPL", " "])
+
+
+def test_validate_asset_list_rejects_duplicate_tickers() -> None:
+    with pytest.raises(ValueError, match="duplicate tickers"):
+        validate_asset_list(["AAPL", "MSFT", "aapl"])
+
+
+def test_build_equal_weight_allocations() -> None:
+    allocations = build_equal_weight_allocations(["aapl", "msft", "nvda", "googl"])
+
+    assert list(allocations.columns) == ["ticker", "weight", "weight_pct"]
+    assert list(allocations["ticker"]) == ["AAPL", "MSFT", "NVDA", "GOOGL"]
+    assert allocations["weight"].sum() == pytest.approx(1.0)
+    assert allocations["weight_pct"].sum() == pytest.approx(100.0)
+    assert allocations["weight"].iloc[0] == pytest.approx(0.25)
+
+
+def test_calculate_equal_weight_vector() -> None:
+    weights = calculate_equal_weight_vector(4)
+
+    assert isinstance(weights, np.ndarray)
+    assert len(weights) == 4
+    assert weights.sum() == pytest.approx(1.0)
+    assert weights[0] == pytest.approx(0.25)
+
+
+def test_calculate_equal_weight_vector_rejects_less_than_two_assets() -> None:
+    with pytest.raises(ValueError, match="at least 2"):
+        calculate_equal_weight_vector(1)
+
+
+def test_run_equal_weight_optimizer() -> None:
+    price_data = build_sample_price_data()
+    result = run_equal_weight_optimizer(price_data)
+
+    assert result["optimizer_name"] == "Equal Weight"
+    assert result["assets"] == ["AAPL", "MSFT", "NVDA"]
+    assert "weights" in result
+    assert "allocations" in result
+    assert "portfolio_return" in result
+    assert "portfolio_volatility" in result
+    assert "sharpe_ratio" in result
+    assert result["weights"].sum() == pytest.approx(1.0)
+    assert result["portfolio_volatility"] >= 0
