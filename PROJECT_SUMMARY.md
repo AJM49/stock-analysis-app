@@ -47,3 +47,45 @@ Next planned upgrades:
 - Paper trading
 - Broker integration
 - Machine learning model lab
+
+---
+
+## Sprint 69 Risk Analytics Foundation
+
+Sprint 69 added the risk analytics layer to the quant platform.
+
+Completed upgrades:
+
+- Reusable risk analytics package
+- Annualized return
+- Annualized volatility
+- Sharpe-style ratio
+- Sortino-style ratio
+- Maximum drawdown
+- Drawdown duration
+- Historical Value at Risk at 95%
+- Historical Conditional Value at Risk at 95%
+- Calmar-style ratio
+- Risk metrics integrated into backtest results
+- Risk Analytics UI on the Backtesting page
+- Risk Dashboard Summary panel
+- Rule-based risk ratings
+- Risk alerts and threshold warnings
+- Drawdown chart and table
+- Rolling volatility chart and table
+- Risk report TXT and CSV exports
+- Risk alert CSV export
+- Drawdown CSV export
+- Rolling volatility CSV export
+- Pytest coverage for risk metrics
+
+Sprint 69 changes the project from a backtesting platform foundation into a risk-aware quant research platform.
+
+Next planned upgrades:
+
+- Portfolio optimization
+- Position sizing
+- Portfolio constraints
+- Paper trading
+- Broker integration
+- Machine learning model lab

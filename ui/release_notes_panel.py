@@ -8,6 +8,54 @@ def render_release_notes_panel() -> None:
     with st.expander("Release Notes", expanded=False):
         st.markdown(
             """
+### Sprint 69 — Risk Analytics Foundation
+
+**Completed features:**
+
+- Added reusable risk analytics package.
+- Added annualized return calculation.
+- Added annualized volatility calculation.
+- Added Sharpe-style ratio.
+- Added Sortino-style ratio.
+- Added risk maximum drawdown.
+- Added drawdown duration.
+- Added historical Value at Risk at 95%.
+- Added historical Conditional Value at Risk at 95%.
+- Added Calmar-style ratio.
+- Added risk metrics to backtesting engine results.
+- Added Risk Analytics section to the Backtesting page.
+- Added risk metric definitions table.
+- Added risk report TXT export.
+- Added risk report CSV export.
+- Added drawdown chart.
+- Added worst drawdown periods table.
+- Added drawdown CSV export.
+- Added rolling volatility chart.
+- Added rolling volatility table.
+- Added rolling volatility CSV export.
+- Added Risk Dashboard Summary panel.
+- Added rule-based risk ratings.
+- Added risk alert thresholds.
+- Added risk alert table.
+- Added risk alert CSV export.
+- Added risk methodology documentation in the Backtesting page.
+- Added pytest coverage for risk metric calculations.
+
+**Result:**
+
+Sprint 69 moves the quant platform from basic backtesting into risk-aware strategy evaluation. Strategies can now be reviewed by return, volatility, drawdown, tail risk, risk-adjusted return, rolling instability, threshold warnings, and downloadable risk reports.
+
+**Next roadmap direction:**
+
+- Portfolio optimization
+- Position sizing
+- Portfolio constraints
+- Paper trading
+- Broker integration
+- Machine learning model lab
+
+---
+
 ### Sprint 68 — Backtesting Engine and Quant Platform Foundation
 
 **Completed features:**

@@ -100,3 +100,62 @@ Recommended Sprint 69 features:
 8. Risk analytics UI
 9. Risk report export
 10. Sprint 69 closeout
+
+---
+
+# Sprint 69 Status Update
+
+Sprint 69 completed the risk analytics foundation layer.
+
+## Completed in Sprint 69
+
+- Risk metrics module
+- Annualized return
+- Annualized volatility
+- Sharpe-style ratio
+- Sortino-style ratio
+- Maximum drawdown
+- Drawdown duration
+- Historical Value at Risk
+- Historical Conditional Value at Risk
+- Calmar-style ratio
+- Risk metrics in backtest engine results
+- Risk Analytics UI
+- Risk Dashboard Summary
+- Risk alerts and threshold warnings
+- Drawdown analysis
+- Rolling volatility analysis
+- Risk report exports
+- Risk alert exports
+- Test coverage
+
+## Current Platform Stage
+
+The app is now in this stage:
+
+Research app
+↓
+Backtesting platform foundation
+↓
+Strategy comparison foundation
+↓
+Risk analytics foundation
+
+## Next Stage
+
+The next major platform layer should be:
+
+Sprint 70 — Portfolio Optimization Foundation
+
+Recommended Sprint 70 features:
+
+1. Portfolio return and covariance module
+2. Equal-weight portfolio optimizer
+3. Minimum volatility optimizer
+4. Maximum Sharpe-style optimizer
+5. Allocation constraints
+6. Optimization comparison table
+7. Portfolio optimization UI
+8. Optimized allocation chart
+9. Optimization report export
+10. Sprint 70 closeout

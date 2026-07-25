@@ -47,3 +47,32 @@ New capabilities:
 - Pytest coverage for quant modules
 
 The project now has a modular foundation for backtesting, strategy research, and future risk analytics.
+
+---
+
+## Sprint 69 Risk Analytics Foundation
+
+Sprint 69 added the risk analytics layer to the Stock Analysis App quant platform.
+
+New capabilities:
+
+- Risk metrics module
+- Annualized return
+- Annualized volatility
+- Sharpe-style ratio
+- Sortino-style ratio
+- Maximum drawdown
+- Drawdown duration
+- Historical Value at Risk
+- Historical Conditional Value at Risk
+- Calmar-style ratio
+- Risk Analytics section on the Backtesting page
+- Risk Dashboard Summary
+- Risk alerts and threshold warnings
+- Drawdown chart and table
+- Rolling volatility chart and table
+- Risk report exports
+- Risk alert exports
+- Pytest coverage for risk metrics
+
+The project now supports risk-aware strategy review before moving into portfolio optimization, paper trading, broker integration, or machine learning.
