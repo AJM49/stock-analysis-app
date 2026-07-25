@@ -89,3 +89,103 @@ Next planned upgrades:
 - Paper trading
 - Broker integration
 - Machine learning model lab
+
+---
+
+## Sprint 70 Portfolio Optimization Foundation
+
+Sprint 70 added the portfolio optimization layer to the quant platform.
+
+Completed upgrades:
+
+- Reusable portfolio optimization package
+- Portfolio math module
+- Daily asset returns
+- Annualized asset returns
+- Covariance matrix
+- Annualized covariance matrix
+- Portfolio return calculation
+- Portfolio volatility calculation
+- Portfolio Sharpe-style ratio calculation
+- Equal Weight optimizer
+- Minimum Volatility optimizer
+- Maximum Sharpe-style optimizer
+- Optimizer comparison engine
+- Best return optimizer detection
+- Lowest volatility optimizer detection
+- Best Sharpe optimizer detection
+- Portfolio Optimization Streamlit page
+- Multi-ticker price loading
+- Optimizer summary table
+- Allocation comparison table
+- Optimized allocation chart
+- Portfolio optimization TXT report export
+- Portfolio optimization CSV report export
+- Portfolio constraints panel
+- Minimum asset weight constraint
+- Maximum asset weight constraint
+- Efficient Frontier simulation view
+- Efficient Frontier table
+- Efficient Frontier CSV export
+- Pytest coverage for portfolio optimization logic
+
+Sprint 70 changes the project from a single-strategy research app into a multi-asset portfolio construction platform.
+
+Next planned upgrades:
+
+- Portfolio rebalancing
+- Position sizing
+- Risk budgeting
+- Paper trading
+- Broker integration
+- Machine learning model lab
+
+---
+
+## Sprint 70 Portfolio Optimization Foundation
+
+Sprint 70 added the portfolio optimization layer to the quant platform.
+
+Completed upgrades:
+
+- Reusable portfolio optimization package
+- Portfolio math module
+- Daily asset returns
+- Annualized asset returns
+- Covariance matrix
+- Annualized covariance matrix
+- Portfolio return calculation
+- Portfolio volatility calculation
+- Portfolio Sharpe-style ratio calculation
+- Equal Weight optimizer
+- Minimum Volatility optimizer
+- Maximum Sharpe-style optimizer
+- Optimizer comparison engine
+- Best return optimizer detection
+- Lowest volatility optimizer detection
+- Best Sharpe optimizer detection
+- Portfolio Optimization Streamlit page
+- Multi-ticker price loading
+- Optimizer summary table
+- Allocation comparison table
+- Optimized allocation chart
+- Portfolio optimization TXT report export
+- Portfolio optimization CSV report export
+- Portfolio constraints panel
+- Minimum asset weight constraint
+- Maximum asset weight constraint
+- Efficient Frontier simulation view
+- Efficient Frontier table
+- Efficient Frontier CSV export
+- Pytest coverage for portfolio optimization logic
+
+Sprint 70 changes the project from a single-strategy research app into a multi-asset portfolio construction platform.
+
+Next planned upgrades:
+
+- Portfolio rebalancing
+- Position sizing
+- Risk budgeting
+- Paper trading
+- Broker integration
+- Machine learning model lab

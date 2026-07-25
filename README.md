@@ -76,3 +76,65 @@ New capabilities:
 - Pytest coverage for risk metrics
 
 The project now supports risk-aware strategy review before moving into portfolio optimization, paper trading, broker integration, or machine learning.
+
+---
+
+## Sprint 70 Portfolio Optimization Foundation
+
+Sprint 70 added portfolio optimization capabilities to the Stock Analysis App quant platform.
+
+New capabilities:
+
+- Portfolio optimization package
+- Daily asset return calculation
+- Annualized return calculation
+- Covariance matrix calculation
+- Portfolio return calculation
+- Portfolio volatility calculation
+- Portfolio Sharpe-style ratio calculation
+- Equal Weight optimizer
+- Minimum Volatility optimizer
+- Maximum Sharpe-style optimizer
+- Optimizer comparison engine
+- Portfolio Optimization page
+- Multi-ticker price loading
+- Allocation comparison table
+- Optimized allocation chart
+- Optimization report exports
+- Portfolio constraints panel
+- Efficient Frontier simulation view
+- Efficient Frontier CSV export
+- Pytest coverage for portfolio optimization logic
+
+The project now supports multi-asset portfolio construction research before moving into rebalancing, position sizing, risk budgeting, paper trading, broker integration, or machine learning.
+
+---
+
+## Sprint 70 Portfolio Optimization Foundation
+
+Sprint 70 added portfolio optimization capabilities to the Stock Analysis App quant platform.
+
+New capabilities:
+
+- Portfolio optimization package
+- Daily asset return calculation
+- Annualized return calculation
+- Covariance matrix calculation
+- Portfolio return calculation
+- Portfolio volatility calculation
+- Portfolio Sharpe-style ratio calculation
+- Equal Weight optimizer
+- Minimum Volatility optimizer
+- Maximum Sharpe-style optimizer
+- Optimizer comparison engine
+- Portfolio Optimization page
+- Multi-ticker price loading
+- Allocation comparison table
+- Optimized allocation chart
+- Optimization report exports
+- Portfolio constraints panel
+- Efficient Frontier simulation view
+- Efficient Frontier CSV export
+- Pytest coverage for portfolio optimization logic
+
+The project now supports multi-asset portfolio construction research before moving into rebalancing, position sizing, risk budgeting, paper trading, broker integration, or machine learning.

@@ -8,6 +8,59 @@ def render_release_notes_panel() -> None:
     with st.expander("Release Notes", expanded=False):
         st.markdown(
             """
+### Sprint 70 — Portfolio Optimization Foundation
+
+**Completed features:**
+
+- Added portfolio optimization package.
+- Added reusable portfolio math module.
+- Added daily asset return calculations.
+- Added annualized asset return calculations.
+- Added covariance matrix calculations.
+- Added annualized covariance matrix calculations.
+- Added portfolio return calculation.
+- Added portfolio volatility calculation.
+- Added portfolio Sharpe-style ratio calculation.
+- Added Equal Weight optimizer.
+- Added Minimum Volatility optimizer.
+- Added Maximum Sharpe-style optimizer.
+- Added random long-only portfolio search.
+- Added optimizer comparison engine.
+- Added best return optimizer detection.
+- Added lowest volatility optimizer detection.
+- Added best Sharpe optimizer detection.
+- Added allocation comparison table.
+- Added Portfolio Optimization Streamlit page.
+- Added multi-ticker price loading with yfinance.
+- Added optimizer summary table.
+- Added optimizer details expanders.
+- Added optimized allocation chart.
+- Added optimization report TXT export.
+- Added optimization report CSV export.
+- Added portfolio constraints panel.
+- Added minimum asset weight constraint.
+- Added maximum asset weight constraint.
+- Added constrained optimizer comparison.
+- Added Efficient Frontier simulation view.
+- Added Efficient Frontier table.
+- Added Efficient Frontier CSV export.
+- Added pytest coverage for portfolio optimization calculations, optimizers, constraints, comparison engine, and Efficient Frontier simulation.
+
+**Result:**
+
+Sprint 70 moves the app from a strategy backtesting and risk analytics platform into a multi-asset portfolio optimization platform. The app can now compare allocation methods, apply portfolio constraints, visualize simulated portfolios, export optimization reports, and support future portfolio construction research.
+
+**Next roadmap direction:**
+
+- Portfolio rebalancing
+- Position sizing
+- Risk budgeting
+- Paper trading
+- Broker integration
+- Machine learning model lab
+
+---
+
 ### Sprint 69 — Risk Analytics Foundation
 
 **Completed features:**
