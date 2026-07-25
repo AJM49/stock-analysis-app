@@ -65,6 +65,137 @@ def load_backtest_price_data(ticker: str, period: str) -> pd.DataFrame:
     return normalize_yfinance_history(history)
 
 
+def classify_risk_level(result: dict) -> dict[str, str]:
+    """Classify strategy risk using backtest risk metrics."""
+    sharpe_ratio = float(result.get("sharpe_ratio", 0.0))
+    annualized_volatility = float(result.get("annualized_volatility_pct", 0.0))
+    max_drawdown = abs(float(result.get("risk_max_drawdown_pct", 0.0)))
+    value_at_risk = abs(float(result.get("value_at_risk_95_pct", 0.0)))
+    total_return = float(result.get("total_return_pct", 0.0))
+
+    if sharpe_ratio >= 1.0:
+        sharpe_rating = "Strong"
+    elif sharpe_ratio >= 0.5:
+        sharpe_rating = "Moderate"
+    else:
+        sharpe_rating = "Weak"
+
+    if annualized_volatility <= 15:
+        volatility_rating = "Low"
+    elif annualized_volatility <= 30:
+        volatility_rating = "Moderate"
+    else:
+        volatility_rating = "High"
+
+    if max_drawdown <= 10:
+        drawdown_rating = "Low"
+    elif max_drawdown <= 25:
+        drawdown_rating = "Moderate"
+    else:
+        drawdown_rating = "High"
+
+    if value_at_risk <= 1:
+        var_rating = "Low"
+    elif value_at_risk <= 3:
+        var_rating = "Moderate"
+    else:
+        var_rating = "High"
+
+    risk_points = 0
+
+    if sharpe_rating == "Weak":
+        risk_points += 2
+    elif sharpe_rating == "Moderate":
+        risk_points += 1
+
+    if volatility_rating == "High":
+        risk_points += 2
+    elif volatility_rating == "Moderate":
+        risk_points += 1
+
+    if drawdown_rating == "High":
+        risk_points += 2
+    elif drawdown_rating == "Moderate":
+        risk_points += 1
+
+    if var_rating == "High":
+        risk_points += 2
+    elif var_rating == "Moderate":
+        risk_points += 1
+
+    if total_return < 0:
+        risk_points += 2
+
+    if risk_points <= 2:
+        overall_rating = "Stable"
+    elif risk_points <= 5:
+        overall_rating = "Moderate Risk"
+    else:
+        overall_rating = "High Risk"
+
+    if overall_rating == "Stable":
+        interpretation = (
+            "The strategy has a relatively controlled risk profile based on the current backtest."
+        )
+    elif overall_rating == "Moderate Risk":
+        interpretation = (
+            "The strategy shows usable results but has risk areas that should be reviewed before scaling."
+        )
+    else:
+        interpretation = (
+            "The strategy shows elevated risk and should be improved before optimization, paper trading, or live execution."
+        )
+
+    return {
+        "overall_rating": overall_rating,
+        "sharpe_rating": sharpe_rating,
+        "volatility_rating": volatility_rating,
+        "drawdown_rating": drawdown_rating,
+        "var_rating": var_rating,
+        "interpretation": interpretation,
+    }
+
+
+def build_risk_dashboard_dataframe(result: dict) -> pd.DataFrame:
+    """Build risk dashboard summary table."""
+    ratings = classify_risk_level(result)
+
+    rows = [
+        {
+            "Area": "Overall",
+            "Rating": ratings["overall_rating"],
+            "Metric": "Composite risk review",
+            "Value": ratings["overall_rating"],
+        },
+        {
+            "Area": "Return quality",
+            "Rating": ratings["sharpe_rating"],
+            "Metric": "Sharpe Ratio",
+            "Value": round(float(result.get("sharpe_ratio", 0.0)), 2),
+        },
+        {
+            "Area": "Volatility",
+            "Rating": ratings["volatility_rating"],
+            "Metric": "Annualized Volatility",
+            "Value": f"{float(result.get('annualized_volatility_pct', 0.0)):.2f}%",
+        },
+        {
+            "Area": "Drawdown",
+            "Rating": ratings["drawdown_rating"],
+            "Metric": "Risk Max Drawdown",
+            "Value": f"{float(result.get('risk_max_drawdown_pct', 0.0)):.2f}%",
+        },
+        {
+            "Area": "Tail risk",
+            "Rating": ratings["var_rating"],
+            "Metric": "Value at Risk 95%",
+            "Value": f"{float(result.get('value_at_risk_95_pct', 0.0)):.2f}%",
+        },
+    ]
+
+    return pd.DataFrame(rows)
+
+
 def build_risk_report_text(result: dict) -> str:
     """Build downloadable risk report text from a backtest result."""
     lines = [
@@ -318,6 +449,60 @@ def render_risk_report_export_section(result: dict) -> None:
 
     with st.expander("Risk Report Preview", expanded=False):
         st.text(report_text)
+
+
+def render_risk_dashboard_summary_section(result: dict) -> None:
+    """Render high-level strategy risk dashboard summary."""
+    st.subheader("Risk Dashboard Summary")
+
+    ratings = classify_risk_level(result)
+    dashboard_df = build_risk_dashboard_dataframe(result)
+
+    dashboard_col1, dashboard_col2, dashboard_col3, dashboard_col4 = st.columns(4)
+
+    dashboard_col1.metric(
+        "Overall Risk",
+        ratings["overall_rating"],
+    )
+
+    dashboard_col2.metric(
+        "Sharpe Rating",
+        ratings["sharpe_rating"],
+    )
+
+    dashboard_col3.metric(
+        "Volatility Rating",
+        ratings["volatility_rating"],
+    )
+
+    dashboard_col4.metric(
+        "Drawdown Rating",
+        ratings["drawdown_rating"],
+    )
+
+    if ratings["overall_rating"] == "Stable":
+        st.success(ratings["interpretation"])
+    elif ratings["overall_rating"] == "Moderate Risk":
+        st.warning(ratings["interpretation"])
+    else:
+        st.error(ratings["interpretation"])
+
+    with st.expander("Risk Dashboard Details", expanded=False):
+        st.dataframe(
+            dashboard_df,
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        dashboard_csv = dashboard_df.to_csv(index=False)
+
+        st.download_button(
+            label="Download Risk Dashboard CSV",
+            data=dashboard_csv,
+            file_name=f"{str(result['ticker']).lower()}_risk_dashboard.csv",
+            mime="text/csv",
+            key="download_risk_dashboard_csv",
+        )
 
 
 def render_risk_metric_section(result: dict) -> None:
@@ -909,6 +1094,7 @@ and `strategies/` modules.
 
     st.subheader(f"{ticker} Backtest Results")
     render_metric_row(result)
+    render_risk_dashboard_summary_section(result)
     render_risk_metric_section(result)
     render_risk_report_export_section(result)
     render_drawdown_section(result)
@@ -1060,6 +1246,22 @@ The exported report includes:
 - Risk metrics
 - Trade metrics
 - Educational disclaimer
+
+### Risk Dashboard Summary Logic
+
+The risk dashboard summary converts detailed risk metrics into quick review ratings.
+
+Current review areas:
+
+- Overall risk
+- Sharpe rating
+- Volatility rating
+- Drawdown rating
+- Value at Risk rating
+
+The rating system is rule-based and uses thresholds from the current backtest result.
+
+This panel is not investment advice. It is a portfolio-project decision aid that helps identify whether a strategy needs more review before optimization, paper trading, or live execution.
 
 ### Risk Analytics Logic
 
