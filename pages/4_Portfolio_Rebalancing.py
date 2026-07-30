@@ -517,6 +517,270 @@ def render_rebalance_plan(positions: pd.DataFrame) -> None:
     )
 
 
+def build_rebalancing_export_report(
+    positions: pd.DataFrame,
+    candidates: pd.DataFrame,
+    rebalance_threshold_pct: float,
+    moderate_drift_threshold_pct: float,
+    high_drift_threshold_pct: float,
+    trade_tolerance: float,
+    allow_fractional_shares: bool,
+    portfolio_value: float,
+    risk_per_trade_pct: float,
+    total_risk_budget_pct: float,
+    stop_loss_pct: float,
+    max_position_weight_pct: float,
+) -> str:
+    """Build a downloadable plain-text rebalancing report."""
+    rebalance_summary = build_rebalance_summary(positions)
+
+    drift_summary = build_allocation_drift_summary(
+        positions=positions,
+        rebalance_threshold_pct=rebalance_threshold_pct,
+    )
+
+    dollar_summary = build_dollar_trade_summary(
+        positions=positions,
+        trade_tolerance=trade_tolerance,
+    )
+
+    share_summary = build_share_trade_summary(
+        positions=positions,
+        trade_tolerance=trade_tolerance,
+        allow_fractional_shares=allow_fractional_shares,
+    )
+
+    alert_summary = build_rebalance_alert_summary(
+        positions=positions,
+        high_drift_threshold_pct=high_drift_threshold_pct,
+        moderate_drift_threshold_pct=moderate_drift_threshold_pct,
+        trade_tolerance=trade_tolerance,
+    )
+
+    target_vs_current = calculate_target_vs_current_allocations(
+        positions=positions,
+        rebalance_threshold_pct=rebalance_threshold_pct,
+    )
+
+    alerts = calculate_rebalance_alerts(
+        positions=positions,
+        high_drift_threshold_pct=high_drift_threshold_pct,
+        moderate_drift_threshold_pct=moderate_drift_threshold_pct,
+        trade_tolerance=trade_tolerance,
+    )
+
+    dollar_recommendations = calculate_dollar_trade_recommendations(
+        positions=positions,
+        trade_tolerance=trade_tolerance,
+    )
+
+    share_recommendations = calculate_share_trade_recommendations(
+        positions=positions,
+        trade_tolerance=trade_tolerance,
+        allow_fractional_shares=allow_fractional_shares,
+    )
+
+    rebalance_plan = calculate_rebalance_plan(positions)
+
+    position_sizing_table = calculate_position_sizing_table(
+        candidates=candidates,
+        portfolio_value=portfolio_value,
+        risk_per_trade_pct=risk_per_trade_pct,
+        stop_loss_pct=stop_loss_pct,
+        max_position_weight_pct=max_position_weight_pct,
+        allow_fractional_shares=allow_fractional_shares,
+    )
+
+    position_sizing_summary = build_position_sizing_summary(position_sizing_table)
+
+    risk_budget_table = calculate_risk_budget_position_sizing_table(
+        candidates=candidates,
+        portfolio_value=portfolio_value,
+        total_risk_budget_pct=total_risk_budget_pct,
+        stop_loss_pct=stop_loss_pct,
+        max_position_weight_pct=max_position_weight_pct,
+        allow_fractional_shares=allow_fractional_shares,
+    )
+
+    risk_budget_summary = build_risk_budget_position_sizing_summary(
+        risk_budget_table
+    )
+
+    report_sections = [
+        "Portfolio Rebalancing Report",
+        "=" * 30,
+        "",
+        "Sprint 71 — Portfolio Rebalancing and Position Sizing Foundation",
+        "",
+        "Executive Summary",
+        "-" * 17,
+        f"Portfolio value: ${rebalance_summary['total_portfolio_value']:,.2f}",
+        f"Positions reviewed: {rebalance_summary['position_count']}",
+        f"Positions needing rebalance: {drift_summary['positions_needing_rebalance']}",
+        f"High drift positions: {alert_summary['high_drift_count']}",
+        f"Moderate drift positions: {alert_summary['moderate_drift_count']}",
+        f"Total buy amount: ${dollar_summary['total_buy_amount']:,.2f}",
+        f"Total sell amount: ${dollar_summary['total_sell_amount']:,.2f}",
+        f"Gross trade amount: ${dollar_summary['gross_trade_amount']:,.2f}",
+        f"Total absolute shares traded: {share_summary['total_absolute_shares_traded']:,.4f}",
+        "",
+        "Input Settings",
+        "-" * 14,
+        f"Rebalance threshold: {rebalance_threshold_pct:.2f}%",
+        f"Moderate drift threshold: {moderate_drift_threshold_pct:.2f}%",
+        f"High drift threshold: {high_drift_threshold_pct:.2f}%",
+        f"Trade tolerance: ${trade_tolerance:,.2f}",
+        f"Fractional shares enabled: {allow_fractional_shares}",
+        f"Position sizing portfolio value: ${portfolio_value:,.2f}",
+        f"Risk per trade: {risk_per_trade_pct:.2f}%",
+        f"Total risk budget: {total_risk_budget_pct:.2f}%",
+        f"Stop-loss distance: {stop_loss_pct:.2f}%",
+        f"Max position weight: {max_position_weight_pct:.2f}%",
+        "",
+        "Rebalance Alert Summary",
+        "-" * 23,
+        f"High drift count: {alert_summary['high_drift_count']}",
+        f"Moderate drift count: {alert_summary['moderate_drift_count']}",
+        f"Within range count: {alert_summary['within_range_count']}",
+        f"Positions needing attention: {alert_summary['positions_needing_attention']}",
+        f"Max absolute drift: {alert_summary['max_absolute_drift_pct']:.2f}%",
+        f"Total absolute drift: {alert_summary['total_absolute_drift_pct']:.2f}%",
+        "",
+        "Dollar Trade Summary",
+        "-" * 20,
+        f"Buy recommendations: {dollar_summary['buy_recommendations']}",
+        f"Sell recommendations: {dollar_summary['sell_recommendations']}",
+        f"Hold recommendations: {dollar_summary['hold_recommendations']}",
+        f"High-priority trades: {dollar_summary['high_priority_trades']}",
+        f"Medium-priority trades: {dollar_summary['medium_priority_trades']}",
+        f"Low-priority trades: {dollar_summary['low_priority_trades']}",
+        f"Total buy amount: ${dollar_summary['total_buy_amount']:,.2f}",
+        f"Total sell amount: ${dollar_summary['total_sell_amount']:,.2f}",
+        f"Gross trade amount: ${dollar_summary['gross_trade_amount']:,.2f}",
+        f"Net trade amount: ${dollar_summary['net_trade_amount']:,.2f}",
+        "",
+        "Share Trade Summary",
+        "-" * 19,
+        f"Buy trades: {share_summary['buy_trades']}",
+        f"Sell trades: {share_summary['sell_trades']}",
+        f"Hold trades: {share_summary['hold_trades']}",
+        f"Total absolute shares traded: {share_summary['total_absolute_shares_traded']:,.4f}",
+        f"Gross estimated trade value: ${share_summary['gross_estimated_trade_value']:,.2f}",
+        f"Net estimated trade value: ${share_summary['net_estimated_trade_value']:,.2f}",
+        f"Post-trade portfolio value: ${share_summary['post_trade_portfolio_value']:,.2f}",
+        "",
+        "Position Sizing Summary",
+        "-" * 23,
+        f"Candidate count: {position_sizing_summary['candidate_count']}",
+        f"Total position value: ${position_sizing_summary['total_position_value']:,.2f}",
+        f"Total estimated dollar risk: ${position_sizing_summary['total_estimated_dollar_risk']:,.2f}",
+        f"Average position weight: {position_sizing_summary['average_position_weight_pct']:.2f}%",
+        f"Max position weight: {position_sizing_summary['max_position_weight_pct']:.2f}%",
+        f"Capped positions: {position_sizing_summary['capped_position_count']}",
+        f"Risk-sized positions: {position_sizing_summary['risk_sized_position_count']}",
+        "",
+        "Risk-Budget Position Sizing Summary",
+        "-" * 36,
+        f"Candidate count: {risk_budget_summary['candidate_count']}",
+        f"Total allocated risk budget: {risk_budget_summary['total_allocated_risk_budget_pct']:.2f}%",
+        f"Total allocated risk budget amount: ${risk_budget_summary['total_allocated_risk_budget_amount']:,.2f}",
+        f"Total estimated dollar risk: ${risk_budget_summary['total_estimated_dollar_risk']:,.2f}",
+        f"Total position value: ${risk_budget_summary['total_position_value']:,.2f}",
+        f"Average position weight: {risk_budget_summary['average_position_weight_pct']:.2f}%",
+        f"Max position weight: {risk_budget_summary['max_position_weight_pct']:.2f}%",
+        f"Capped positions: {risk_budget_summary['capped_position_count']}",
+        f"Risk-sized positions: {risk_budget_summary['risk_sized_position_count']}",
+        "",
+        "Target vs Current Allocation",
+        "-" * 28,
+        target_vs_current.round(4).to_string(index=False),
+        "",
+        "Drift Detection and Rebalance Alerts",
+        "-" * 38,
+        alerts.round(4).to_string(index=False),
+        "",
+        "Dollar Trade Recommendations",
+        "-" * 28,
+        dollar_recommendations.round(4).to_string(index=False),
+        "",
+        "Share Trade Recommendations",
+        "-" * 27,
+        share_recommendations.round(4).to_string(index=False),
+        "",
+        "Full Rebalance Plan",
+        "-" * 19,
+        rebalance_plan.round(4).to_string(index=False),
+        "",
+        "Position Sizing Rules",
+        "-" * 21,
+        position_sizing_table.round(4).to_string(index=False),
+        "",
+        "Risk-Budget Position Sizing",
+        "-" * 27,
+        risk_budget_table.round(4).to_string(index=False),
+        "",
+        "Methodology Notes",
+        "-" * 17,
+        "This report compares current portfolio allocation against target allocation.",
+        "Dollar trade recommendations estimate buy and sell amounts needed to move toward targets.",
+        "Share trade recommendations convert dollar trades into estimated share quantities.",
+        "Position sizing estimates trade size from risk per trade, stop-loss distance, and max position weight.",
+        "Risk-budget position sizing spreads a total portfolio risk budget across multiple candidates.",
+        "",
+        "Important: This is a portfolio research and engineering tool. It is not financial advice.",
+    ]
+
+    return "\n".join(report_sections)
+
+
+def render_rebalancing_export_report(
+    positions: pd.DataFrame,
+    candidates: pd.DataFrame,
+    rebalance_threshold_pct: float,
+    moderate_drift_threshold_pct: float,
+    high_drift_threshold_pct: float,
+    trade_tolerance: float,
+    allow_fractional_shares: bool,
+    portfolio_value: float,
+    risk_per_trade_pct: float,
+    total_risk_budget_pct: float,
+    stop_loss_pct: float,
+    max_position_weight_pct: float,
+) -> None:
+    """Render downloadable rebalancing report."""
+    st.subheader("Rebalancing Export Report")
+
+    try:
+        report_text = build_rebalancing_export_report(
+            positions=positions,
+            candidates=candidates,
+            rebalance_threshold_pct=rebalance_threshold_pct,
+            moderate_drift_threshold_pct=moderate_drift_threshold_pct,
+            high_drift_threshold_pct=high_drift_threshold_pct,
+            trade_tolerance=trade_tolerance,
+            allow_fractional_shares=allow_fractional_shares,
+            portfolio_value=portfolio_value,
+            risk_per_trade_pct=risk_per_trade_pct,
+            total_risk_budget_pct=total_risk_budget_pct,
+            stop_loss_pct=stop_loss_pct,
+            max_position_weight_pct=max_position_weight_pct,
+        )
+    except Exception as error:
+        st.error(f"Rebalancing export report failed: {error}")
+        return
+
+    st.download_button(
+        label="Download Rebalancing Report TXT",
+        data=report_text,
+        file_name="portfolio_rebalancing_report.txt",
+        mime="text/plain",
+        key="download_rebalancing_report_txt",
+    )
+
+    with st.expander("Rebalancing Report Preview", expanded=False):
+        st.text(report_text)
+
+
 def render_rebalancing_methodology() -> None:
     """Render methodology notes."""
     with st.expander("Portfolio Rebalancing Methodology", expanded=False):
