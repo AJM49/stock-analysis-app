@@ -269,3 +269,59 @@ Recommended Sprint 71 features:
 8. Rebalancing Streamlit UI
 9. Rebalancing export report
 10. Sprint 71 closeout
+
+---
+
+# Sprint 71 Status Update
+
+Sprint 71 completed the portfolio rebalancing and position sizing foundation layer.
+
+## Completed in Sprint 71
+
+- Portfolio rebalancing package
+- Rebalancing math foundation
+- Target vs current allocation calculator
+- Dollar trade recommendation engine
+- Share trade recommendation engine
+- Drift detection and rebalance alerts
+- Position sizing rules
+- Risk-budget position sizing
+- Portfolio Rebalancing Streamlit page
+- Rebalancing export report
+- CSV exports
+- Test coverage
+
+## Current Platform Stage
+
+The app is now in this stage:
+
+Research app
+↓
+Backtesting platform foundation
+↓
+Strategy comparison foundation
+↓
+Risk analytics foundation
+↓
+Portfolio optimization foundation
+↓
+Portfolio rebalancing and position sizing foundation
+
+## Next Stage
+
+The next major platform layer should be:
+
+Sprint 72 — Paper Trading and Trade Journal Foundation
+
+Recommended Sprint 72 features:
+
+1. Paper trading data model
+2. Simulated order ticket
+3. Buy/sell order preview
+4. Paper trade execution engine
+5. Open positions ledger
+6. Closed trades ledger
+7. Trade journal notes
+8. Paper trading Streamlit UI
+9. Paper trading export report
+10. Sprint 72 closeout

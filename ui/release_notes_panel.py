@@ -8,6 +8,70 @@ def render_release_notes_panel() -> None:
     with st.expander("Release Notes", expanded=False):
         st.markdown(
             """
+### Sprint 71 — Portfolio Rebalancing and Position Sizing Foundation
+
+**Completed features:**
+
+- Added portfolio rebalancing package.
+- Added reusable rebalancing math module.
+- Added current market value calculations.
+- Added total portfolio value calculation.
+- Added current allocation weight calculations.
+- Added target vs current allocation calculator.
+- Added allocation drift percentage calculations.
+- Added absolute drift percentage calculations.
+- Added drift status labels.
+- Added dollar trade recommendation engine.
+- Added buy amount calculations.
+- Added sell amount calculations.
+- Added trade priority labels.
+- Added trade reason explanations.
+- Added share trade recommendation engine.
+- Added fractional-share trade recommendations.
+- Added whole-share trade recommendations.
+- Added post-trade share calculations.
+- Added post-trade allocation estimates.
+- Added drift detection and rebalance alerts.
+- Added high-drift alert classification.
+- Added moderate-drift alert classification.
+- Added rebalance alert summary metrics.
+- Added position sizing rules.
+- Added risk-per-trade sizing.
+- Added stop-loss-based sizing.
+- Added max position weight cap.
+- Added risk-budget position sizing.
+- Added equal risk-budget allocation across candidates.
+- Added custom risk-budget allocation foundation.
+- Added Portfolio Rebalancing Streamlit page.
+- Added editable holdings table.
+- Added editable position sizing candidates table.
+- Added rebalancing summary metrics.
+- Added Target vs Current Allocation dashboard table.
+- Added Dollar Trade Recommendations dashboard table.
+- Added Share Trade Recommendations dashboard table.
+- Added Drift Detection and Rebalance Alerts dashboard table.
+- Added Position Sizing Rules dashboard table.
+- Added Risk-Budget Position Sizing dashboard table.
+- Added CSV exports for rebalancing outputs.
+- Added downloadable Rebalancing Export Report.
+- Added rebalancing methodology notes.
+- Added pytest coverage for rebalancing math and position sizing logic.
+
+**Result:**
+
+Sprint 71 moves the app from portfolio optimization into portfolio execution planning. The app can now compare current allocations against target allocations, detect drift, generate dollar and share trade recommendations, size positions by risk rules, allocate shared risk budgets, and export a complete rebalancing report.
+
+**Next roadmap direction:**
+
+- Paper trading simulator
+- Trade journal
+- Broker integration research
+- Order preview workflow
+- Portfolio transaction history
+- Machine learning model lab
+
+---
+
 ### Sprint 70 — Portfolio Optimization Foundation
 
 **Completed features:**

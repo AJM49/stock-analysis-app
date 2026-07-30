@@ -131,3 +131,44 @@ New capabilities:
 - Pytest coverage for portfolio optimization logic
 
 The project now supports multi-asset portfolio construction research before moving into rebalancing, position sizing, risk budgeting, paper trading, broker integration, or machine learning.
+
+---
+
+## Sprint 71 Portfolio Rebalancing and Position Sizing Foundation
+
+Sprint 71 added portfolio rebalancing and position sizing capabilities to the Stock Analysis App quant platform.
+
+New capabilities:
+
+- Portfolio rebalancing package
+- Current value calculation
+- Current allocation calculation
+- Target vs current allocation comparison
+- Allocation drift detection
+- Dollar trade recommendations
+- Share trade recommendations
+- Fractional-share mode
+- Whole-share mode
+- Post-trade allocation estimates
+- Drift detection alerts
+- Rebalance alert summary
+- Position sizing rules
+- Risk-per-trade sizing
+- Stop-loss-based sizing
+- Maximum position weight cap
+- Risk-budget position sizing
+- Portfolio Rebalancing page
+- Editable holdings input table
+- Editable position sizing candidate table
+- Rebalancing summary dashboard
+- Target vs Current Allocation table
+- Dollar Trade Recommendations table
+- Share Trade Recommendations table
+- Drift Detection and Rebalance Alerts table
+- Position Sizing Rules table
+- Risk-Budget Position Sizing table
+- CSV exports
+- Rebalancing report TXT export
+- Pytest coverage for rebalancing and position sizing
+
+The project now supports portfolio execution planning after strategy research, risk analytics, and portfolio optimization.

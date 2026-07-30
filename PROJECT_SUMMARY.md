@@ -189,3 +189,67 @@ Next planned upgrades:
 - Paper trading
 - Broker integration
 - Machine learning model lab
+
+---
+
+## Sprint 71 Portfolio Rebalancing and Position Sizing Foundation
+
+Sprint 71 added the portfolio rebalancing and position sizing layer to the quant platform.
+
+Completed upgrades:
+
+- Portfolio rebalancing package
+- Rebalancing math module
+- Current market value calculation
+- Total portfolio value calculation
+- Current allocation weight calculation
+- Target vs current allocation calculator
+- Allocation drift calculation
+- Absolute drift calculation
+- Drift status labels
+- Dollar trade recommendation engine
+- Buy amount calculation
+- Sell amount calculation
+- Trade priority labels
+- Trade reason explanations
+- Share trade recommendation engine
+- Fractional-share trade recommendations
+- Whole-share trade recommendations
+- Post-trade share calculation
+- Post-trade value calculation
+- Post-trade allocation estimate
+- Drift detection and rebalance alerts
+- High-drift alert classification
+- Moderate-drift alert classification
+- Rebalance alert summary
+- Position sizing rules
+- Risk-per-trade sizing
+- Stop-loss-based sizing
+- Maximum position weight cap
+- Risk-budget position sizing
+- Equal risk-budget allocation across candidate positions
+- Portfolio Rebalancing Streamlit page
+- Editable holdings table
+- Editable position sizing candidate table
+- Rebalancing summary metrics
+- Target vs Current Allocation table
+- Dollar Trade Recommendations table
+- Share Trade Recommendations table
+- Drift Detection and Rebalance Alerts table
+- Position Sizing Rules table
+- Risk-Budget Position Sizing table
+- CSV exports
+- Downloadable Rebalancing Export Report
+- Methodology notes
+- Pytest coverage for rebalancing and position sizing logic
+
+Sprint 71 changes the project from a portfolio construction research app into a portfolio execution planning platform.
+
+Next planned upgrades:
+
+- Paper trading simulator
+- Trade journal
+- Broker integration research
+- Order preview workflow
+- Portfolio transaction history
+- Machine learning model lab
