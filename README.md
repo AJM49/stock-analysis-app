@@ -172,3 +172,25 @@ New capabilities:
 - Pytest coverage for rebalancing and position sizing
 
 The project now supports portfolio execution planning after strategy research, risk analytics, and portfolio optimization.
+
+## Sprint 72 — Paper Trading and Trade Journal Foundation
+
+Sprint 72 adds a complete simulated paper-trading workflow to the Stock Analysis App.
+
+### New Paper Trading Features
+
+- Paper trading account setup
+- Simulated order ticket
+- Buy/sell order preview
+- Paper trade execution
+- Open positions ledger
+- Closed trades ledger
+- Trade journal notes
+- Paper trading export report
+
+### Paper Trading Page
+
+A new Streamlit page is available:
+
+```text
+Paper Trading

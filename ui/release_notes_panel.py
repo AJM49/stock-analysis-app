@@ -8,7 +8,44 @@ def render_release_notes_panel() -> None:
     with st.expander("Release Notes", expanded=False):
         st.markdown(
             """
-### Sprint 71 — Portfolio Rebalancing and Position Sizing Foundation
+### ### Sprint 72: Paper Trading and Trade Journal Foundation
+
+Sprint 72 added the paper-trading layer to the quant platform.
+
+Completed features:
+
+- Paper trading data model
+- Simulated order ticket
+- Buy/sell order preview
+- Paper trade execution engine
+- Open positions ledger
+- Closed trades ledger
+- Trade journal notes
+- Paper Trading Streamlit page
+- Paper trading export report
+- Sprint 72 closeout and release notes
+
+Engineering value:
+
+- Adds simulated order workflow before real broker integration.
+- Tracks cash, positions, closed trades, realized P/L, unrealized P/L, and journal notes.
+- Creates a clean backend foundation for future paper-trading analytics.
+- Adds a user-facing Streamlit page for simulated buy/sell workflows.
+- Adds downloadable exports for review, QA, and portfolio documentation.
+
+Next roadmap:
+
+- Sprint 73: Paper Trading Analytics and Risk Review
+- Trade performance dashboard
+- Strategy-tagged journal analytics
+- Equity curve tracking
+- Drawdown tracking
+- Trade expectancy metrics
+- Paper trading QA hardening
+
+---
+
+Sprint 71 — Portfolio Rebalancing and Position Sizing Foundation
 
 **Completed features:**
 

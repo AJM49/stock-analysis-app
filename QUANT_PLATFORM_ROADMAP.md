@@ -325,3 +325,58 @@ Recommended Sprint 72 features:
 8. Paper trading Streamlit UI
 9. Paper trading export report
 10. Sprint 72 closeout
+
+## Sprint 72 — Paper Trading and Trade Journal Foundation
+
+### Status
+
+Complete.
+
+### Purpose
+
+Sprint 72 introduced a simulated trading environment that lets the user test trade ideas without placing real brokerage orders.
+
+### Delivered Capabilities
+
+- Paper trading account model
+- Simulated order ticket
+- Buy/sell order preview
+- Market and limit order execution
+- Account cash updates
+- Open positions ledger
+- Closed trades ledger
+- Realized P/L tracking
+- Unrealized P/L tracking
+- Trade journal notes
+- Paper Trading Streamlit page
+- Paper trading export report
+
+### Platform Impact
+
+Sprint 72 moves the app from analysis-only into simulated execution.
+
+The platform now has the foundation for:
+
+- Paper trading workflows
+- Strategy testing after backtesting
+- Trade review
+- Journal-based learning
+- Portfolio impact review
+- Future broker integration planning
+
+### Sprint 73 Recommendation
+
+**Sprint 73 — Paper Trading Analytics and Risk Review**
+
+Recommended scope:
+
+1. Equity curve tracker
+2. Paper trading performance dashboard
+3. Drawdown analytics
+4. Trade expectancy
+5. Average win / average loss
+6. Profit factor
+7. Holding-period analytics
+8. Journal tag analytics
+9. Strategy-level review
+10. Sprint 73 closeout

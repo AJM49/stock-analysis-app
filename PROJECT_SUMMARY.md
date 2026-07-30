@@ -253,3 +253,80 @@ Next planned upgrades:
 - Order preview workflow
 - Portfolio transaction history
 - Machine learning model lab
+
+## Sprint 72 — Paper Trading and Trade Journal Foundation
+
+Sprint 72 added a complete simulated trading workflow to the Stock Analysis App.
+
+### Completed Features
+
+1. **Paper Trading Data Model**
+   - Added paper trading account structure.
+   - Added open order, filled trade, open position, closed trade, and journal models.
+   - Added timezone-aware UTC timestamps.
+
+2. **Simulated Order Ticket**
+   - Added order ticket validation.
+   - Added market and limit order ticket creation.
+   - Added estimated order value, commission, cash impact, and buying-power checks.
+
+3. **Buy/Sell Order Preview**
+   - Added buy/sell preview logic.
+   - Added estimated cash before and after order.
+   - Added estimated position quantity and exposure after order.
+   - Added accepted, warning, and rejected preview statuses.
+
+4. **Paper Trade Execution Engine**
+   - Added market and limit order execution logic.
+   - Added filled trade creation.
+   - Added order status updates.
+   - Added account cash updates.
+   - Added position updates and closed trade creation.
+
+5. **Open Positions Ledger**
+   - Added open position lookup, insert, update, and removal logic.
+   - Added position price updates.
+   - Added unrealized P/L and market value summaries.
+
+6. **Closed Trades Ledger**
+   - Added realized P/L tracking.
+   - Added win/loss/breakeven classification.
+   - Added win rate, best trade, worst trade, and realized P/L by ticker.
+
+7. **Trade Journal Notes**
+   - Added journal note creation.
+   - Added review labels, tags, linked trade IDs, and ticker lookup.
+   - Added journal summary metrics.
+
+8. **Paper Trading Streamlit UI**
+   - Added a new Paper Trading page.
+   - Added account setup, order ticket inputs, order preview, trade execution, ledgers, journal notes, and CSV exports.
+
+9. **Paper Trading Export Report**
+   - Added downloadable text report summarizing account state, latest preview, latest execution, open positions, closed trades, realized P/L, journal notes, and methodology.
+
+10. **Sprint 72 Closeout**
+   - Added release notes and roadmap documentation.
+
+### Result
+
+The app now supports a complete simulated trading workflow.
+
+The user can preview a buy/sell order, execute it as a paper trade, update cash and positions, track realized and unrealized P/L, write journal notes, and export a paper trading report.
+
+### Next Recommended Sprint
+
+**Sprint 73 — Paper Trading Analytics and Risk Review**
+
+Recommended features:
+
+- Equity curve tracker
+- Trade performance dashboard
+- Drawdown from paper trading equity
+- Trade expectancy metrics
+- Average win / average loss
+- Profit factor
+- Journal tag analytics
+- Strategy-level paper trading review
+- Paper trading QA checklist
+- Sprint 73 closeout and release notes
