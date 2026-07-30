@@ -1015,6 +1015,16 @@ Edit the table below with your current holdings, current prices, and target allo
         threshold_pct=rebalance_threshold_pct,
     )
 
+    st.divider()
+    st.markdown("## Drift Detection and Rebalance Alerts")
+
+    render_rebalance_alerts(
+        positions=positions,
+        high_drift_threshold_pct=high_drift_threshold_pct,
+        moderate_drift_threshold_pct=moderate_drift_threshold_pct,
+        trade_tolerance=trade_tolerance,
+    )
+
     render_dollar_trade_recommendations(
         positions=positions,
         trade_tolerance=trade_tolerance,
@@ -1024,6 +1034,48 @@ Edit the table below with your current holdings, current prices, and target allo
         positions=positions,
         trade_tolerance=trade_tolerance,
         allow_fractional_shares=allow_fractional_shares,
+    )
+
+    st.divider()
+    st.markdown("## Position Sizing Rules")
+
+    render_position_sizing_section(
+        candidates=candidates,
+        portfolio_value=portfolio_value,
+        risk_per_trade_pct=risk_per_trade_pct,
+        stop_loss_pct=stop_loss_pct,
+        max_position_weight_pct=max_position_weight_pct,
+        allow_fractional_shares=allow_fractional_shares,
+    )
+
+    st.divider()
+    st.markdown("## Risk-Budget Position Sizing")
+
+    render_risk_budget_position_sizing_section(
+        candidates=candidates,
+        portfolio_value=portfolio_value,
+        total_risk_budget_pct=total_risk_budget_pct,
+        stop_loss_pct=stop_loss_pct,
+        max_position_weight_pct=max_position_weight_pct,
+        allow_fractional_shares=allow_fractional_shares,
+    )
+
+    st.divider()
+    st.markdown("## Rebalancing Export Report")
+
+    render_rebalancing_export_report(
+        positions=positions,
+        candidates=candidates,
+        rebalance_threshold_pct=rebalance_threshold_pct,
+        moderate_drift_threshold_pct=moderate_drift_threshold_pct,
+        high_drift_threshold_pct=high_drift_threshold_pct,
+        trade_tolerance=trade_tolerance,
+        allow_fractional_shares=allow_fractional_shares,
+        portfolio_value=portfolio_value,
+        risk_per_trade_pct=risk_per_trade_pct,
+        total_risk_budget_pct=total_risk_budget_pct,
+        stop_loss_pct=stop_loss_pct,
+        max_position_weight_pct=max_position_weight_pct,
     )
 
     render_rebalance_plan(positions)
