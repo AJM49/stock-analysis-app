@@ -630,6 +630,199 @@ def render_trade_journal() -> None:
     )
 
 
+def build_paper_trading_export_report() -> str:
+    """Build a downloadable plain-text paper trading report."""
+    account = st.session_state.paper_account
+    positions = st.session_state.paper_positions
+    closed_trades = st.session_state.closed_trades
+    journal_entries = st.session_state.journal_entries
+    last_preview = st.session_state.last_order_preview
+    last_execution = st.session_state.last_execution_summary
+
+    open_positions_summary = build_open_positions_summary(positions)
+    closed_trades_summary = build_closed_trades_summary(closed_trades)
+    journal_summary = build_trade_journal_summary(journal_entries)
+
+    if positions:
+        open_positions_df = build_open_positions_dataframe(positions).round(4)
+        open_positions_text = open_positions_df.to_string(index=False)
+    else:
+        open_positions_text = "No open positions."
+
+    if closed_trades:
+        closed_trades_df = build_closed_trades_dataframe(closed_trades).round(4)
+        closed_trades_text = closed_trades_df.to_string(index=False)
+
+        realized_by_ticker_df = calculate_realized_pnl_by_ticker(closed_trades).round(4)
+        realized_by_ticker_text = realized_by_ticker_df.to_string(index=False)
+    else:
+        closed_trades_text = "No closed trades."
+        realized_by_ticker_text = "No realized P/L by ticker."
+
+    if journal_entries:
+        journal_df = build_trade_journal_dataframe(journal_entries)
+        journal_text = journal_df.to_string(index=False)
+    else:
+        journal_text = "No journal entries."
+
+    if last_preview is not None:
+        preview_df = build_order_preview_dataframe([last_preview]).round(4)
+        preview_text = preview_df.to_string(index=False)
+
+        preview_summary = build_order_preview_summary([last_preview])
+        preview_summary_text = "\n".join(
+            [
+                f"Preview count: {preview_summary['preview_count']}",
+                f"Accepted count: {preview_summary['accepted_count']}",
+                f"Warning count: {preview_summary['warning_count']}",
+                f"Rejected count: {preview_summary['rejected_count']}",
+                f"Buy count: {preview_summary['buy_count']}",
+                f"Sell count: {preview_summary['sell_count']}",
+                f"Total estimated order value: ${preview_summary['total_estimated_order_value']:,.2f}",
+                f"Total estimated commission: ${preview_summary['total_estimated_commission']:,.2f}",
+                f"Total estimated cash impact: ${preview_summary['total_estimated_cash_impact']:,.2f}",
+                f"Max exposure after order: {preview_summary['max_exposure_pct_after_order']:.2f}%",
+            ]
+        )
+    else:
+        preview_text = "No order preview available."
+        preview_summary_text = "No order preview summary available."
+
+    if last_execution is not None:
+        execution_df = pd.DataFrame([last_execution]).round(4)
+        execution_text = execution_df.to_string(index=False)
+    else:
+        execution_text = "No execution summary available."
+
+    total_account_value = (
+        account.cash_balance + open_positions_summary["total_market_value"]
+    )
+
+    report_sections = [
+        "Paper Trading Report",
+        "=" * 20,
+        "",
+        "Sprint 72 — Paper Trading and Trade Journal Foundation",
+        "",
+        "Executive Summary",
+        "-" * 17,
+        f"Account ID: {account.account_id}",
+        f"Account name: {account.account_name}",
+        f"Starting cash: ${account.starting_cash:,.2f}",
+        f"Cash balance: ${account.cash_balance:,.2f}",
+        f"Open market value: ${open_positions_summary['total_market_value']:,.2f}",
+        f"Estimated account value: ${total_account_value:,.2f}",
+        f"Open positions: {open_positions_summary['position_count']}",
+        f"Closed trades: {closed_trades_summary['closed_trade_count']}",
+        f"Journal notes: {journal_summary['journal_entry_count']}",
+        f"Total unrealized P/L: ${open_positions_summary['total_unrealized_pnl']:,.2f}",
+        f"Total unrealized P/L %: {open_positions_summary['total_unrealized_pnl_pct']:.2f}%",
+        f"Total realized P/L: ${closed_trades_summary['total_realized_pnl']:,.2f}",
+        f"Win rate: {closed_trades_summary['win_rate_pct']:.2f}%",
+        "",
+        "Open Positions Summary",
+        "-" * 22,
+        f"Position count: {open_positions_summary['position_count']}",
+        f"Total cost basis: ${open_positions_summary['total_cost_basis']:,.2f}",
+        f"Total market value: ${open_positions_summary['total_market_value']:,.2f}",
+        f"Total unrealized P/L: ${open_positions_summary['total_unrealized_pnl']:,.2f}",
+        f"Total unrealized P/L %: {open_positions_summary['total_unrealized_pnl_pct']:.2f}%",
+        f"Largest position value: ${open_positions_summary['largest_position_value']:,.2f}",
+        "",
+        "Closed Trades Summary",
+        "-" * 21,
+        f"Closed trade count: {closed_trades_summary['closed_trade_count']}",
+        f"Win count: {closed_trades_summary['win_count']}",
+        f"Loss count: {closed_trades_summary['loss_count']}",
+        f"Breakeven count: {closed_trades_summary['breakeven_count']}",
+        f"Win rate: {closed_trades_summary['win_rate_pct']:.2f}%",
+        f"Total realized P/L: ${closed_trades_summary['total_realized_pnl']:,.2f}",
+        f"Average realized P/L: ${closed_trades_summary['average_realized_pnl']:,.2f}",
+        f"Average realized P/L %: {closed_trades_summary['average_realized_pnl_pct']:.2f}%",
+        f"Best trade ticker: {closed_trades_summary['best_trade_ticker'] or 'N/A'}",
+        f"Best trade realized P/L: ${closed_trades_summary['best_trade_realized_pnl']:,.2f}",
+        f"Worst trade ticker: {closed_trades_summary['worst_trade_ticker'] or 'N/A'}",
+        f"Worst trade realized P/L: ${closed_trades_summary['worst_trade_realized_pnl']:,.2f}",
+        "",
+        "Trade Journal Summary",
+        "-" * 21,
+        f"Journal entry count: {journal_summary['journal_entry_count']}",
+        f"Unique ticker count: {journal_summary['unique_ticker_count']}",
+        f"Linked trade note count: {journal_summary['linked_trade_note_count']}",
+        f"Unlinked note count: {journal_summary['unlinked_note_count']}",
+        f"Plan count: {journal_summary['plan_count']}",
+        f"Good trade count: {journal_summary['good_trade_count']}",
+        f"Bad trade count: {journal_summary['bad_trade_count']}",
+        f"Mistake count: {journal_summary['mistake_count']}",
+        f"Lesson count: {journal_summary['lesson_count']}",
+        f"Follow up count: {journal_summary['follow_up_count']}",
+        f"Most common ticker: {journal_summary['most_common_ticker'] or 'N/A'}",
+        "",
+        "Latest Order Preview Summary",
+        "-" * 28,
+        preview_summary_text,
+        "",
+        "Latest Order Preview",
+        "-" * 21,
+        preview_text,
+        "",
+        "Latest Execution Summary",
+        "-" * 24,
+        execution_text,
+        "",
+        "Open Positions Ledger",
+        "-" * 21,
+        open_positions_text,
+        "",
+        "Closed Trades Ledger",
+        "-" * 21,
+        closed_trades_text,
+        "",
+        "Realized P/L by Ticker",
+        "-" * 22,
+        realized_by_ticker_text,
+        "",
+        "Trade Journal Notes",
+        "-" * 19,
+        journal_text,
+        "",
+        "Methodology Notes",
+        "-" * 17,
+        "This report summarizes the simulated paper trading workflow.",
+        "Order previews estimate cash impact, position exposure, and acceptance/rejection status.",
+        "Paper trade execution fills simulated orders and updates cash, open positions, and closed trades.",
+        "Open positions track quantity, average cost, market value, and unrealized P/L.",
+        "Closed trades track realized P/L, return percentage, and win/loss result.",
+        "Journal notes capture trade reasoning, review labels, tags, and linked trade IDs.",
+        "",
+        "Important: This is a simulated trading and engineering tool. It is not financial advice and does not place real brokerage orders.",
+    ]
+
+    return "\n".join(report_sections)
+
+
+def render_paper_trading_export_report() -> None:
+    """Render downloadable paper trading report."""
+    st.subheader("Paper Trading Export Report")
+
+    try:
+        report_text = build_paper_trading_export_report()
+    except Exception as error:
+        st.error(f"Paper trading export report failed: {error}")
+        return
+
+    st.download_button(
+        label="Download Paper Trading Report TXT",
+        data=report_text,
+        file_name="paper_trading_report.txt",
+        mime="text/plain",
+        key="download_paper_trading_report_txt",
+    )
+
+    with st.expander("Paper Trading Report Preview", expanded=False):
+        st.text(report_text)
+
+
 def render_methodology() -> None:
     """Render paper trading methodology."""
     with st.expander("Paper Trading Methodology", expanded=False):
@@ -664,6 +857,23 @@ Open positions track quantity, average cost, market value, and unrealized P/L.
 Closed trades track realized P/L, return percentage, and win/loss result.
 
 Journal notes capture the reasoning, review label, tags, and linked trade ID.
+
+### Paper Trading Export Report Logic
+
+The export report combines the major Sprint 72 paper trading outputs into one downloadable text file.
+
+The report includes:
+
+- Paper account summary
+- Latest order preview
+- Latest execution summary
+- Open positions ledger
+- Closed trades ledger
+- Realized P/L by ticker
+- Trade journal notes
+- Methodology notes
+
+Use the report as a review artifact for simulated trading decisions and trade journaling.
 
 ### Project Use
 
@@ -704,6 +914,9 @@ def render_paper_trading_page() -> None:
 
     st.divider()
     render_trade_journal()
+
+    st.divider()
+    render_paper_trading_export_report()
 
     st.divider()
     render_methodology()
