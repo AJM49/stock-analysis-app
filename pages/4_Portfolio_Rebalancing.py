@@ -3,6 +3,13 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
+from portfolio_rebalancing.position_sizing import (
+    build_position_sizing_summary,
+    build_risk_budget_position_sizing_summary,
+    calculate_position_sizing_table,
+    calculate_risk_budget_position_sizing_table,
+)
+
 from portfolio_rebalancing.rebalancing_math import (
     build_allocation_drift_summary,
     build_dollar_trade_summary,
@@ -23,6 +30,14 @@ DEFAULT_POSITIONS = pd.DataFrame(
         "shares": [10.0, 8.0, 2.0],
         "current_price": [200.0, 400.0, 1000.0],
         "target_weight_pct": [40.0, 35.0, 25.0],
+    }
+)
+
+
+DEFAULT_SIZING_CANDIDATES = pd.DataFrame(
+    {
+        "ticker": ["AAPL", "MSFT", "NVDA"],
+        "current_price": [200.0, 400.0, 1000.0],
     }
 )
 
@@ -68,6 +83,32 @@ def prepare_positions(input_df: pd.DataFrame) -> pd.DataFrame:
             "target_weight",
         ]
     ]
+
+
+def prepare_sizing_candidates(input_df: pd.DataFrame) -> pd.DataFrame:
+    """Prepare editable candidate table for position sizing."""
+    required_columns = {
+        "ticker",
+        "current_price",
+    }
+
+    missing_columns = required_columns - set(input_df.columns)
+
+    if missing_columns:
+        missing = ", ".join(sorted(missing_columns))
+        raise ValueError(f"Candidate input missing required columns: {missing}")
+
+    candidates = input_df.copy()
+    candidates["ticker"] = candidates["ticker"].astype(str).str.strip().str.upper()
+    candidates["current_price"] = pd.to_numeric(
+        candidates["current_price"],
+        errors="coerce",
+    )
+
+    if candidates["current_price"].isna().any():
+        raise ValueError("Candidate current prices must be numeric.")
+
+    return candidates[["ticker", "current_price"]]
 
 
 def render_summary_metrics(
@@ -309,6 +350,146 @@ def render_share_trade_recommendations(
     )
 
 
+def render_position_sizing_section(
+    candidates: pd.DataFrame,
+    portfolio_value: float,
+    risk_per_trade_pct: float,
+    stop_loss_pct: float,
+    max_position_weight_pct: float,
+    allow_fractional_shares: bool,
+) -> None:
+    """Render standard position sizing table and summary."""
+    st.subheader("Position Sizing Rules")
+
+    try:
+        sizing_table = calculate_position_sizing_table(
+            candidates=candidates,
+            portfolio_value=portfolio_value,
+            risk_per_trade_pct=risk_per_trade_pct,
+            stop_loss_pct=stop_loss_pct,
+            max_position_weight_pct=max_position_weight_pct,
+            allow_fractional_shares=allow_fractional_shares,
+        )
+
+        sizing_summary = build_position_sizing_summary(sizing_table)
+    except Exception as error:
+        st.error(f"Position sizing failed: {error}")
+        return
+
+    sizing_col1, sizing_col2, sizing_col3, sizing_col4 = st.columns(4)
+
+    sizing_col1.metric(
+        "Candidates",
+        sizing_summary["candidate_count"],
+    )
+
+    sizing_col2.metric(
+        "Total Position Value",
+        f"${sizing_summary['total_position_value']:,.2f}",
+    )
+
+    sizing_col3.metric(
+        "Estimated Risk",
+        f"${sizing_summary['total_estimated_dollar_risk']:,.2f}",
+    )
+
+    sizing_col4.metric(
+        "Capped Positions",
+        sizing_summary["capped_position_count"],
+    )
+
+    display_df = sizing_table.copy()
+    numeric_columns = display_df.select_dtypes(include="number").columns
+    display_df[numeric_columns] = display_df[numeric_columns].round(4)
+
+    st.dataframe(
+        display_df,
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    sizing_csv = display_df.to_csv(index=False)
+
+    st.download_button(
+        label="Download Position Sizing CSV",
+        data=sizing_csv,
+        file_name="position_sizing_rules.csv",
+        mime="text/csv",
+        key="download_position_sizing_rules_csv",
+    )
+
+
+def render_risk_budget_position_sizing_section(
+    candidates: pd.DataFrame,
+    portfolio_value: float,
+    total_risk_budget_pct: float,
+    stop_loss_pct: float,
+    max_position_weight_pct: float,
+    allow_fractional_shares: bool,
+) -> None:
+    """Render shared risk-budget position sizing table and summary."""
+    st.subheader("Risk-Budget Position Sizing")
+
+    try:
+        risk_budget_table = calculate_risk_budget_position_sizing_table(
+            candidates=candidates,
+            portfolio_value=portfolio_value,
+            total_risk_budget_pct=total_risk_budget_pct,
+            stop_loss_pct=stop_loss_pct,
+            max_position_weight_pct=max_position_weight_pct,
+            allow_fractional_shares=allow_fractional_shares,
+        )
+
+        risk_budget_summary = build_risk_budget_position_sizing_summary(
+            risk_budget_table
+        )
+    except Exception as error:
+        st.error(f"Risk-budget position sizing failed: {error}")
+        return
+
+    budget_col1, budget_col2, budget_col3, budget_col4 = st.columns(4)
+
+    budget_col1.metric(
+        "Total Risk Budget",
+        f"{risk_budget_summary['total_allocated_risk_budget_pct']:.2f}%",
+    )
+
+    budget_col2.metric(
+        "Risk Budget $",
+        f"${risk_budget_summary['total_allocated_risk_budget_amount']:,.2f}",
+    )
+
+    budget_col3.metric(
+        "Estimated Risk $",
+        f"${risk_budget_summary['total_estimated_dollar_risk']:,.2f}",
+    )
+
+    budget_col4.metric(
+        "Position Value",
+        f"${risk_budget_summary['total_position_value']:,.2f}",
+    )
+
+    display_df = risk_budget_table.copy()
+    numeric_columns = display_df.select_dtypes(include="number").columns
+    display_df[numeric_columns] = display_df[numeric_columns].round(4)
+
+    st.dataframe(
+        display_df,
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    risk_budget_csv = display_df.to_csv(index=False)
+
+    st.download_button(
+        label="Download Risk-Budget Position Sizing CSV",
+        data=risk_budget_csv,
+        file_name="risk_budget_position_sizing.csv",
+        mime="text/csv",
+        key="download_risk_budget_position_sizing_csv",
+    )
+
+
 def render_rebalance_plan(positions: pd.DataFrame) -> None:
     """Render full rebalance plan."""
     st.subheader("Full Rebalance Plan")
@@ -383,6 +564,30 @@ If fractional shares are enabled, the engine can recommend partial shares.
 
 If fractional shares are disabled, the engine rounds down to whole shares.
 
+### Position Sizing Logic
+
+The Position Sizing section estimates how many shares to buy based on:
+
+- Portfolio value
+- Risk per trade
+- Stop-loss distance
+- Current price
+- Maximum position weight
+
+This helps translate risk rules into realistic trade sizes.
+
+### Risk-Budget Position Sizing Logic
+
+The Risk-Budget Position Sizing section spreads a total portfolio risk budget across multiple candidate trades.
+
+Example:
+
+- Total risk budget: 3%
+- Three candidates
+- Equal risk budget: 1% per candidate
+
+This helps prevent the portfolio from taking too much total risk across several trades at once.
+
 ### Project Use
 
 This is a portfolio research and engineering tool. It is not financial advice.
@@ -440,6 +645,48 @@ def render_portfolio_rebalancing_page() -> None:
             value=True,
         )
 
+        st.subheader("Position Sizing Inputs")
+
+        portfolio_value = st.number_input(
+            "Portfolio Value $",
+            min_value=100.0,
+            max_value=100000000.0,
+            value=10000.0,
+            step=500.0,
+        )
+
+        risk_per_trade_pct = st.number_input(
+            "Risk Per Trade %",
+            min_value=0.1,
+            max_value=25.0,
+            value=1.0,
+            step=0.1,
+        )
+
+        total_risk_budget_pct = st.number_input(
+            "Total Risk Budget %",
+            min_value=0.1,
+            max_value=50.0,
+            value=3.0,
+            step=0.1,
+        )
+
+        stop_loss_pct = st.number_input(
+            "Stop-Loss Distance %",
+            min_value=0.1,
+            max_value=90.0,
+            value=5.0,
+            step=0.5,
+        )
+
+        max_position_weight_pct = st.number_input(
+            "Max Position Weight %",
+            min_value=0.1,
+            max_value=100.0,
+            value=25.0,
+            step=1.0,
+        )
+
         run_rebalance = st.button("Run Rebalance Analysis")
 
     st.markdown(
@@ -455,6 +702,15 @@ Edit the table below with your current holdings, current prices, and target allo
         key="portfolio_rebalancing_editor",
     )
 
+    st.subheader("Position Sizing Candidates")
+
+    editable_candidates = st.data_editor(
+        DEFAULT_SIZING_CANDIDATES,
+        num_rows="dynamic",
+        use_container_width=True,
+        key="position_sizing_candidate_editor",
+    )
+
     if not run_rebalance:
         render_rebalancing_methodology()
         st.info("Edit positions and click Run Rebalance Analysis.")
@@ -462,6 +718,7 @@ Edit the table below with your current holdings, current prices, and target allo
 
     try:
         positions = prepare_positions(editable_positions)
+        candidates = prepare_sizing_candidates(editable_candidates)
 
         rebalance_summary = build_rebalance_summary(positions)
         drift_summary = build_allocation_drift_summary(
