@@ -13,6 +13,7 @@ from database import get_database_session
 from market_data import get_current_price
 from services.paper_trading_service import execute_market_order
 from services.paper_trading_analytics import calculate_paper_trading_analytics
+from services.paper_portfolio_exposure import calculate_portfolio_exposure
 from services.paper_trading_risk import DEFAULT_RISK_SETTINGS
 from services.paper_trading_risk import evaluate_pre_trade_risk
 from services.paper_trading_performance import get_paper_equity_snapshots
@@ -977,6 +978,224 @@ def render_trading_analytics(account_id):
             )
 
 
+
+def render_portfolio_exposure(
+    account,
+    position_dataframe,
+    risk_settings,
+):
+    """Render portfolio allocation and concentration analytics."""
+
+    st.subheader("Portfolio Exposure and Risk")
+
+    if position_dataframe.empty:
+        position_rows = []
+    else:
+        position_rows = position_dataframe.to_dict(
+            orient="records"
+        )
+
+    exposure_settings = {
+        "max_position_value_pct": risk_settings.get(
+            "max_position_value_pct",
+            20.0,
+        ),
+        "warning_position_value_pct": risk_settings.get(
+            "warn_position_value_pct",
+            15.0,
+        ),
+        "minimum_cash_reserve_pct": risk_settings.get(
+            "minimum_cash_reserve_pct",
+            10.0,
+        ),
+    }
+
+    exposure = calculate_portfolio_exposure(
+        cash_balance=account.cash_balance,
+        position_rows=position_rows,
+        settings=exposure_settings,
+    )
+
+    metric1, metric2, metric3, metric4 = st.columns(4)
+
+    metric1.metric(
+        "Cash Allocation",
+        f'{float(exposure["cash_allocation_pct"]):.2f}%',
+        delta=format_currency(
+            exposure["cash_balance"]
+        ),
+    )
+
+    metric2.metric(
+        "Invested Allocation",
+        f'{float(exposure["invested_allocation_pct"]):.2f}%',
+        delta=format_currency(
+            exposure["invested_value"]
+        ),
+    )
+
+    metric3.metric(
+        "Position Count",
+        int(exposure["position_count"]),
+    )
+
+    largest_ticker = (
+        exposure["largest_position_ticker"]
+        or "None"
+    )
+
+    metric4.metric(
+        "Largest Position",
+        largest_ticker,
+        delta=(
+            f'{float(exposure["largest_position_weight_pct"]):.2f}% '
+            "of equity"
+        ),
+    )
+
+    detail1, detail2, detail3, detail4 = st.columns(4)
+
+    detail1.metric(
+        "Diversification Score",
+        f'{float(exposure["diversification_score"]):.2f}/100',
+        help=(
+            "Higher scores indicate a more evenly distributed "
+            "portfolio. A one-position portfolio scores zero."
+        ),
+    )
+
+    detail2.metric(
+        "Concentration Index",
+        f'{float(exposure["concentration_index"]):.4f}',
+        help=(
+            "Sum of squared invested-position weights. "
+            "Lower values generally indicate broader diversification."
+        ),
+    )
+
+    detail3.metric(
+        "Largest Position Limit Used",
+        (
+            f'{float(exposure["largest_position_limit_utilization_pct"]):.2f}%'
+        ),
+        delta=(
+            f'Limit: '
+            f'{float(exposure["max_position_limit_pct"]):.2f}%'
+        ),
+    )
+
+    detail4.metric(
+        "Cash Reserve Coverage",
+        f'{float(exposure["cash_reserve_utilization_pct"]):.2f}%',
+        delta=(
+            f'Minimum reserve: '
+            f'{float(exposure["cash_reserve_limit_pct"]):.2f}%'
+        ),
+        help=(
+            "A value of 100% means the portfolio exactly meets "
+            "the configured minimum cash reserve."
+        ),
+    )
+
+    st.caption(
+        "Largest-position utilization compares the position's "
+        "portfolio weight with the configured maximum-position limit."
+    )
+
+    warnings = exposure.get("warnings", [])
+
+    if warnings:
+        st.warning(
+            "Portfolio risk controls require attention."
+        )
+
+        for warning in warnings:
+            st.warning(str(warning))
+    else:
+        st.success(
+            "Portfolio exposure is within the configured "
+            "concentration and cash-reserve limits."
+        )
+
+    position_rows = exposure.get("positions", [])
+
+    if not position_rows:
+        st.info(
+            "No open positions are available for exposure analysis."
+        )
+        return
+
+    exposure_dataframe = pd.DataFrame(position_rows)
+
+    exposure_dataframe = exposure_dataframe.rename(
+        columns={
+            "ticker": "Ticker",
+            "quantity": "Shares",
+            "average_cost": "Average Cost",
+            "current_price": "Current Price",
+            "cost_basis": "Cost Basis",
+            "market_value": "Market Value",
+            "unrealized_profit_loss": "Unrealized P/L",
+            "portfolio_weight_pct": "Portfolio Weight %",
+            "invested_weight_pct": "Invested Weight %",
+            "unrealized_risk_contribution_pct": (
+                "Unrealized Risk Contribution %"
+            ),
+            "position_limit_utilization_pct": (
+                "Position Limit Used %"
+            ),
+            "concentration_status": "Risk Status",
+        }
+    )
+
+    currency_columns = [
+        "Average Cost",
+        "Current Price",
+        "Cost Basis",
+        "Market Value",
+        "Unrealized P/L",
+    ]
+
+    for column in currency_columns:
+        exposure_dataframe[column] = (
+            exposure_dataframe[column].map(
+                format_currency
+            )
+        )
+
+    percentage_columns = [
+        "Portfolio Weight %",
+        "Invested Weight %",
+        "Unrealized Risk Contribution %",
+        "Position Limit Used %",
+    ]
+
+    for column in percentage_columns:
+        exposure_dataframe[column] = (
+            exposure_dataframe[column].map(
+                lambda value: f"{float(value):.2f}%"
+            )
+        )
+
+    display_columns = [
+        "Ticker",
+        "Shares",
+        "Market Value",
+        "Portfolio Weight %",
+        "Invested Weight %",
+        "Unrealized P/L",
+        "Unrealized Risk Contribution %",
+        "Position Limit Used %",
+        "Risk Status",
+    ]
+
+    st.dataframe(
+        exposure_dataframe[display_columns],
+        use_container_width=True,
+        hide_index=True,
+    )
+
+
 def render_paper_trading_page():
     """Render the complete paper-trading dashboard."""
 
@@ -1014,6 +1233,14 @@ def render_paper_trading_page():
     st.divider()
 
     render_trading_analytics(account.id)
+
+    st.divider()
+
+    render_portfolio_exposure(
+        account=account,
+        position_dataframe=position_dataframe,
+        risk_settings=risk_settings,
+    )
 
     st.divider()
 
