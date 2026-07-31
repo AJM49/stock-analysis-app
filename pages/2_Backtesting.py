@@ -4,6 +4,7 @@ import pandas as pd
 import streamlit as st
 import yfinance as yf
 
+import posthog_analytics
 from backtesting.engine import BacktestEngine
 from strategies.buy_and_hold import BuyAndHoldStrategy
 from backtesting.comparison import compare_strategies
@@ -562,21 +563,31 @@ def render_risk_report_export_section(result: dict) -> None:
 
     export_col1, export_col2 = st.columns(2)
 
-    export_col1.download_button(
+    if export_col1.download_button(
         label="Download Risk Report TXT",
         data=report_text,
         file_name=f"{safe_ticker}_{safe_strategy}_risk_report.txt",
         mime="text/plain",
         key="download_risk_report_txt",
-    )
+    ):
+        posthog_analytics.capture("risk_report_downloaded", {
+            "ticker": str(result["ticker"]),
+            "strategy": str(result.get("strategy_name", "")),
+            "format": "txt",
+        })
 
-    export_col2.download_button(
+    if export_col2.download_button(
         label="Download Risk Report CSV",
         data=report_csv,
         file_name=f"{safe_ticker}_{safe_strategy}_risk_report.csv",
         mime="text/csv",
         key="download_risk_report_csv",
-    )
+    ):
+        posthog_analytics.capture("risk_report_downloaded", {
+            "ticker": str(result["ticker"]),
+            "strategy": str(result.get("strategy_name", "")),
+            "format": "csv",
+        })
 
     with st.expander("Risk Report Preview", expanded=False):
         st.text(report_text)
@@ -1259,7 +1270,21 @@ and `strategies/` modules.
 
     except Exception as error:
         st.error(f"Backtest failed: {error}")
+        posthog_analytics.capture_exception(error)
         return
+
+    posthog_analytics.capture("backtest_run", {
+        "ticker": ticker,
+        "period": period,
+        "starting_cash": float(starting_cash),
+        "short_window": int(short_window),
+        "long_window": int(long_window),
+        "trade_size_pct": float(trade_size_pct),
+        "total_return_pct": round(float(result.get("total_return_pct", 0.0)), 2),
+        "sharpe_ratio": round(float(result.get("sharpe_ratio", 0.0)), 2),
+        "number_of_trades": int(result.get("number_of_trades", 0)),
+        "risk_level": classify_risk_level(result).get("overall_rating"),
+    })
 
     st.subheader(f"{ticker} Backtest Results")
     render_metric_row(result)

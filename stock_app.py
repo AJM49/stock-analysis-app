@@ -49,6 +49,7 @@ from ui_components import render_selected_ticker_freshness
 from ui_components import render_price_chart
 from ui_components import render_risk_dashboard
 from app_metadata import APP_NAME, BUILD_LABEL, SPRINT_LABEL
+import posthog_analytics
 
 st.set_page_config(
     page_title=APP_PAGE_TITLE,
@@ -276,6 +277,10 @@ try:
     if refresh_market_data and error_message is None:
         clear_market_data_cache()
         st.success("Market data refreshed and saved to Neon.")
+        posthog_analytics.capture("market_data_refreshed", {
+            "ticker": ticker,
+            "cache_only_mode": cache_only_mode,
+        })
 
     if cache_only_mode:
         st.info("Data source: Neon cache only.")
@@ -316,6 +321,13 @@ try:
     if current_price is None:
         st.error("Not enough price data to analyze " + ticker + ".")
         st.stop()
+
+    posthog_analytics.capture("stock_viewed", {
+        "ticker": ticker,
+        "period": period,
+        "cache_only_mode": cache_only_mode,
+        "has_comparison_ticker": bool(comparison_ticker),
+    })
 
     render_stock_header(
         info,
@@ -370,6 +382,7 @@ try:
 
 except Exception as error:
     st.error("Unexpected app error: " + str(error))
+    posthog_analytics.capture_exception(error)
 
     with open("app.log", "a", encoding="utf-8") as log_file:
         log_file.write("Unexpected app error: " + str(error) + "\n")

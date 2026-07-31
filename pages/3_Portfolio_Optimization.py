@@ -4,6 +4,7 @@ import pandas as pd
 import streamlit as st
 import yfinance as yf
 
+import posthog_analytics
 from portfolio_optimization.comparison import (
     build_allocation_comparison_table,
     build_efficient_frontier_simulation,
@@ -710,7 +711,17 @@ Use this page to compare portfolio allocation methods across multiple assets.
             )
     except Exception as error:
         st.error(f"Portfolio optimization failed: {error}")
+        posthog_analytics.capture_exception(error)
         return
+
+    posthog_analytics.capture("portfolio_optimization_run", {
+        "ticker_count": len(tickers),
+        "period": period,
+        "simulation_count": simulation_count,
+        "risk_free_rate_pct": risk_free_rate_pct,
+        "min_weight_pct": min_weight_pct,
+        "max_weight_pct": max_weight_pct,
+    })
 
     st.subheader("Price Data Preview")
     st.dataframe(
