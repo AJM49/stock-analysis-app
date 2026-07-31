@@ -2,6 +2,7 @@ import os
 from datetime import datetime
 
 import streamlit as st
+from sqlalchemy import Boolean
 from sqlalchemy import Column
 from sqlalchemy import DateTime
 from sqlalchemy import Date
@@ -151,6 +152,198 @@ class PortfolioSnapshot(Base):
     risk_level = Column(String, nullable=True)
     risk_notes = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+class PaperAccount(Base):
+    """Simulated brokerage account used for paper trading."""
+
+    __tablename__ = "paper_accounts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    account_name = Column(
+        String,
+        nullable=False,
+        default="Default Paper Account",
+    )
+    starting_cash = Column(
+        Float,
+        nullable=False,
+        default=100000.0,
+    )
+    cash_balance = Column(
+        Float,
+        nullable=False,
+        default=100000.0,
+    )
+    is_active = Column(
+        Boolean,
+        nullable=False,
+        default=True,
+    )
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False,
+    )
+    updated_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False,
+    )
+
+
+class PaperPosition(Base):
+    """Open simulated position held by a paper account."""
+
+    __tablename__ = "paper_positions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    account_id = Column(
+        Integer,
+        nullable=False,
+        index=True,
+    )
+    ticker = Column(
+        String,
+        nullable=False,
+        index=True,
+    )
+    quantity = Column(
+        Float,
+        nullable=False,
+        default=0.0,
+    )
+    average_cost = Column(
+        Float,
+        nullable=False,
+        default=0.0,
+    )
+    realized_profit_loss = Column(
+        Float,
+        nullable=False,
+        default=0.0,
+    )
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False,
+    )
+    updated_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False,
+    )
+
+
+class PaperOrder(Base):
+    """Submitted simulated order and its execution status."""
+
+    __tablename__ = "paper_orders"
+
+    id = Column(Integer, primary_key=True, index=True)
+    account_id = Column(
+        Integer,
+        nullable=False,
+        index=True,
+    )
+    ticker = Column(
+        String,
+        nullable=False,
+        index=True,
+    )
+    side = Column(
+        String,
+        nullable=False,
+    )
+    order_type = Column(
+        String,
+        nullable=False,
+        default="MARKET",
+    )
+    quantity = Column(
+        Float,
+        nullable=False,
+    )
+    requested_price = Column(
+        Float,
+        nullable=True,
+    )
+    executed_price = Column(
+        Float,
+        nullable=True,
+    )
+    order_value = Column(
+        Float,
+        nullable=True,
+    )
+    status = Column(
+        String,
+        nullable=False,
+        default="PENDING",
+    )
+    rejection_reason = Column(
+        Text,
+        nullable=True,
+    )
+    submitted_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False,
+    )
+    executed_at = Column(
+        DateTime,
+        nullable=True,
+    )
+
+
+class PaperTrade(Base):
+    """Completed simulated trade created from a filled order."""
+
+    __tablename__ = "paper_trades"
+
+    id = Column(Integer, primary_key=True, index=True)
+    account_id = Column(
+        Integer,
+        nullable=False,
+        index=True,
+    )
+    order_id = Column(
+        Integer,
+        nullable=False,
+        index=True,
+    )
+    ticker = Column(
+        String,
+        nullable=False,
+        index=True,
+    )
+    side = Column(
+        String,
+        nullable=False,
+    )
+    quantity = Column(
+        Float,
+        nullable=False,
+    )
+    execution_price = Column(
+        Float,
+        nullable=False,
+    )
+    gross_value = Column(
+        Float,
+        nullable=False,
+    )
+    realized_profit_loss = Column(
+        Float,
+        nullable=False,
+        default=0.0,
+    )
+    executed_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False,
+    )
 
 class MarketDataCache(Base):
     __tablename__ = "market_data_cache"
@@ -995,6 +1188,159 @@ def get_portfolio_snapshot_count() -> int:
         return int(session.query(PortfolioSnapshot).count())
     except Exception:
         return 0
+    finally:
+        session.close()
+
+def get_active_paper_account():
+    """Return the active paper account, if one exists."""
+
+    session = get_database_session()
+
+    try:
+        return (
+            session.query(PaperAccount)
+            .filter(PaperAccount.is_active.is_(True))
+            .order_by(PaperAccount.id.asc())
+            .first()
+        )
+    finally:
+        session.close()
+
+
+def create_paper_account(
+    account_name="Default Paper Account",
+    starting_cash=100000.0,
+):
+    """Create a new active paper-trading account."""
+
+    clean_name = str(account_name).strip()
+    clean_starting_cash = float(starting_cash)
+
+    if not clean_name:
+        return False, "Account name cannot be empty.", None
+
+    if clean_starting_cash <= 0:
+        return False, "Starting cash must be greater than zero.", None
+
+    session = get_database_session()
+
+
+    try:
+        existing_accounts = (
+            session.query(PaperAccount)
+            .filter(PaperAccount.is_active.is_(True))
+            .all()
+        )
+
+        for account in existing_accounts:
+            account.is_active = False
+
+        paper_account = PaperAccount(
+            account_name=clean_name,
+            starting_cash=clean_starting_cash,
+            cash_balance=clean_starting_cash,
+            is_active=True,
+        )
+
+        session.add(paper_account)
+        session.commit()
+        session.refresh(paper_account)
+
+        return (
+            True,
+            "Paper-trading account created.",
+            paper_account,
+        )
+
+    except Exception as error:
+        session.rollback()
+        return (
+            False,
+            "Database error: " + str(error),
+            None,
+        )
+
+    finally:
+        session.close()
+
+
+def get_or_create_paper_account(
+    starting_cash=100000.0,
+):
+    """Return the active account or create the default 
+account."""
+
+    account = get_active_paper_account()
+
+    if account:
+        return account
+
+    success, message, account = create_paper_account(
+        account_name="Default Paper Account",
+        starting_cash=starting_cash,
+    )
+
+    if not success:
+        raise RuntimeError(message)
+
+    return account
+
+
+def get_paper_positions(account_id):
+    """Return all open positions for a paper account."""
+
+    session = get_database_session()
+
+    try:
+        return (
+            session.query(PaperPosition)
+            .filter(
+                PaperPosition.account_id == int(account_id),
+                PaperPosition.quantity > 0,
+            )
+            .order_by(PaperPosition.ticker.asc())
+            .all()
+        )
+    finally:
+        session.close()
+
+
+def get_paper_orders(
+    account_id,
+    limit=100,
+):
+    """Return recent paper orders."""
+
+    session = get_database_session()
+
+    try:
+        return (
+            session.query(PaperOrder)
+            .filter(PaperOrder.account_id == int(account_id))
+            .order_by(PaperOrder.submitted_at.desc())
+            .limit(int(limit))
+            .all()
+        )
+    finally:
+        session.close()
+
+
+def get_paper_trades(
+    account_id,
+    limit=100,
+):
+    """Return recent completed paper trades."""
+
+    session = get_database_session()
+
+    try:
+        return (
+            session.query(PaperTrade)
+            .filter(PaperTrade.account_id == int(account_id))
+            .order_by(PaperTrade.executed_at.desc())
+            .limit(int(limit))
+            .all()
+        )
     finally:
         session.close()
 
