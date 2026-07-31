@@ -9,8 +9,11 @@ from database import get_paper_orders
 from database import get_paper_positions
 from database import get_paper_trades
 from database import init_database
+from database import get_database_session
 from market_data import get_current_price
 from services.paper_trading_service import execute_market_order
+from services.paper_trading_risk import DEFAULT_RISK_SETTINGS
+from services.paper_trading_risk import evaluate_pre_trade_risk
 from services.paper_trading_performance import get_paper_equity_snapshots
 from services.paper_trading_performance import reset_paper_account
 from services.paper_trading_performance import save_equity_snapshot
@@ -162,7 +165,180 @@ def render_account_summary(account, totals):
     )
 
 
-def render_order_ticket(account):
+
+def render_risk_settings():
+    """Render configurable paper-trading risk controls."""
+
+    st.sidebar.divider()
+    st.sidebar.header("Paper Trading Risk Controls")
+
+    with st.sidebar.expander("Risk Settings", expanded=False):
+        max_order_value_pct = st.number_input(
+            "Maximum Order Value %",
+            min_value=0.1,
+            max_value=100.0,
+            value=float(
+                DEFAULT_RISK_SETTINGS["max_order_value_pct"]
+            ),
+            step=0.5,
+            format="%.2f",
+            key="risk_max_order_value_pct",
+        )
+
+        max_position_value_pct = st.number_input(
+            "Maximum Position Value %",
+            min_value=0.1,
+            max_value=100.0,
+            value=float(
+                DEFAULT_RISK_SETTINGS[
+                    "max_position_value_pct"
+                ]
+            ),
+            step=0.5,
+            format="%.2f",
+            key="risk_max_position_value_pct",
+        )
+
+        minimum_cash_reserve_pct = st.number_input(
+            "Minimum Cash Reserve %",
+            min_value=0.0,
+            max_value=100.0,
+            value=float(
+                DEFAULT_RISK_SETTINGS[
+                    "minimum_cash_reserve_pct"
+                ]
+            ),
+            step=0.5,
+            format="%.2f",
+            key="risk_minimum_cash_reserve_pct",
+        )
+
+        max_share_quantity = st.number_input(
+            "Maximum Shares Per Order",
+            min_value=0.000001,
+            max_value=1000000.0,
+            value=float(
+                DEFAULT_RISK_SETTINGS["max_share_quantity"]
+            ),
+            step=1.0,
+            format="%.6f",
+            key="risk_max_share_quantity",
+        )
+
+        duplicate_order_window_seconds = st.number_input(
+            "Duplicate Protection Window",
+            min_value=0,
+            max_value=3600,
+            value=int(
+                DEFAULT_RISK_SETTINGS[
+                    "duplicate_order_window_seconds"
+                ]
+            ),
+            step=1,
+            key="risk_duplicate_window",
+        )
+
+        warn_order_value_pct = st.number_input(
+            "Order Warning Threshold %",
+            min_value=0.0,
+            max_value=100.0,
+            value=float(
+                DEFAULT_RISK_SETTINGS[
+                    "warn_order_value_pct"
+                ]
+            ),
+            step=0.5,
+            format="%.2f",
+            key="risk_warn_order_value_pct",
+        )
+
+        warn_position_value_pct = st.number_input(
+            "Position Warning Threshold %",
+            min_value=0.0,
+            max_value=100.0,
+            value=float(
+                DEFAULT_RISK_SETTINGS[
+                    "warn_position_value_pct"
+                ]
+            ),
+            step=0.5,
+            format="%.2f",
+            key="risk_warn_position_value_pct",
+        )
+
+    return {
+        "max_order_value_pct": max_order_value_pct,
+        "max_position_value_pct": max_position_value_pct,
+        "minimum_cash_reserve_pct": minimum_cash_reserve_pct,
+        "max_share_quantity": max_share_quantity,
+        "duplicate_order_window_seconds": int(
+            duplicate_order_window_seconds
+        ),
+        "warn_order_value_pct": warn_order_value_pct,
+        "warn_position_value_pct": warn_position_value_pct,
+    }
+
+
+def render_risk_result(risk_result):
+    """Render a paper-order risk evaluation."""
+
+    level = risk_result.get("level", "PASS")
+    message = risk_result.get(
+        "message",
+        "Risk check completed.",
+    )
+
+    if level == "BLOCK":
+        st.error(message)
+    elif level == "WARNING":
+        st.warning(message)
+    else:
+        st.success(message)
+
+    for violation in risk_result.get("violations", []):
+        st.error("BLOCK: " + str(violation))
+
+    for warning in risk_result.get("warnings", []):
+        st.warning("WARNING: " + str(warning))
+
+    metrics = risk_result.get("metrics", {})
+
+    if not metrics:
+        return
+
+    metric1, metric2, metric3 = st.columns(3)
+
+    metric1.metric(
+        "Order Value",
+        format_currency(metrics.get("order_value", 0.0)),
+        delta=(
+            f'{float(metrics.get("order_value_pct", 0.0)):.2f}% '
+            "of starting cash"
+        ),
+    )
+
+    metric2.metric(
+        "Projected Position",
+        format_currency(
+            metrics.get("projected_position_value", 0.0)
+        ),
+        delta=(
+            f'{float(metrics.get("projected_position_pct", 0.0)):.2f}% '
+            "of starting cash"
+        ),
+    )
+
+    metric3.metric(
+        "Projected Cash",
+        format_currency(metrics.get("projected_cash", 0.0)),
+        delta=(
+            f'{float(metrics.get("projected_cash_reserve_pct", 0.0)):.2f}% '
+            "reserve"
+        ),
+    )
+
+
+def render_order_ticket(account, risk_settings):
     """Render and process a simulated market-order form."""
 
     st.subheader("Market Order Ticket")
@@ -237,6 +413,7 @@ def render_order_ticket(account):
             side=side,
             quantity=quantity,
             execution_price=execution_price,
+            risk_settings=risk_settings,
         )
 
         if result["success"]:
@@ -571,6 +748,7 @@ def render_paper_trading_page():
         )
 
     render_account_management(account)
+    risk_settings = render_risk_settings()
 
     position_dataframe, totals = load_position_dashboard(
         account.id
@@ -596,7 +774,10 @@ def render_paper_trading_page():
     )
 
     with order_column:
-        render_order_ticket(account)
+        render_order_ticket(
+            account=account,
+            risk_settings=risk_settings,
+        )
 
     with position_column:
         render_positions(position_dataframe)

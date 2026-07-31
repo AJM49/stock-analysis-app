@@ -8,6 +8,7 @@ from database import PaperOrder
 from database import PaperPosition
 from database import PaperTrade
 from database import get_database_session
+from services.paper_trading_risk import evaluate_pre_trade_risk
 
 
 VALID_ORDER_SIDES = {"BUY", "SELL"}
@@ -353,6 +354,7 @@ def execute_market_order(
     side,
     quantity,
     execution_price,
+    risk_settings=None,
 ):
     """
     Validate and execute a simulated market order atomically.
@@ -407,6 +409,64 @@ def execute_market_order(
         clean_side = clean_order["side"]
         clean_quantity = clean_order["quantity"]
         clean_price = clean_order["execution_price"]
+
+        risk_result = evaluate_pre_trade_risk(
+            session=session,
+            account=account,
+            ticker=clean_ticker,
+            side=clean_side,
+            quantity=clean_quantity,
+            execution_price=clean_price,
+            settings=risk_settings,
+        )
+
+        risk_warning_message = ""
+
+        if not risk_result["approved"]:
+            rejection_reasons = risk_result.get(
+                "violations",
+                [],
+            )
+
+            rejection_reason = "; ".join(rejection_reasons)
+
+            if not rejection_reason:
+                rejection_reason = risk_result.get(
+                    "message",
+                    "Order blocked by risk controls.",
+                )
+
+            rejected_order = create_rejected_order(
+                session=session,
+                account_id=account.id,
+                ticker=clean_ticker,
+                side=clean_side,
+                quantity=clean_quantity,
+                execution_price=clean_price,
+                reason=rejection_reason,
+            )
+
+            return build_order_result(
+                success=False,
+                message=(
+                    risk_result.get(
+                        "message",
+                        "Order blocked by risk controls.",
+                    )
+                    + " "
+                    + rejection_reason
+                ).strip(),
+                order=rejected_order,
+                account=account,
+            )
+
+        risk_warnings = risk_result.get("warnings", [])
+
+        if risk_warnings:
+            risk_warning_message = (
+                " Risk warning: "
+                + "; ".join(risk_warnings)
+            )
 
         paper_order = PaperOrder(
             account_id=account.id,
@@ -499,6 +559,7 @@ def execute_market_order(
                 f"{clean_side} order filled: "
                 f"{clean_quantity:g} share(s) of {clean_ticker} "
                 f"at ${clean_price:,.2f}."
+                + risk_warning_message
             ),
             order=paper_order,
             trade=paper_trade,
