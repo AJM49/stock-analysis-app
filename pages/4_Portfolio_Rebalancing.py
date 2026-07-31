@@ -952,7 +952,7 @@ def render_portfolio_rebalancing_page() -> None:
         )
 
         run_rebalance = st.button("Run Rebalance Analysis")
-
+       
     st.markdown(
         """
 Edit the table below with your current holdings, current prices, and target allocation percentages.
@@ -1016,7 +1016,6 @@ Edit the table below with your current holdings, current prices, and target allo
     )
 
     st.divider()
-    st.markdown("## Drift Detection and Rebalance Alerts")
 
     render_rebalance_alerts(
         positions=positions,
@@ -1037,7 +1036,6 @@ Edit the table below with your current holdings, current prices, and target allo
     )
 
     st.divider()
-    st.markdown("## Position Sizing Rules")
 
     render_position_sizing_section(
         candidates=candidates,
@@ -1049,7 +1047,6 @@ Edit the table below with your current holdings, current prices, and target allo
     )
 
     st.divider()
-    st.markdown("## Risk-Budget Position Sizing")
 
     render_risk_budget_position_sizing_section(
         candidates=candidates,
@@ -1061,7 +1058,6 @@ Edit the table below with your current holdings, current prices, and target allo
     )
 
     st.divider()
-    st.markdown("## Rebalancing Export Report")
 
     render_rebalancing_export_report(
         positions=positions,
