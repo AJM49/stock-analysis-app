@@ -3,6 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
+import posthog_analytics
 from portfolio_rebalancing.position_sizing import (
     build_position_sizing_summary,
     build_risk_budget_position_sizing_summary,
@@ -1001,7 +1002,16 @@ Edit the table below with your current holdings, current prices, and target allo
 
     except Exception as error:
         st.error(f"Rebalance analysis failed: {error}")
+        posthog_analytics.capture_exception(error)
         return
+
+    posthog_analytics.capture("portfolio_rebalance_calculated", {
+        "position_count": int(rebalance_summary.get("position_count", 0)),
+        "positions_needing_rebalance": int(drift_summary.get("positions_needing_rebalance", 0)),
+        "rebalance_threshold_pct": float(rebalance_threshold_pct),
+        "allow_fractional_shares": bool(allow_fractional_shares),
+        "total_portfolio_value": round(float(rebalance_summary.get("total_portfolio_value", 0.0)), 2),
+    })
 
     render_summary_metrics(
         rebalance_summary=rebalance_summary,

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 import streamlit as st
+import posthog_analytics
 
 from paper_trading.closed_trades_ledger import (
     add_closed_trade,
@@ -149,6 +150,7 @@ def render_account_controls() -> None:
 
         if st.button("Reset Paper Account"):
             reset_paper_account(starting_cash=starting_cash)
+            posthog_analytics.capture("paper_account_reset", {"starting_cash": float(starting_cash)})
             st.success("Paper account reset.")
 
 
@@ -292,8 +294,18 @@ def render_order_preview(order_inputs: dict[str, object]) -> None:
             st.session_state.last_order_preview = preview
             st.session_state.last_order_ticket = ticket
 
+            posthog_analytics.capture("paper_order_previewed", {
+                "ticker": ticker,
+                "side": order_inputs["side"].value if hasattr(order_inputs["side"], "value") else str(order_inputs["side"]),
+                "order_type": order_inputs["order_type"].value if hasattr(order_inputs["order_type"], "value") else str(order_inputs["order_type"]),
+                "quantity": float(order_inputs["quantity"]),
+                "estimated_price": float(order_inputs["estimated_price"]),
+                "preview_status": preview.get("preview_status"),
+            })
+
         except Exception as error:
             st.error(f"Order preview failed: {error}")
+            posthog_analytics.capture_exception(error)
 
     preview = st.session_state.last_order_preview
 
@@ -388,10 +400,22 @@ def render_trade_execution() -> None:
                         closed_trade,
                     )
 
-            st.session_state.last_execution_summary = build_execution_summary(result)
+            execution_summary = build_execution_summary(result)
+            st.session_state.last_execution_summary = execution_summary
+
+            posthog_analytics.capture("paper_trade_executed", {
+                "ticker": order.ticker,
+                "side": order.side.value if hasattr(order.side, "value") else str(order.side),
+                "order_type": order.order_type.value if hasattr(order.order_type, "value") else str(order.order_type),
+                "quantity": float(order.quantity),
+                "market_price": float(market_price),
+                "execution_status": execution_summary.get("execution_status"),
+                "trade_filled": result["trade"] is not None,
+            })
 
         except Exception as error:
             st.error(f"Paper trade execution failed: {error}")
+            posthog_analytics.capture_exception(error)
 
     if st.session_state.last_execution_summary is None:
         return
@@ -595,9 +619,16 @@ def render_trade_journal() -> None:
                     st.session_state.journal_entries,
                     entry,
                 )
+                posthog_analytics.capture("trade_journal_note_added", {
+                    "ticker": ticker,
+                    "review_label": review_label,
+                    "tag_count": len(tags),
+                    "has_linked_trade": linked_trade_id is not None,
+                })
                 st.success("Journal note added.")
             except Exception as error:
                 st.error(f"Journal note failed: {error}")
+                posthog_analytics.capture_exception(error)
 
     journal_entries = st.session_state.journal_entries
 

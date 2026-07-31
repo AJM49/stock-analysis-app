@@ -8,3 +8,4 @@ python-dotenv
 yfinance
 matplotlib
 peewee
+posthog>=3.0.0

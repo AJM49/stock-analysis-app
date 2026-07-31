@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import streamlit as st
 
+import posthog_analytics
 from database import add_portfolio_position, remove_portfolio_position
 from database import add_to_watchlist, remove_from_watchlist
 from database import get_portfolio_positions
@@ -27,6 +28,7 @@ def render_watchlist_sidebar(ticker):
 
         if success:
             st.sidebar.success(message)
+            posthog_analytics.capture("watchlist_ticker_added", {"ticker": ticker})
         else:
             st.sidebar.warning(message)
 
@@ -348,6 +350,11 @@ def render_save_portfolio_snapshot_control(portfolio_df) -> None:
         )
 
         if saved:
+            posthog_analytics.capture("portfolio_snapshot_saved", {
+                "position_count": position_count,
+                "risk_level": risk_level,
+                "risk_score": round(float(risk_score), 2) if risk_score is not None else None,
+            })
             st.session_state["portfolio_snapshot_saved"] = True
             st.rerun()
 
