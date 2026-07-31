@@ -23,3 +23,9 @@ app.log
 .ipynb_checkpoints/
 requirements.full-backup.txt
 .streamlit/
+
+# Local AI assistant configuration
+.agents/
+.claude/
+*.backup
+*.patch
