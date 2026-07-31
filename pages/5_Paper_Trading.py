@@ -12,6 +12,7 @@ from database import init_database
 from database import get_database_session
 from market_data import get_current_price
 from services.paper_trading_service import execute_market_order
+from services.paper_trading_analytics import calculate_paper_trading_analytics
 from services.paper_trading_risk import DEFAULT_RISK_SETTINGS
 from services.paper_trading_risk import evaluate_pre_trade_risk
 from services.paper_trading_performance import get_paper_equity_snapshots
@@ -732,6 +733,250 @@ def render_performance_history(account_id):
         )
 
 
+
+def format_profit_factor(value):
+    """Format a profit-factor value for display."""
+
+    if value is None:
+        return "N/A"
+
+    try:
+        numeric_value = float(value)
+    except (TypeError, ValueError):
+        return "N/A"
+
+    if numeric_value == float("inf"):
+        return "∞"
+
+    return f"{numeric_value:.2f}"
+
+
+def render_trading_analytics(account_id):
+    """Render closed-trade analytics for a paper account."""
+
+    st.subheader("Closed-Trade Analytics")
+
+    analytics = calculate_paper_trading_analytics(
+        account_id=account_id
+    )
+
+    closed_trades = int(analytics["closed_trades"])
+
+    if closed_trades == 0:
+        st.info(
+            "No completed SELL trades are available for "
+            "closed-trade analytics."
+        )
+        return
+
+    metric1, metric2, metric3, metric4 = st.columns(4)
+
+    metric1.metric(
+        "Closed Trades",
+        closed_trades,
+        delta=(
+            f'{analytics["winning_trades"]} wins / '
+            f'{analytics["losing_trades"]} losses'
+        ),
+    )
+
+    metric2.metric(
+        "Win Rate",
+        f'{float(analytics["win_rate_pct"]):.2f}%',
+    )
+
+    metric3.metric(
+        "Net Realized P/L",
+        format_currency(
+            analytics["net_realized_profit_loss"]
+        ),
+    )
+
+    metric4.metric(
+        "Trade Expectancy",
+        format_currency(
+            analytics["trade_expectancy"]
+        ),
+        help=(
+            "Average realized profit or loss per completed "
+            "SELL trade."
+        ),
+    )
+
+    detail1, detail2, detail3, detail4 = st.columns(4)
+
+    detail1.metric(
+        "Profit Factor",
+        format_profit_factor(
+            analytics["profit_factor"]
+        ),
+        help=(
+            "Gross profit divided by absolute gross loss."
+        ),
+    )
+
+    detail2.metric(
+        "Average Gain",
+        format_currency(
+            analytics["average_gain"]
+        ),
+    )
+
+    detail3.metric(
+        "Average Loss",
+        format_currency(
+            analytics["average_loss"]
+        ),
+    )
+
+    detail4.metric(
+        "Break-Even Trades",
+        int(analytics["breakeven_trades"]),
+    )
+
+    result1, result2, result3, result4 = st.columns(4)
+
+    result1.metric(
+        "Largest Winner",
+        format_currency(
+            analytics["largest_winner"]
+        ),
+    )
+
+    result2.metric(
+        "Largest Loser",
+        format_currency(
+            analytics["largest_loser"]
+        ),
+    )
+
+    result3.metric(
+        "Gross Profit",
+        format_currency(
+            analytics["gross_profit"]
+        ),
+    )
+
+    result4.metric(
+        "Gross Loss",
+        format_currency(
+            analytics["gross_loss"]
+        ),
+    )
+
+    ticker_tab, closed_trade_tab = st.tabs(
+        [
+            "Performance by Ticker",
+            "Closed-Trade History",
+        ]
+    )
+
+    with ticker_tab:
+        ticker_rows = analytics["by_ticker"]
+
+        if not ticker_rows:
+            st.info("No ticker-level analytics are available.")
+        else:
+            ticker_dataframe = pd.DataFrame(ticker_rows)
+
+            ticker_dataframe = ticker_dataframe.rename(
+                columns={
+                    "ticker": "Ticker",
+                    "closed_trades": "Closed Trades",
+                    "winning_trades": "Wins",
+                    "losing_trades": "Losses",
+                    "breakeven_trades": "Break-Even",
+                    "win_rate_pct": "Win Rate %",
+                    "gross_profit": "Gross Profit",
+                    "gross_loss": "Gross Loss",
+                    "net_realized_profit_loss": "Net Realized P/L",
+                    "trade_expectancy": "Expectancy",
+                    "profit_factor": "Profit Factor",
+                    "shares_sold": "Shares Sold",
+                    "sell_value": "Sell Value",
+                }
+            )
+
+            currency_columns = [
+                "Gross Profit",
+                "Gross Loss",
+                "Net Realized P/L",
+                "Expectancy",
+                "Sell Value",
+            ]
+
+            for column in currency_columns:
+                ticker_dataframe[column] = (
+                    ticker_dataframe[column].map(
+                        format_currency
+                    )
+                )
+
+            ticker_dataframe["Win Rate %"] = (
+                ticker_dataframe["Win Rate %"].map(
+                    lambda value: f"{float(value):.2f}%"
+                )
+            )
+
+            ticker_dataframe["Profit Factor"] = (
+                ticker_dataframe["Profit Factor"].map(
+                    format_profit_factor
+                )
+            )
+
+            st.dataframe(
+                ticker_dataframe,
+                use_container_width=True,
+                hide_index=True,
+            )
+
+    with closed_trade_tab:
+        closed_trade_rows = analytics[
+            "closed_trade_rows"
+        ]
+
+        if not closed_trade_rows:
+            st.info("No completed SELL trades are available.")
+        else:
+            closed_trade_dataframe = pd.DataFrame(
+                closed_trade_rows
+            )
+
+            closed_trade_dataframe = (
+                closed_trade_dataframe.rename(
+                    columns={
+                        "trade_id": "Trade ID",
+                        "order_id": "Order ID",
+                        "executed_at": "Executed",
+                        "ticker": "Ticker",
+                        "side": "Side",
+                        "quantity": "Quantity",
+                        "execution_price": "Execution Price",
+                        "gross_value": "Gross Value",
+                        "realized_profit_loss": "Realized P/L",
+                        "result": "Result",
+                    }
+                )
+            )
+
+            for column in [
+                "Execution Price",
+                "Gross Value",
+                "Realized P/L",
+            ]:
+                closed_trade_dataframe[column] = (
+                    closed_trade_dataframe[column].map(
+                        format_currency
+                    )
+                )
+
+            st.dataframe(
+                closed_trade_dataframe,
+                use_container_width=True,
+                hide_index=True,
+            )
+
+
 def render_paper_trading_page():
     """Render the complete paper-trading dashboard."""
 
@@ -765,6 +1010,10 @@ def render_paper_trading_page():
     )
 
     render_performance_history(account.id)
+
+    st.divider()
+
+    render_trading_analytics(account.id)
 
     st.divider()
 

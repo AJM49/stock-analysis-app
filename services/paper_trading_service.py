@@ -9,6 +9,7 @@ from database import PaperPosition
 from database import PaperTrade
 from database import get_database_session
 from services.paper_trading_risk import evaluate_pre_trade_risk
+from services.paper_trading_performance import save_automatic_equity_snapshot
 
 
 VALID_ORDER_SIDES = {"BUY", "SELL"}
@@ -553,6 +554,25 @@ def execute_market_order(
         session.refresh(paper_order)
         session.refresh(paper_trade)
 
+        snapshot_success, snapshot_message, snapshot = (
+            save_automatic_equity_snapshot(
+                account_id=account.id,
+            )
+        )
+
+        snapshot_note = ""
+
+        if snapshot_success and snapshot is not None:
+            snapshot_note = (
+                f" Equity snapshot #{snapshot.id} saved."
+            )
+        elif not snapshot_success:
+            snapshot_note = (
+                " Trade filled, but automatic equity snapshot "
+                "failed: "
+                + str(snapshot_message)
+            )
+
         return build_order_result(
             success=True,
             message=(
@@ -560,6 +580,7 @@ def execute_market_order(
                 f"{clean_quantity:g} share(s) of {clean_ticker} "
                 f"at ${clean_price:,.2f}."
                 + risk_warning_message
+                + snapshot_note
             ),
             order=paper_order,
             trade=paper_trade,

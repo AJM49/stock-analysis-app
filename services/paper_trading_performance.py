@@ -195,6 +195,86 @@ def save_equity_snapshot(
         session.close()
 
 
+
+def calculate_transaction_market_value(account_id):
+    """
+    Calculate open-position value using each position's average cost.
+
+    This creates a transaction-ledger valuation that does not depend
+    on an external market-data request.
+    """
+
+    session = get_database_session()
+
+    try:
+        positions = (
+            session.query(PaperPosition)
+            .filter(
+                PaperPosition.account_id == int(account_id),
+                PaperPosition.quantity > 0,
+            )
+            .all()
+        )
+
+        market_value = 0.0
+
+        for position in positions:
+            market_value += (
+                float(position.quantity)
+                * float(position.average_cost)
+            )
+
+        return round(market_value, MONEY_PRECISION)
+
+    finally:
+        session.close()
+
+
+def save_automatic_equity_snapshot(account_id):
+    """
+    Save an equity snapshot after a successfully filled trade.
+
+    Snapshot valuation uses open-position cost basis so the trade
+    transaction remains independent of market-data availability.
+    """
+
+    session = get_database_session()
+
+    try:
+        account = (
+            session.query(PaperAccount)
+            .filter(
+                PaperAccount.id == int(account_id),
+                PaperAccount.is_active.is_(True),
+            )
+            .first()
+        )
+
+        if account is None:
+            return (
+                False,
+                "Automatic snapshot skipped: account not found.",
+                None,
+            )
+
+        cash_balance = float(account.cash_balance)
+        starting_cash = float(account.starting_cash)
+
+    finally:
+        session.close()
+
+    market_value = calculate_transaction_market_value(
+        account_id=account_id
+    )
+
+    return save_equity_snapshot(
+        account_id=account_id,
+        cash_balance=cash_balance,
+        market_value=market_value,
+        starting_cash=starting_cash,
+    )
+
+
 def reset_paper_account(
     account_id,
     starting_cash=DEFAULT_STARTING_CASH,
