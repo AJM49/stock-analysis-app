@@ -1,925 +1,424 @@
-from __future__ import annotations
+"""Streamlit paper-trading dashboard."""
 
 import pandas as pd
 import streamlit as st
 
-from paper_trading.closed_trades_ledger import (
-    add_closed_trade,
-    build_closed_trades_dataframe,
-    build_closed_trades_summary,
-    calculate_realized_pnl_by_ticker,
-)
-from paper_trading.execution_engine import (
-    build_execution_summary,
-    execute_paper_order,
-)
-from paper_trading.models import (
-    ClosedPaperTrade,
-    OrderSide,
-    OrderType,
-    PaperPosition,
-    PaperTradingAccount,
-)
-from paper_trading.order_preview import (
-    build_buy_sell_order_preview,
-    build_order_preview_dataframe,
-    build_order_preview_summary,
-)
-from paper_trading.order_ticket import build_order_ticket
-from paper_trading.positions_ledger import (
-    apply_trade_to_positions,
-    build_open_positions_dataframe,
-    build_open_positions_summary,
-    update_position_prices,
-)
-from paper_trading.trade_journal import (
-    add_journal_entry,
-    build_trade_journal_dataframe,
-    build_trade_journal_summary,
-    create_trade_journal_entry,
+from database import get_active_paper_account
+from database import get_or_create_paper_account
+from database import get_paper_orders
+from database import get_paper_positions
+from database import get_paper_trades
+from database import init_database
+from market_data import get_current_price
+from services.paper_trading_service import execute_market_order
+
+
+PAGE_TITLE = "Paper Trading"
+DEFAULT_STARTING_CASH = 100000.0
+
+
+st.set_page_config(
+    page_title=PAGE_TITLE,
+    layout="wide",
 )
 
+init_database()
 
-DEFAULT_ACCOUNT_ID = "paper-acct-1"
 
-
-def initialize_session_state() -> None:
-    """Initialize paper trading session state."""
-    if "paper_account" not in st.session_state:
-        st.session_state.paper_account = PaperTradingAccount(
-            account_id=DEFAULT_ACCOUNT_ID,
-            account_name="Paper Trading Account",
-            starting_cash=10000.0,
-            cash_balance=10000.0,
-        )
-
-    if "paper_positions" not in st.session_state:
-        st.session_state.paper_positions = []
-
-    if "closed_trades" not in st.session_state:
-        st.session_state.closed_trades = []
-
-    if "journal_entries" not in st.session_state:
-        st.session_state.journal_entries = []
-
-    if "last_order_preview" not in st.session_state:
-        st.session_state.last_order_preview = None
-
-    if "last_order_ticket" not in st.session_state:
-        st.session_state.last_order_ticket = None
-
-    if "last_execution_summary" not in st.session_state:
-        st.session_state.last_execution_summary = None
-
-
-def reset_paper_account(starting_cash: float) -> None:
-    """Reset paper account and related ledgers."""
-    st.session_state.paper_account = PaperTradingAccount(
-        account_id=DEFAULT_ACCOUNT_ID,
-        account_name="Paper Trading Account",
-        starting_cash=starting_cash,
-        cash_balance=starting_cash,
-    )
-    st.session_state.paper_positions = []
-    st.session_state.closed_trades = []
-    st.session_state.journal_entries = []
-    st.session_state.last_order_preview = None
-    st.session_state.last_order_ticket = None
-    st.session_state.last_execution_summary = None
-
-
-def get_position_quantity(ticker: str) -> float:
-    """Get current paper position quantity for ticker."""
-    clean_ticker = ticker.strip().upper()
-
-    for position in st.session_state.paper_positions:
-        if position.ticker == clean_ticker:
-            return float(position.quantity)
-
-    return 0.0
-
-
-def get_current_position(ticker: str) -> PaperPosition | None:
-    """Get current paper position object for ticker."""
-    clean_ticker = ticker.strip().upper()
-
-    for position in st.session_state.paper_positions:
-        if position.ticker == clean_ticker:
-            return position
-
-    return None
-
-
-def render_account_panel() -> None:
-    """Render paper account summary."""
-    account = st.session_state.paper_account
-    positions_summary = build_open_positions_summary(st.session_state.paper_positions)
-    closed_summary = build_closed_trades_summary(st.session_state.closed_trades)
-    journal_summary = build_trade_journal_summary(st.session_state.journal_entries)
-
-    st.subheader("Paper Trading Account")
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    col1.metric("Cash Balance", f"${account.cash_balance:,.2f}")
-    col2.metric("Open Positions", positions_summary["position_count"])
-    col3.metric("Closed Trades", closed_summary["closed_trade_count"])
-    col4.metric("Journal Notes", journal_summary["journal_entry_count"])
-
-    col5, col6, col7, col8 = st.columns(4)
-
-    col5.metric("Open Market Value", f"${positions_summary['total_market_value']:,.2f}")
-    col6.metric("Unrealized P/L", f"${positions_summary['total_unrealized_pnl']:,.2f}")
-    col7.metric("Realized P/L", f"${closed_summary['total_realized_pnl']:,.2f}")
-    col8.metric("Win Rate", f"{closed_summary['win_rate_pct']:.2f}%")
-
-
-def render_account_controls() -> None:
-    """Render account reset controls."""
-    with st.sidebar:
-        st.header("Paper Account")
-
-        starting_cash = st.number_input(
-            "Starting Cash $",
-            min_value=100.0,
-            max_value=100000000.0,
-            value=float(st.session_state.paper_account.starting_cash),
-            step=500.0,
-        )
-
-        if st.button("Reset Paper Account"):
-            reset_paper_account(starting_cash=starting_cash)
-            st.success("Paper account reset.")
-
-
-def render_order_ticket_controls() -> dict[str, object]:
-    """Render order ticket controls and return inputs."""
-    st.subheader("Simulated Order Ticket")
-
-    col1, col2, col3 = st.columns(3)
-
-    ticker = col1.text_input(
-        "Ticker",
-        value="AAPL",
-        key="paper_order_ticker",
-    ).strip().upper()
-
-    side_label = col2.selectbox(
-        "Side",
-        options=["Buy", "Sell"],
-        index=0,
-    )
-
-    order_type_label = col3.selectbox(
-        "Order Type",
-        options=["Market", "Limit"],
-        index=0,
-    )
-
-    order_col1, order_col2, order_col3 = st.columns(3)
-
-    quantity = order_col1.number_input(
-        "Quantity",
-        min_value=0.0001,
-        max_value=1000000.0,
-        value=1.0,
-        step=1.0,
-    )
-
-    estimated_price = order_col2.number_input(
-        "Estimated Market Price $",
-        min_value=0.01,
-        max_value=1000000.0,
-        value=200.0,
-        step=1.0,
-    )
-
-    limit_price = None
-
-    if order_type_label == "Limit":
-        limit_price = order_col3.number_input(
-            "Limit Price $",
-            min_value=0.01,
-            max_value=1000000.0,
-            value=estimated_price,
-            step=1.0,
-        )
-    else:
-        order_col3.metric("Limit Price", "N/A")
-
-    risk_col1, risk_col2, risk_col3 = st.columns(3)
-
-    commission_rate_pct = risk_col1.number_input(
-        "Commission Rate %",
-        min_value=0.0,
-        max_value=10.0,
-        value=0.0,
-        step=0.01,
-    )
-
-    minimum_commission = risk_col2.number_input(
-        "Minimum Commission $",
-        min_value=0.0,
-        max_value=1000.0,
-        value=0.0,
-        step=1.0,
-    )
-
-    max_exposure_pct = risk_col3.number_input(
-        "Max Exposure %",
-        min_value=0.1,
-        max_value=100.0,
-        value=25.0,
-        step=1.0,
-    )
-
-    return {
-        "ticker": ticker,
-        "side": OrderSide.BUY if side_label == "Buy" else OrderSide.SELL,
-        "quantity": quantity,
-        "order_type": OrderType.MARKET if order_type_label == "Market" else OrderType.LIMIT,
-        "estimated_price": estimated_price,
-        "limit_price": limit_price,
-        "commission_rate_pct": commission_rate_pct,
-        "minimum_commission": minimum_commission,
-        "max_exposure_pct": max_exposure_pct,
-    }
-
-
-def render_order_preview(order_inputs: dict[str, object]) -> None:
-    """Render order preview section."""
-    account = st.session_state.paper_account
-    ticker = str(order_inputs["ticker"])
-    current_quantity = get_position_quantity(ticker)
-
-    portfolio_value = (
-        account.cash_balance
-        + build_open_positions_summary(st.session_state.paper_positions)["total_market_value"]
-    )
-
-    if st.button("Preview Order"):
-        try:
-            preview = build_buy_sell_order_preview(
-                account_id=account.account_id,
-                ticker=ticker,
-                side=order_inputs["side"],
-                quantity=float(order_inputs["quantity"]),
-                order_type=order_inputs["order_type"],
-                estimated_price=float(order_inputs["estimated_price"]),
-                cash_balance=float(account.cash_balance),
-                portfolio_value=float(portfolio_value),
-                current_position_quantity=float(current_quantity),
-                limit_price=order_inputs["limit_price"],
-                commission_rate_pct=float(order_inputs["commission_rate_pct"]),
-                minimum_commission=float(order_inputs["minimum_commission"]),
-                max_exposure_pct=float(order_inputs["max_exposure_pct"]),
-            )
-
-            ticket = build_order_ticket(
-                account_id=account.account_id,
-                ticker=ticker,
-                side=order_inputs["side"],
-                quantity=float(order_inputs["quantity"]),
-                order_type=order_inputs["order_type"],
-                estimated_price=float(order_inputs["estimated_price"]),
-                limit_price=order_inputs["limit_price"],
-                cash_balance=float(account.cash_balance),
-                current_position_quantity=float(current_quantity),
-                commission_rate_pct=float(order_inputs["commission_rate_pct"]),
-                minimum_commission=float(order_inputs["minimum_commission"]),
-            )
-
-            st.session_state.last_order_preview = preview
-            st.session_state.last_order_ticket = ticket
-
-        except Exception as error:
-            st.error(f"Order preview failed: {error}")
-
-    preview = st.session_state.last_order_preview
-
-    if preview is None:
-        st.info("Build an order ticket and click Preview Order.")
-        return
-
-    st.subheader("Buy/Sell Order Preview")
-
-    if preview["preview_status"] == "Accepted":
-        st.success(preview["preview_reason"])
-    elif preview["preview_status"] == "Warning":
-        st.warning(preview["preview_reason"])
-    else:
-        st.error(preview["preview_reason"])
-
-    preview_df = build_order_preview_dataframe([preview])
-    preview_display = preview_df.copy()
-    numeric_columns = preview_display.select_dtypes(include="number").columns
-    preview_display[numeric_columns] = preview_display[numeric_columns].round(4)
-
-    st.dataframe(
-        preview_display,
-        use_container_width=True,
-        hide_index=True,
-    )
-
-    preview_summary = build_order_preview_summary([preview])
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    col1.metric("Status", preview["preview_status"])
-    col2.metric("Order Value", f"${preview_summary['total_estimated_order_value']:,.2f}")
-    col3.metric("Cash Impact", f"${preview_summary['total_estimated_cash_impact']:,.2f}")
-    col4.metric("Exposure After", f"{preview_summary['max_exposure_pct_after_order']:.2f}%")
-
-    csv_data = preview_display.to_csv(index=False)
-
-    st.download_button(
-        label="Download Order Preview CSV",
-        data=csv_data,
-        file_name="paper_order_preview.csv",
-        mime="text/csv",
-        key="download_order_preview_csv",
-    )
-
-
-def render_trade_execution() -> None:
-    """Render execution controls and output."""
-    st.subheader("Paper Trade Execution")
-
-    ticket = st.session_state.last_order_ticket
-
-    if ticket is None:
-        st.info("Preview an order before execution.")
-        return
-
-    market_price = st.number_input(
-        "Execution Market Price $",
-        min_value=0.01,
-        max_value=1000000.0,
-        value=float(ticket["order_price"]),
-        step=1.0,
-    )
-
-    if st.button("Execute Paper Trade"):
-        try:
-            account = st.session_state.paper_account
-            order = ticket["order"]
-            current_position = get_current_position(order.ticker)
-
-            result = execute_paper_order(
-                order=order,
-                account=account,
-                market_price=float(market_price),
-                current_position=current_position,
-                commission=float(ticket["estimated_commission"]),
-            )
-
-            st.session_state.paper_account = result["updated_account"]
-
-            if result["trade"] is not None:
-                updated_positions, closed_trade = apply_trade_to_positions(
-                    positions=st.session_state.paper_positions,
-                    trade=result["trade"],
-                )
-                st.session_state.paper_positions = updated_positions
-
-                if closed_trade is not None:
-                    st.session_state.closed_trades = add_closed_trade(
-                        st.session_state.closed_trades,
-                        closed_trade,
-                    )
-
-            st.session_state.last_execution_summary = build_execution_summary(result)
-
-        except Exception as error:
-            st.error(f"Paper trade execution failed: {error}")
-
-    if st.session_state.last_execution_summary is None:
-        return
-
-    summary = st.session_state.last_execution_summary
-
-    if summary["execution_status"] == "Filled":
-        st.success(summary["execution_reason"])
-    elif summary["execution_status"] == "Not Filled":
-        st.warning(summary["execution_reason"])
-    else:
-        st.error(summary["execution_reason"])
-
-    summary_df = pd.DataFrame([summary])
-    numeric_columns = summary_df.select_dtypes(include="number").columns
-    summary_df[numeric_columns] = summary_df[numeric_columns].round(4)
-
-    st.dataframe(
-        summary_df,
-        use_container_width=True,
-        hide_index=True,
-    )
-
-    st.download_button(
-        label="Download Execution Summary CSV",
-        data=summary_df.to_csv(index=False),
-        file_name="paper_execution_summary.csv",
-        mime="text/csv",
-        key="download_execution_summary_csv",
-    )
-
-
-def render_open_positions_ledger() -> None:
-    """Render open positions ledger."""
-    st.subheader("Open Positions Ledger")
-
-    positions = st.session_state.paper_positions
-
-    if not positions:
-        st.info("No open paper positions yet.")
-        return
-
-    price_updates = {}
-
-    with st.expander("Update Current Prices", expanded=False):
-        for position in positions:
-            price_updates[position.ticker] = st.number_input(
-                f"{position.ticker} Current Price $",
-                min_value=0.01,
-                max_value=1000000.0,
-                value=float(position.current_price or position.average_cost),
-                step=1.0,
-                key=f"price_update_{position.ticker}",
-            )
-
-        if st.button("Apply Price Updates"):
-            try:
-                st.session_state.paper_positions = update_position_prices(
-                    positions=positions,
-                    price_lookup=price_updates,
-                )
-                st.success("Position prices updated.")
-            except Exception as error:
-                st.error(f"Price update failed: {error}")
-
-    positions_df = build_open_positions_dataframe(st.session_state.paper_positions)
-    positions_display = positions_df.copy()
-    numeric_columns = positions_display.select_dtypes(include="number").columns
-    positions_display[numeric_columns] = positions_display[numeric_columns].round(4)
-
-    summary = build_open_positions_summary(st.session_state.paper_positions)
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    col1.metric("Positions", summary["position_count"])
-    col2.metric("Market Value", f"${summary['total_market_value']:,.2f}")
-    col3.metric("Unrealized P/L", f"${summary['total_unrealized_pnl']:,.2f}")
-    col4.metric("Unrealized P/L %", f"{summary['total_unrealized_pnl_pct']:.2f}%")
-
-    st.dataframe(
-        positions_display,
-        use_container_width=True,
-        hide_index=True,
-    )
-
-    st.download_button(
-        label="Download Open Positions CSV",
-        data=positions_display.to_csv(index=False),
-        file_name="paper_open_positions.csv",
-        mime="text/csv",
-        key="download_open_positions_csv",
-    )
-
-
-def render_closed_trades_ledger() -> None:
-    """Render closed trades ledger."""
-    st.subheader("Closed Trades Ledger")
-
-    closed_trades = st.session_state.closed_trades
-
-    if not closed_trades:
-        st.info("No closed paper trades yet.")
-        return
-
-    closed_df = build_closed_trades_dataframe(closed_trades)
-    closed_display = closed_df.copy()
-    numeric_columns = closed_display.select_dtypes(include="number").columns
-    closed_display[numeric_columns] = closed_display[numeric_columns].round(4)
-
-    summary = build_closed_trades_summary(closed_trades)
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    col1.metric("Closed Trades", summary["closed_trade_count"])
-    col2.metric("Win Rate", f"{summary['win_rate_pct']:.2f}%")
-    col3.metric("Realized P/L", f"${summary['total_realized_pnl']:,.2f}")
-    col4.metric("Avg Realized P/L", f"${summary['average_realized_pnl']:,.2f}")
-
-    st.dataframe(
-        closed_display,
-        use_container_width=True,
-        hide_index=True,
-    )
-
-    ticker_df = calculate_realized_pnl_by_ticker(closed_trades)
-    ticker_display = ticker_df.copy()
-    numeric_columns = ticker_display.select_dtypes(include="number").columns
-    ticker_display[numeric_columns] = ticker_display[numeric_columns].round(4)
-
-    with st.expander("Realized P/L by Ticker", expanded=False):
-        st.dataframe(
-            ticker_display,
-            use_container_width=True,
-            hide_index=True,
-        )
-
-    st.download_button(
-        label="Download Closed Trades CSV",
-        data=closed_display.to_csv(index=False),
-        file_name="paper_closed_trades.csv",
-        mime="text/csv",
-        key="download_closed_trades_csv",
-    )
-
-
-def render_trade_journal() -> None:
-    """Render trade journal notes."""
-    st.subheader("Trade Journal Notes")
-
-    with st.expander("Add Journal Note", expanded=True):
-        col1, col2, col3 = st.columns(3)
-
-        ticker = col1.text_input(
-            "Journal Ticker",
-            value="AAPL",
-            key="journal_ticker",
-        ).strip().upper()
-
-        review_label = col2.selectbox(
-            "Review Label",
-            options=[
-                "Plan",
-                "Good Trade",
-                "Bad Trade",
-                "Mistake",
-                "Lesson",
-                "Follow Up",
-            ],
-        )
-
-        linked_trade_id = col3.text_input(
-            "Linked Trade ID",
-            value="",
-            key="journal_linked_trade_id",
-        ).strip() or None
-
-        tags_raw = st.text_input(
-            "Tags comma-separated",
-            value="plan, risk",
-            key="journal_tags",
-        )
-
-        note = st.text_area(
-            "Journal Note",
-            value="Write the reasoning, setup, risk, result, or lesson here.",
-            key="journal_note",
-        )
-
-        if st.button("Add Journal Note"):
-            try:
-                tags = [tag.strip() for tag in tags_raw.split(",") if tag.strip()]
-                entry = create_trade_journal_entry(
-                    account_id=st.session_state.paper_account.account_id,
-                    ticker=ticker,
-                    note=note,
-                    linked_trade_id=linked_trade_id,
-                    review_label=review_label,
-                    tags=tags,
-                )
-                st.session_state.journal_entries = add_journal_entry(
-                    st.session_state.journal_entries,
-                    entry,
-                )
-                st.success("Journal note added.")
-            except Exception as error:
-                st.error(f"Journal note failed: {error}")
-
-    journal_entries = st.session_state.journal_entries
-
-    if not journal_entries:
-        st.info("No journal notes yet.")
-        return
-
-    journal_df = build_trade_journal_dataframe(journal_entries)
-    summary = build_trade_journal_summary(journal_entries)
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    col1.metric("Journal Notes", summary["journal_entry_count"])
-    col2.metric("Unique Tickers", summary["unique_ticker_count"])
-    col3.metric("Linked Notes", summary["linked_trade_note_count"])
-    col4.metric("Most Common Ticker", summary["most_common_ticker"] or "N/A")
-
-    st.dataframe(
-        journal_df,
-        use_container_width=True,
-        hide_index=True,
-    )
-
-    st.download_button(
-        label="Download Trade Journal CSV",
-        data=journal_df.to_csv(index=False),
-        file_name="paper_trade_journal.csv",
-        mime="text/csv",
-        key="download_trade_journal_csv",
-    )
-
-
-def build_paper_trading_export_report() -> str:
-    """Build a downloadable plain-text paper trading report."""
-    account = st.session_state.paper_account
-    positions = st.session_state.paper_positions
-    closed_trades = st.session_state.closed_trades
-    journal_entries = st.session_state.journal_entries
-    last_preview = st.session_state.last_order_preview
-    last_execution = st.session_state.last_execution_summary
-
-    open_positions_summary = build_open_positions_summary(positions)
-    closed_trades_summary = build_closed_trades_summary(closed_trades)
-    journal_summary = build_trade_journal_summary(journal_entries)
-
-    if positions:
-        open_positions_df = build_open_positions_dataframe(positions).round(4)
-        open_positions_text = open_positions_df.to_string(index=False)
-    else:
-        open_positions_text = "No open positions."
-
-    if closed_trades:
-        closed_trades_df = build_closed_trades_dataframe(closed_trades).round(4)
-        closed_trades_text = closed_trades_df.to_string(index=False)
-
-        realized_by_ticker_df = calculate_realized_pnl_by_ticker(closed_trades).round(4)
-        realized_by_ticker_text = realized_by_ticker_df.to_string(index=False)
-    else:
-        closed_trades_text = "No closed trades."
-        realized_by_ticker_text = "No realized P/L by ticker."
-
-    if journal_entries:
-        journal_df = build_trade_journal_dataframe(journal_entries)
-        journal_text = journal_df.to_string(index=False)
-    else:
-        journal_text = "No journal entries."
-
-    if last_preview is not None:
-        preview_df = build_order_preview_dataframe([last_preview]).round(4)
-        preview_text = preview_df.to_string(index=False)
-
-        preview_summary = build_order_preview_summary([last_preview])
-        preview_summary_text = "\n".join(
-            [
-                f"Preview count: {preview_summary['preview_count']}",
-                f"Accepted count: {preview_summary['accepted_count']}",
-                f"Warning count: {preview_summary['warning_count']}",
-                f"Rejected count: {preview_summary['rejected_count']}",
-                f"Buy count: {preview_summary['buy_count']}",
-                f"Sell count: {preview_summary['sell_count']}",
-                f"Total estimated order value: ${preview_summary['total_estimated_order_value']:,.2f}",
-                f"Total estimated commission: ${preview_summary['total_estimated_commission']:,.2f}",
-                f"Total estimated cash impact: ${preview_summary['total_estimated_cash_impact']:,.2f}",
-                f"Max exposure after order: {preview_summary['max_exposure_pct_after_order']:.2f}%",
-            ]
-        )
-    else:
-        preview_text = "No order preview available."
-        preview_summary_text = "No order preview summary available."
-
-    if last_execution is not None:
-        execution_df = pd.DataFrame([last_execution]).round(4)
-        execution_text = execution_df.to_string(index=False)
-    else:
-        execution_text = "No execution summary available."
-
-    total_account_value = (
-        account.cash_balance + open_positions_summary["total_market_value"]
-    )
-
-    report_sections = [
-        "Paper Trading Report",
-        "=" * 20,
-        "",
-        "Sprint 72 — Paper Trading and Trade Journal Foundation",
-        "",
-        "Executive Summary",
-        "-" * 17,
-        f"Account ID: {account.account_id}",
-        f"Account name: {account.account_name}",
-        f"Starting cash: ${account.starting_cash:,.2f}",
-        f"Cash balance: ${account.cash_balance:,.2f}",
-        f"Open market value: ${open_positions_summary['total_market_value']:,.2f}",
-        f"Estimated account value: ${total_account_value:,.2f}",
-        f"Open positions: {open_positions_summary['position_count']}",
-        f"Closed trades: {closed_trades_summary['closed_trade_count']}",
-        f"Journal notes: {journal_summary['journal_entry_count']}",
-        f"Total unrealized P/L: ${open_positions_summary['total_unrealized_pnl']:,.2f}",
-        f"Total unrealized P/L %: {open_positions_summary['total_unrealized_pnl_pct']:.2f}%",
-        f"Total realized P/L: ${closed_trades_summary['total_realized_pnl']:,.2f}",
-        f"Win rate: {closed_trades_summary['win_rate_pct']:.2f}%",
-        "",
-        "Open Positions Summary",
-        "-" * 22,
-        f"Position count: {open_positions_summary['position_count']}",
-        f"Total cost basis: ${open_positions_summary['total_cost_basis']:,.2f}",
-        f"Total market value: ${open_positions_summary['total_market_value']:,.2f}",
-        f"Total unrealized P/L: ${open_positions_summary['total_unrealized_pnl']:,.2f}",
-        f"Total unrealized P/L %: {open_positions_summary['total_unrealized_pnl_pct']:.2f}%",
-        f"Largest position value: ${open_positions_summary['largest_position_value']:,.2f}",
-        "",
-        "Closed Trades Summary",
-        "-" * 21,
-        f"Closed trade count: {closed_trades_summary['closed_trade_count']}",
-        f"Win count: {closed_trades_summary['win_count']}",
-        f"Loss count: {closed_trades_summary['loss_count']}",
-        f"Breakeven count: {closed_trades_summary['breakeven_count']}",
-        f"Win rate: {closed_trades_summary['win_rate_pct']:.2f}%",
-        f"Total realized P/L: ${closed_trades_summary['total_realized_pnl']:,.2f}",
-        f"Average realized P/L: ${closed_trades_summary['average_realized_pnl']:,.2f}",
-        f"Average realized P/L %: {closed_trades_summary['average_realized_pnl_pct']:.2f}%",
-        f"Best trade ticker: {closed_trades_summary['best_trade_ticker'] or 'N/A'}",
-        f"Best trade realized P/L: ${closed_trades_summary['best_trade_realized_pnl']:,.2f}",
-        f"Worst trade ticker: {closed_trades_summary['worst_trade_ticker'] or 'N/A'}",
-        f"Worst trade realized P/L: ${closed_trades_summary['worst_trade_realized_pnl']:,.2f}",
-        "",
-        "Trade Journal Summary",
-        "-" * 21,
-        f"Journal entry count: {journal_summary['journal_entry_count']}",
-        f"Unique ticker count: {journal_summary['unique_ticker_count']}",
-        f"Linked trade note count: {journal_summary['linked_trade_note_count']}",
-        f"Unlinked note count: {journal_summary['unlinked_note_count']}",
-        f"Plan count: {journal_summary['plan_count']}",
-        f"Good trade count: {journal_summary['good_trade_count']}",
-        f"Bad trade count: {journal_summary['bad_trade_count']}",
-        f"Mistake count: {journal_summary['mistake_count']}",
-        f"Lesson count: {journal_summary['lesson_count']}",
-        f"Follow up count: {journal_summary['follow_up_count']}",
-        f"Most common ticker: {journal_summary['most_common_ticker'] or 'N/A'}",
-        "",
-        "Latest Order Preview Summary",
-        "-" * 28,
-        preview_summary_text,
-        "",
-        "Latest Order Preview",
-        "-" * 21,
-        preview_text,
-        "",
-        "Latest Execution Summary",
-        "-" * 24,
-        execution_text,
-        "",
-        "Open Positions Ledger",
-        "-" * 21,
-        open_positions_text,
-        "",
-        "Closed Trades Ledger",
-        "-" * 21,
-        closed_trades_text,
-        "",
-        "Realized P/L by Ticker",
-        "-" * 22,
-        realized_by_ticker_text,
-        "",
-        "Trade Journal Notes",
-        "-" * 19,
-        journal_text,
-        "",
-        "Methodology Notes",
-        "-" * 17,
-        "This report summarizes the simulated paper trading workflow.",
-        "Order previews estimate cash impact, position exposure, and acceptance/rejection status.",
-        "Paper trade execution fills simulated orders and updates cash, open positions, and closed trades.",
-        "Open positions track quantity, average cost, market value, and unrealized P/L.",
-        "Closed trades track realized P/L, return percentage, and win/loss result.",
-        "Journal notes capture trade reasoning, review labels, tags, and linked trade IDs.",
-        "",
-        "Important: This is a simulated trading and engineering tool. It is not financial advice and does not place real brokerage orders.",
-    ]
-
-    return "\n".join(report_sections)
-
-
-def render_paper_trading_export_report() -> None:
-    """Render downloadable paper trading report."""
-    st.subheader("Paper Trading Export Report")
+def format_currency(value):
+    """Format a number as U.S. currency."""
 
     try:
-        report_text = build_paper_trading_export_report()
-    except Exception as error:
-        st.error(f"Paper trading export report failed: {error}")
-        return
-
-    st.download_button(
-        label="Download Paper Trading Report TXT",
-        data=report_text,
-        file_name="paper_trading_report.txt",
-        mime="text/plain",
-        key="download_paper_trading_report_txt",
-    )
-
-    with st.expander("Paper Trading Report Preview", expanded=False):
-        st.text(report_text)
+        return f"${float(value):,.2f}"
+    except (TypeError, ValueError):
+        return "$0.00"
 
 
-def render_methodology() -> None:
-    """Render paper trading methodology."""
-    with st.expander("Paper Trading Methodology", expanded=False):
-        st.markdown(
-            """
-### Paper Trading Workflow
+def load_position_dashboard(account_id):
+    """Build position rows and account market-value totals."""
 
-This page simulates a trading workflow without placing real trades.
+    positions = get_paper_positions(account_id)
+    rows = []
 
-The workflow is:
+    total_market_value = 0.0
+    total_cost_basis = 0.0
+    total_unrealized_profit_loss = 0.0
+    total_realized_profit_loss = 0.0
 
-1. Set up a paper account.
-2. Build a simulated buy or sell order ticket.
-3. Preview cash impact and portfolio exposure.
-4. Execute the paper trade.
-5. Track open positions.
-6. Track closed trades.
-7. Add trade journal notes.
+    for position in positions:
+        quantity = float(position.quantity)
+        average_cost = float(position.average_cost)
+        current_price = get_current_price(position.ticker)
 
-### Execution Logic
+        if current_price is None:
+            current_price = average_cost
+            price_status = "Fallback: average cost"
+        else:
+            current_price = float(current_price)
+            price_status = "Current market price"
 
-Market orders fill at the selected execution market price.
+        cost_basis = quantity * average_cost
+        market_value = quantity * current_price
+        unrealized_profit_loss = market_value - cost_basis
 
-Limit buy orders fill when the market price is at or below the limit price.
+        if cost_basis == 0:
+            unrealized_profit_loss_pct = 0.0
+        else:
+            unrealized_profit_loss_pct = (
+                unrealized_profit_loss / cost_basis
+            ) * 100
 
-Limit sell orders fill when the market price is at or above the limit price.
-
-### Ledger Logic
-
-Open positions track quantity, average cost, market value, and unrealized P/L.
-
-Closed trades track realized P/L, return percentage, and win/loss result.
-
-Journal notes capture the reasoning, review label, tags, and linked trade ID.
-
-### Paper Trading Export Report Logic
-
-The export report combines the major Sprint 72 paper trading outputs into one downloadable text file.
-
-The report includes:
-
-- Paper account summary
-- Latest order preview
-- Latest execution summary
-- Open positions ledger
-- Closed trades ledger
-- Realized P/L by ticker
-- Trade journal notes
-- Methodology notes
-
-Use the report as a review artifact for simulated trading decisions and trade journaling.
-
-### Project Use
-
-This is a simulated trading and engineering tool. It is not financial advice and does not place real brokerage orders.
-"""
+        realized_profit_loss = float(
+            position.realized_profit_loss or 0.0
         )
 
+        total_market_value += market_value
+        total_cost_basis += cost_basis
+        total_unrealized_profit_loss += unrealized_profit_loss
+        total_realized_profit_loss += realized_profit_loss
 
-def render_paper_trading_page() -> None:
-    """Render Paper Trading page."""
-    st.set_page_config(
-        page_title="Paper Trading",
-        layout="wide",
+        rows.append(
+            {
+                "Ticker": position.ticker,
+                "Shares": quantity,
+                "Average Cost": average_cost,
+                "Current Price": current_price,
+                "Cost Basis": cost_basis,
+                "Market Value": market_value,
+                "Unrealized P/L": unrealized_profit_loss,
+                "Unrealized P/L %": unrealized_profit_loss_pct,
+                "Realized P/L": realized_profit_loss,
+                "Price Source": price_status,
+            }
+        )
+
+    dataframe = pd.DataFrame(rows)
+
+    totals = {
+        "market_value": total_market_value,
+        "cost_basis": total_cost_basis,
+        "unrealized_profit_loss": total_unrealized_profit_loss,
+        "realized_profit_loss": total_realized_profit_loss,
+    }
+
+    return dataframe, totals
+
+
+def render_account_summary(account, totals):
+    """Render paper-account summary metrics."""
+
+    cash_balance = float(account.cash_balance)
+    market_value = float(totals["market_value"])
+    account_equity = cash_balance + market_value
+    total_profit_loss = (
+        account_equity - float(account.starting_cash)
     )
 
-    initialize_session_state()
+    if float(account.starting_cash) == 0:
+        total_return_pct = 0.0
+    else:
+        total_return_pct = (
+            total_profit_loss / float(account.starting_cash)
+        ) * 100
 
-    st.title("Paper Trading")
-    st.caption("Sprint 72: Paper Trading and Trade Journal Foundation")
+    st.subheader("Account Summary")
 
-    render_account_controls()
-    render_account_panel()
+    col1, col2, col3, col4 = st.columns(4)
+
+    col1.metric(
+        "Cash Balance",
+        format_currency(cash_balance),
+    )
+    col2.metric(
+        "Open Positions",
+        format_currency(market_value),
+    )
+    col3.metric(
+        "Account Equity",
+        format_currency(account_equity),
+    )
+    col4.metric(
+        "Total Return",
+        format_currency(total_profit_loss),
+        delta=f"{total_return_pct:.2f}%",
+    )
+
+    detail_col1, detail_col2, detail_col3 = st.columns(3)
+
+    detail_col1.metric(
+        "Starting Cash",
+        format_currency(account.starting_cash),
+    )
+    detail_col2.metric(
+        "Unrealized P/L",
+        format_currency(totals["unrealized_profit_loss"]),
+    )
+    detail_col3.metric(
+        "Realized P/L",
+        format_currency(totals["realized_profit_loss"]),
+    )
+
+
+def render_order_ticket(account):
+    """Render and process a simulated market-order form."""
+
+    st.subheader("Market Order Ticket")
+
+    with st.form(
+        "paper_market_order_form",
+        clear_on_submit=False,
+    ):
+        ticker_column, side_column = st.columns(2)
+
+        ticker = ticker_column.text_input(
+            "Ticker",
+            value="AAPL",
+            max_chars=15,
+        ).upper().strip()
+
+        side = side_column.selectbox(
+            "Side",
+            options=["BUY", "SELL"],
+        )
+
+        quantity_column, price_column = st.columns(2)
+
+        quantity = quantity_column.number_input(
+            "Share Quantity",
+            min_value=0.000001,
+            value=1.0,
+            step=1.0,
+            format="%.6f",
+        )
+
+        detected_price = None
+
+        if ticker:
+            detected_price = get_current_price(ticker)
+
+        default_price = (
+            float(detected_price)
+            if detected_price is not None
+            else 0.01
+        )
+
+        execution_price = price_column.number_input(
+            "Execution Price",
+            min_value=0.01,
+            value=round(default_price, 2),
+            step=0.01,
+            format="%.2f",
+            help=(
+                "Defaults to the latest cached or provider market price. "
+                "You may edit it for paper-trading simulations."
+            ),
+        )
+
+        estimated_value = float(quantity) * float(execution_price)
+
+        st.info(
+            f"Estimated order value: "
+            f"{format_currency(estimated_value)}"
+        )
+
+        submitted = st.form_submit_button(
+            "Submit Paper Order",
+            type="primary",
+            use_container_width=True,
+        )
+
+    if submitted:
+        result = execute_market_order(
+            account_id=account.id,
+            ticker=ticker,
+            side=side,
+            quantity=quantity,
+            execution_price=execution_price,
+        )
+
+        if result["success"]:
+            st.success(result["message"])
+            st.session_state["last_paper_order"] = result
+            st.rerun()
+        else:
+            st.error(result["message"])
+
+
+def render_positions(position_dataframe):
+    """Render currently open paper positions."""
+
+    st.subheader("Open Positions")
+
+    if position_dataframe.empty:
+        st.info("No open paper positions.")
+        return
+
+    display_dataframe = position_dataframe.copy()
+
+    currency_columns = [
+        "Average Cost",
+        "Current Price",
+        "Cost Basis",
+        "Market Value",
+        "Unrealized P/L",
+        "Realized P/L",
+    ]
+
+    for column in currency_columns:
+        display_dataframe[column] = display_dataframe[column].map(
+            format_currency
+        )
+
+    display_dataframe["Unrealized P/L %"] = (
+        display_dataframe["Unrealized P/L %"]
+        .map(lambda value: f"{float(value):.2f}%")
+    )
+
+    st.dataframe(
+        display_dataframe,
+        use_container_width=True,
+        hide_index=True,
+    )
+
+
+def render_order_history(account_id):
+    """Render submitted and rejected paper orders."""
+
+    st.subheader("Order History")
+
+    orders = get_paper_orders(
+        account_id=account_id,
+        limit=100,
+    )
+
+    if not orders:
+        st.info("No paper orders have been submitted.")
+        return
+
+    rows = []
+
+    for order in orders:
+        rows.append(
+            {
+                "Order ID": order.id,
+                "Submitted": order.submitted_at,
+                "Ticker": order.ticker,
+                "Side": order.side,
+                "Type": order.order_type,
+                "Quantity": order.quantity,
+                "Requested Price": order.requested_price,
+                "Executed Price": order.executed_price,
+                "Order Value": order.order_value,
+                "Status": order.status,
+                "Rejection Reason": order.rejection_reason,
+            }
+        )
+
+    dataframe = pd.DataFrame(rows)
+
+    st.dataframe(
+        dataframe,
+        use_container_width=True,
+        hide_index=True,
+    )
+
+
+def render_trade_history(account_id):
+    """Render completed paper trades."""
+
+    st.subheader("Trade History")
+
+    trades = get_paper_trades(
+        account_id=account_id,
+        limit=100,
+    )
+
+    if not trades:
+        st.info("No completed paper trades.")
+        return
+
+    rows = []
+
+    for trade in trades:
+        rows.append(
+            {
+                "Trade ID": trade.id,
+                "Order ID": trade.order_id,
+                "Executed": trade.executed_at,
+                "Ticker": trade.ticker,
+                "Side": trade.side,
+                "Quantity": trade.quantity,
+                "Execution Price": trade.execution_price,
+                "Gross Value": trade.gross_value,
+                "Realized P/L": trade.realized_profit_loss,
+            }
+        )
+
+    dataframe = pd.DataFrame(rows)
+
+    st.dataframe(
+        dataframe,
+        use_container_width=True,
+        hide_index=True,
+    )
+
+
+def render_paper_trading_page():
+    """Render the complete paper-trading dashboard."""
+
+    st.title("Paper Trading Dashboard")
+    st.caption(
+        "Execute simulated market orders without risking real capital."
+    )
+
+    account = get_active_paper_account()
+
+    if account is None:
+        account = get_or_create_paper_account(
+            starting_cash=DEFAULT_STARTING_CASH,
+        )
+
+    position_dataframe, totals = load_position_dashboard(
+        account.id
+    )
+
+    render_account_summary(
+        account=account,
+        totals=totals,
+    )
 
     st.divider()
-    order_inputs = render_order_ticket_controls()
+
+    order_column, position_column = st.columns(
+        [1, 2],
+        gap="large",
+    )
+
+    with order_column:
+        render_order_ticket(account)
+
+    with position_column:
+        render_positions(position_dataframe)
 
     st.divider()
-    render_order_preview(order_inputs)
 
-    st.divider()
-    render_trade_execution()
+    history_tab, trades_tab = st.tabs(
+        [
+            "Order History",
+            "Completed Trades",
+        ]
+    )
 
-    st.divider()
-    render_open_positions_ledger()
+    with history_tab:
+        render_order_history(account.id)
 
-    st.divider()
-    render_closed_trades_ledger()
+    with trades_tab:
+        render_trade_history(account.id)
 
-    st.divider()
-    render_trade_journal()
-
-    st.divider()
-    render_paper_trading_export_report()
-
-    st.divider()
-    render_methodology()
+    st.caption(
+        "Paper-trading prices are simulations based on the latest "
+        "available cached or provider market data."
+    )
 
 
 render_paper_trading_page()
