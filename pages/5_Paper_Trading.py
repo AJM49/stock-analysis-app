@@ -11,6 +11,9 @@ from database import get_paper_trades
 from database import init_database
 from market_data import get_current_price
 from services.paper_trading_service import execute_market_order
+from services.paper_trading_performance import get_paper_equity_snapshots
+from services.paper_trading_performance import reset_paper_account
+from services.paper_trading_performance import save_equity_snapshot
 
 
 PAGE_TITLE = "Paper Trading"
@@ -363,6 +366,195 @@ def render_trade_history(account_id):
     )
 
 
+
+def render_account_management(account):
+    """Render guarded paper-account reset controls."""
+
+    st.sidebar.header("Paper Account Controls")
+
+    starting_cash = st.sidebar.number_input(
+        "Reset Starting Cash",
+        min_value=1000.0,
+        max_value=10000000.0,
+        value=float(account.starting_cash),
+        step=1000.0,
+        format="%.2f",
+        key="paper_reset_starting_cash",
+    )
+
+    confirmation = st.sidebar.text_input(
+        'Type "RESET" to confirm',
+        value="",
+        key="paper_reset_confirmation",
+    )
+
+    reset_clicked = st.sidebar.button(
+        "Reset Paper Account",
+        use_container_width=True,
+        key="reset_paper_account_button",
+    )
+
+    if not reset_clicked:
+        return
+
+    if confirmation.strip().upper() != "RESET":
+        st.sidebar.error('Type "RESET" before resetting.')
+        return
+
+    success, message = reset_paper_account(
+        account_id=account.id,
+        starting_cash=starting_cash,
+    )
+
+    if success:
+        st.session_state.pop("last_paper_order", None)
+        st.sidebar.success(message)
+        st.rerun()
+
+    st.sidebar.error(message)
+
+
+def render_snapshot_control(account, totals):
+    """Save the current paper-account equity state."""
+
+    st.subheader("Performance Snapshot")
+
+    info_column, button_column = st.columns([2, 1])
+
+    info_column.info(
+        "Save the current account state to build equity and "
+        "drawdown history."
+    )
+
+    save_clicked = button_column.button(
+        "Save Equity Snapshot",
+        type="primary",
+        use_container_width=True,
+        key="save_paper_equity_snapshot",
+    )
+
+    if not save_clicked:
+        return
+
+    success, message, _ = save_equity_snapshot(
+        account_id=account.id,
+        cash_balance=account.cash_balance,
+        market_value=totals["market_value"],
+        starting_cash=account.starting_cash,
+    )
+
+    if success:
+        st.success(message)
+        st.rerun()
+
+    st.error(message)
+
+
+def render_performance_history(account_id):
+    """Render paper-account equity and drawdown history."""
+
+    st.subheader("Paper Trading Performance")
+
+    snapshots = get_paper_equity_snapshots(
+        account_id=account_id,
+        limit=500,
+    )
+
+    if not snapshots:
+        st.info(
+            "No equity snapshots saved. "
+            "Save a snapshot to start performance tracking."
+        )
+        return
+
+    rows = []
+
+    for snapshot in snapshots:
+        rows.append(
+            {
+                "Snapshot Time": snapshot.snapshot_time,
+                "Account Equity": snapshot.account_equity,
+                "Peak Equity": snapshot.peak_equity,
+                "Return %": snapshot.total_return_pct,
+                "Drawdown": snapshot.drawdown_value,
+                "Drawdown %": snapshot.drawdown_pct,
+                "Cash Balance": snapshot.cash_balance,
+                "Market Value": snapshot.market_value,
+                "Total P/L": snapshot.total_profit_loss,
+            }
+        )
+
+    history_dataframe = pd.DataFrame(rows)
+    history_dataframe["Snapshot Time"] = pd.to_datetime(
+        history_dataframe["Snapshot Time"],
+        errors="coerce",
+    )
+    history_dataframe = history_dataframe.dropna(
+        subset=["Snapshot Time"]
+    ).sort_values("Snapshot Time")
+
+    if history_dataframe.empty:
+        st.info("No valid equity snapshot records were found.")
+        return
+
+    latest = history_dataframe.iloc[-1]
+
+    metric1, metric2, metric3, metric4 = st.columns(4)
+
+    metric1.metric(
+        "Latest Equity",
+        format_currency(latest["Account Equity"]),
+    )
+    metric2.metric(
+        "Peak Equity",
+        format_currency(latest["Peak Equity"]),
+    )
+    metric3.metric(
+        "Drawdown",
+        format_currency(latest["Drawdown"]),
+        delta=f'{float(latest["Drawdown %"]):.2f}%',
+    )
+    metric4.metric(
+        "Return",
+        f'{float(latest["Return %"]):.2f}%',
+    )
+
+    equity_chart = history_dataframe[
+        [
+            "Snapshot Time",
+            "Account Equity",
+            "Peak Equity",
+        ]
+    ].set_index("Snapshot Time")
+
+    st.line_chart(
+        equity_chart,
+        use_container_width=True,
+    )
+
+    drawdown_chart = history_dataframe[
+        [
+            "Snapshot Time",
+            "Drawdown %",
+        ]
+    ].set_index("Snapshot Time")
+
+    st.line_chart(
+        drawdown_chart,
+        use_container_width=True,
+    )
+
+    with st.expander(
+        "View Equity Snapshot History",
+        expanded=False,
+    ):
+        st.dataframe(
+            history_dataframe,
+            use_container_width=True,
+            hide_index=True,
+        )
+
+
 def render_paper_trading_page():
     """Render the complete paper-trading dashboard."""
 
@@ -378,6 +570,8 @@ def render_paper_trading_page():
             starting_cash=DEFAULT_STARTING_CASH,
         )
 
+    render_account_management(account)
+
     position_dataframe, totals = load_position_dashboard(
         account.id
     )
@@ -386,6 +580,13 @@ def render_paper_trading_page():
         account=account,
         totals=totals,
     )
+
+    render_snapshot_control(
+        account=account,
+        totals=totals,
+    )
+
+    render_performance_history(account.id)
 
     st.divider()
 

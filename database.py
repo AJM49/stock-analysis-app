@@ -345,6 +345,69 @@ class PaperTrade(Base):
         nullable=False,
     )
 
+class PaperEquitySnapshot(Base):
+    """Historical paper-account equity and drawdown snapshot."""
+
+    __tablename__ = "paper_equity_snapshots"
+
+    id = Column(Integer, primary_key=True, index=True)
+    account_id = Column(
+        Integer,
+        nullable=False,
+        index=True,
+    )
+    snapshot_time = Column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False,
+        index=True,
+    )
+    cash_balance = Column(
+        Float,
+        nullable=False,
+        default=0.0,
+    )
+    market_value = Column(
+        Float,
+        nullable=False,
+        default=0.0,
+    )
+    account_equity = Column(
+        Float,
+        nullable=False,
+        default=0.0,
+    )
+    total_profit_loss = Column(
+        Float,
+        nullable=False,
+        default=0.0,
+    )
+    total_return_pct = Column(
+        Float,
+        nullable=False,
+        default=0.0,
+    )
+    peak_equity = Column(
+        Float,
+        nullable=False,
+        default=0.0,
+    )
+    drawdown_value = Column(
+        Float,
+        nullable=False,
+        default=0.0,
+    )
+    drawdown_pct = Column(
+        Float,
+        nullable=False,
+        default=0.0,
+    )
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False,
+    )
+
 class MarketDataCache(Base):
     __tablename__ = "market_data_cache"
 
