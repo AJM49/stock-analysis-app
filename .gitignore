@@ -29,3 +29,6 @@ requirements.full-backup.txt
 .claude/
 *.backup
 *.patch
+
+# Local database backups
+*.db.before_*
