@@ -15,6 +15,8 @@ from services.paper_trading_service import execute_market_order
 from services.paper_trading_analytics import calculate_paper_trading_analytics
 from services.paper_portfolio_exposure import calculate_portfolio_exposure
 from services.paper_portfolio_rebalance import calculate_rebalance_plan
+from services.paper_rebalance_execution import execute_rebalance_batch
+from services.paper_rebalance_execution import validate_rebalance_batch
 from services.paper_trading_risk import DEFAULT_RISK_SETTINGS
 from services.paper_trading_risk import evaluate_pre_trade_risk
 from services.paper_trading_performance import get_paper_equity_snapshots
@@ -1198,6 +1200,379 @@ def render_portfolio_exposure(
 
 
 
+def render_rebalance_execution_result(account_id):
+    """Render the most recent rebalance execution result."""
+
+    state_key = (
+        f"last_rebalance_execution_{int(account_id)}"
+    )
+
+    result = st.session_state.get(state_key)
+
+    if not result:
+        return
+
+    st.markdown("#### Last Rebalance Execution")
+
+    if result.get("success"):
+        st.success(result.get("message"))
+    else:
+        st.warning(result.get("message"))
+
+    summary1, summary2, summary3 = st.columns(3)
+
+    summary1.metric(
+        "Filled",
+        int(result.get("filled_count", 0)),
+    )
+
+    summary2.metric(
+        "Failed",
+        int(result.get("failed_count", 0)),
+    )
+
+    summary3.metric(
+        "Not Executed",
+        int(result.get("unexecuted_count", 0)),
+    )
+
+    result_rows = []
+
+    for row in result.get("results", []):
+        result_rows.append(
+            {
+                "Ticker": row.get("ticker"),
+                "Action": row.get("action"),
+                "Quantity": row.get("quantity"),
+                "Execution Price": row.get(
+                    "execution_price"
+                ),
+                "Estimated Value": row.get(
+                    "estimated_value"
+                ),
+                "Status": (
+                    "FILLED"
+                    if row.get("success")
+                    else "FAILED"
+                ),
+                "Order ID": row.get("order_id"),
+                "Trade ID": row.get("trade_id"),
+                "Realized P/L": row.get(
+                    "realized_profit_loss",
+                    0.0,
+                ),
+                "Message": row.get("message"),
+            }
+        )
+
+    if result_rows:
+        result_dataframe = pd.DataFrame(result_rows)
+
+        st.dataframe(
+            result_dataframe,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Quantity": (
+                    st.column_config.NumberColumn(
+                        format="%.6f"
+                    )
+                ),
+                "Execution Price": (
+                    st.column_config.NumberColumn(
+                        format="$%.2f"
+                    )
+                ),
+                "Estimated Value": (
+                    st.column_config.NumberColumn(
+                        format="$%.2f"
+                    )
+                ),
+                "Realized P/L": (
+                    st.column_config.NumberColumn(
+                        format="$%.2f"
+                    )
+                ),
+            },
+        )
+
+    if st.button(
+        "Clear Execution Result",
+        key=f"clear_rebalance_result_{account_id}",
+    ):
+        st.session_state.pop(state_key, None)
+        st.rerun()
+
+
+def render_rebalance_execution_controls(
+    account,
+    actionable_rows,
+    risk_settings,
+):
+    """Render guarded selection and execution controls."""
+
+    confirmation_key = (
+        f"rebalance_confirmation_{account.id}"
+    )
+    selection_version_key = (
+        f"rebalance_selection_version_{account.id}"
+    )
+    reset_key = (
+        f"reset_rebalance_widgets_{account.id}"
+    )
+
+    if selection_version_key not in st.session_state:
+        st.session_state[selection_version_key] = 0
+
+    # Widget-bound state must be reset before the widgets
+    # are instantiated during this script run.
+    if st.session_state.pop(reset_key, False):
+        st.session_state[confirmation_key] = ""
+        st.session_state[selection_version_key] += 1
+
+    selection_key = (
+        f"rebalance_execution_selection_{account.id}_"
+        f"{st.session_state[selection_version_key]}"
+    )
+
+    st.markdown("#### Rebalance Execution")
+
+    st.warning(
+        "Executing selected rows creates real paper orders "
+        "and changes paper-account cash and positions."
+    )
+
+    render_rebalance_execution_result(account.id)
+
+    if actionable_rows.empty:
+        st.info(
+            "No actionable BUY or SELL recommendations "
+            "are available."
+        )
+        return
+
+    execution_dataframe = actionable_rows[
+        [
+            "Ticker",
+            "Suggested Action",
+            "Suggested Shares",
+            "Current Price",
+            "Suggested Value",
+            "Alert Level",
+        ]
+    ].copy()
+
+    execution_dataframe.insert(
+        0,
+        "Execute",
+        False,
+    )
+
+    edited_execution = st.data_editor(
+        execution_dataframe,
+        use_container_width=True,
+        hide_index=True,
+        disabled=[
+            "Ticker",
+            "Suggested Action",
+            "Suggested Shares",
+            "Current Price",
+            "Suggested Value",
+            "Alert Level",
+        ],
+        column_config={
+            "Execute": st.column_config.CheckboxColumn(
+                "Execute",
+                help=(
+                    "Select this recommendation for the "
+                    "execution batch."
+                ),
+                default=False,
+            ),
+            "Suggested Shares": (
+                st.column_config.NumberColumn(
+                    format="%.6f"
+                )
+            ),
+            "Current Price": (
+                st.column_config.NumberColumn(
+                    format="$%.2f"
+                )
+            ),
+            "Suggested Value": (
+                st.column_config.NumberColumn(
+                    format="$%.2f"
+                )
+            ),
+        },
+        key=selection_key,
+    )
+
+    selected_dataframe = edited_execution[
+        edited_execution["Execute"] == True
+    ].copy()
+
+    selected_candidates = selected_dataframe[
+        [
+            "Ticker",
+            "Suggested Action",
+            "Suggested Shares",
+            "Current Price",
+        ]
+    ].to_dict(orient="records")
+
+    preview = validate_rebalance_batch(
+        account_id=account.id,
+        selected_candidates=selected_candidates,
+    )
+
+    estimated_net_cash_change = (
+        float(preview["estimated_sell_value"])
+        - float(preview["estimated_buy_value"])
+    )
+
+    preview1, preview2, preview3, preview4 = (
+        st.columns(4)
+    )
+
+    preview1.metric(
+        "Selected Orders",
+        len(selected_candidates),
+    )
+
+    preview2.metric(
+        "Estimated Buys",
+        format_currency(
+            preview["estimated_buy_value"]
+        ),
+    )
+
+    preview3.metric(
+        "Estimated Sells",
+        format_currency(
+            preview["estimated_sell_value"]
+        ),
+    )
+
+    preview4.metric(
+        "Estimated Cash Change",
+        format_currency(
+            estimated_net_cash_change
+        ),
+        delta=(
+            "Cash increase"
+            if estimated_net_cash_change > 0
+            else (
+                "Cash decrease"
+                if estimated_net_cash_change < 0
+                else "Cash neutral"
+            )
+        ),
+    )
+
+    if selected_candidates:
+        if preview["rejected"]:
+            st.error(
+                "The selected batch contains rejected rows "
+                "and cannot be executed."
+            )
+
+            for row in preview["rejected"]:
+                st.error(
+                    f'{row.get("ticker") or "Unknown"}: '
+                    f'{row.get("error")}'
+                )
+        else:
+            st.success(
+                f'{preview["approved_count"]} selected '
+                "recommendation(s) passed preview validation."
+            )
+    else:
+        st.info(
+            "Select at least one recommendation to prepare "
+            "an execution batch."
+        )
+
+    confirmation_phrase = "EXECUTE REBALANCE"
+
+    confirmation = st.text_input(
+        f'Type "{confirmation_phrase}" to confirm',
+        value="",
+        key=confirmation_key,
+        disabled=not selected_candidates,
+    )
+
+    stop_on_failure = st.toggle(
+        "Stop batch after first failed order",
+        value=True,
+        key=f"rebalance_stop_on_failure_{account.id}",
+        help=(
+            "Recommended. Previously filled orders are not "
+            "automatically reversed if a later order fails."
+        ),
+    )
+
+    execute_disabled = (
+        not selected_candidates
+        or bool(preview["rejected"])
+        or confirmation.strip().upper()
+        != confirmation_phrase
+    )
+
+    execute_clicked = st.button(
+        "Execute Selected Rebalance Orders",
+        type="primary",
+        use_container_width=True,
+        disabled=execute_disabled,
+        key=f"execute_rebalance_batch_{account.id}",
+    )
+
+    if not execute_clicked:
+        return
+
+    # Validate again immediately before placing orders.
+    final_preview = validate_rebalance_batch(
+        account_id=account.id,
+        selected_candidates=selected_candidates,
+    )
+
+    if not final_preview["valid"]:
+        st.error(
+            "Execution blocked because the selected batch "
+            "failed final validation."
+        )
+
+        for row in final_preview["rejected"]:
+            st.error(
+                f'{row.get("ticker") or "Unknown"}: '
+                f'{row.get("error")}'
+            )
+
+        return
+
+    with st.spinner(
+        "Executing selected paper rebalance orders..."
+    ):
+        execution_result = execute_rebalance_batch(
+            account_id=account.id,
+            selected_candidates=selected_candidates,
+            risk_settings=risk_settings,
+            stop_on_failure=stop_on_failure,
+        )
+
+    state_key = (
+        f"last_rebalance_execution_{int(account.id)}"
+    )
+
+    st.session_state[state_key] = execution_result
+
+    # Defer widget-bound state resets until the next
+    # script run, before the widgets are instantiated.
+    st.session_state[reset_key] = True
+
+    st.rerun()
+
+
 def render_portfolio_rebalancing(
     account,
     position_dataframe,
@@ -1725,6 +2100,12 @@ def render_portfolio_rebalancing(
     st.caption(
         f"{len(actionable_rows)} actionable recommendation(s). "
         "ON TARGET positions remain HOLD."
+    )
+
+    render_rebalance_execution_controls(
+        account=account,
+        actionable_rows=actionable_rows,
+        risk_settings=risk_settings,
     )
 
 
