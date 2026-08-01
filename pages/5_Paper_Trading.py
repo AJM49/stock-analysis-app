@@ -1236,6 +1236,31 @@ def render_rebalance_execution_result(account_id):
         int(result.get("unexecuted_count", 0)),
     )
 
+    audit_uid = result.get("audit_batch_uid")
+    audit_status = result.get(
+        "audit_status",
+        "NOT_CREATED",
+    )
+
+    if audit_uid:
+        st.caption(
+            f"Audit batch: {audit_uid} | "
+            f"Audit status: {audit_status}"
+        )
+    else:
+        st.caption(
+            f"Audit status: {audit_status}"
+        )
+
+    for audit_error in result.get(
+        "audit_errors",
+        [],
+    ):
+        st.error(
+            "Audit trail warning: "
+            + str(audit_error)
+        )
+
     result_rows = []
 
     for row in result.get("results", []):
@@ -1308,6 +1333,8 @@ def render_rebalance_execution_controls(
     account,
     actionable_rows,
     risk_settings,
+    target_allocations,
+    rebalance_settings,
 ):
     """Render guarded selection and execution controls."""
 
@@ -1558,6 +1585,9 @@ def render_rebalance_execution_controls(
             selected_candidates=selected_candidates,
             risk_settings=risk_settings,
             stop_on_failure=stop_on_failure,
+            target_allocations=target_allocations,
+            rebalance_settings=rebalance_settings,
+            cash_balance=float(account.cash_balance),
         )
 
     state_key = (
@@ -2106,6 +2136,24 @@ def render_portfolio_rebalancing(
         account=account,
         actionable_rows=actionable_rows,
         risk_settings=risk_settings,
+        target_allocations=target_allocations,
+        rebalance_settings={
+            "drift_warning_pct": float(
+                drift_warning_pct
+            ),
+            "drift_rebalance_pct": float(
+                drift_rebalance_pct
+            ),
+            "minimum_cash_reserve_pct": float(
+                minimum_cash_reserve_pct
+            ),
+            "allow_fractional_shares": bool(
+                allow_fractional_shares
+            ),
+            "target_cash_pct": float(
+                target_cash_pct
+            ),
+        },
     )
 
 

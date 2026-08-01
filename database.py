@@ -408,6 +408,204 @@ class PaperEquitySnapshot(Base):
         nullable=False,
     )
 
+class PaperRebalanceBatch(Base):
+    """Persistent audit record for one rebalance execution batch."""
+
+    __tablename__ = "paper_rebalance_batches"
+
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True,
+    )
+    batch_uid = Column(
+        String,
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+    account_id = Column(
+        Integer,
+        nullable=False,
+        index=True,
+    )
+    status = Column(
+        String,
+        nullable=False,
+        default="PENDING",
+        index=True,
+    )
+    selected_count = Column(
+        Integer,
+        nullable=False,
+        default=0,
+    )
+    filled_count = Column(
+        Integer,
+        nullable=False,
+        default=0,
+    )
+    failed_count = Column(
+        Integer,
+        nullable=False,
+        default=0,
+    )
+    unexecuted_count = Column(
+        Integer,
+        nullable=False,
+        default=0,
+    )
+    stop_on_failure = Column(
+        Boolean,
+        nullable=False,
+        default=True,
+    )
+    estimated_buy_value = Column(
+        Float,
+        nullable=False,
+        default=0.0,
+    )
+    estimated_sell_value = Column(
+        Float,
+        nullable=False,
+        default=0.0,
+    )
+    target_allocations_json = Column(
+        Text,
+        nullable=True,
+    )
+    risk_settings_json = Column(
+        Text,
+        nullable=True,
+    )
+    rebalance_settings_json = Column(
+        Text,
+        nullable=True,
+    )
+    pre_portfolio_json = Column(
+        Text,
+        nullable=True,
+    )
+    post_portfolio_json = Column(
+        Text,
+        nullable=True,
+    )
+    result_message = Column(
+        Text,
+        nullable=True,
+    )
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False,
+        index=True,
+    )
+    started_at = Column(
+        DateTime,
+        nullable=True,
+    )
+    completed_at = Column(
+        DateTime,
+        nullable=True,
+    )
+
+
+class PaperRebalanceItem(Base):
+    """One recommendation and execution result within a batch."""
+
+    __tablename__ = "paper_rebalance_items"
+
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True,
+    )
+    batch_id = Column(
+        Integer,
+        nullable=False,
+        index=True,
+    )
+    account_id = Column(
+        Integer,
+        nullable=False,
+        index=True,
+    )
+    sequence_number = Column(
+        Integer,
+        nullable=False,
+    )
+    ticker = Column(
+        String,
+        nullable=False,
+        index=True,
+    )
+    action = Column(
+        String,
+        nullable=False,
+    )
+    requested_quantity = Column(
+        Float,
+        nullable=False,
+        default=0.0,
+    )
+    requested_price = Column(
+        Float,
+        nullable=False,
+        default=0.0,
+    )
+    estimated_value = Column(
+        Float,
+        nullable=False,
+        default=0.0,
+    )
+    status = Column(
+        String,
+        nullable=False,
+        default="PENDING",
+        index=True,
+    )
+    order_id = Column(
+        Integer,
+        nullable=True,
+        index=True,
+    )
+    trade_id = Column(
+        Integer,
+        nullable=True,
+        index=True,
+    )
+    owned_quantity_before = Column(
+        Float,
+        nullable=True,
+    )
+    quantity_after = Column(
+        Float,
+        nullable=True,
+    )
+    cash_balance_after = Column(
+        Float,
+        nullable=True,
+    )
+    realized_profit_loss = Column(
+        Float,
+        nullable=False,
+        default=0.0,
+    )
+    result_message = Column(
+        Text,
+        nullable=True,
+    )
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False,
+    )
+    executed_at = Column(
+        DateTime,
+        nullable=True,
+    )
+
+
 class MarketDataCache(Base):
     __tablename__ = "market_data_cache"
 
