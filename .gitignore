@@ -32,3 +32,8 @@ requirements.full-backup.txt
 
 # Local database backups
 *.db.before_*
+
+# Local source backups and recovery files
+*_backup.py
+*_broken_backup.py
+*.before_*
