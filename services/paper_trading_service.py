@@ -10,6 +10,7 @@ from database import PaperTrade
 from database import get_database_session
 from services.paper_trading_risk import evaluate_pre_trade_risk
 from services.paper_trading_performance import save_automatic_equity_snapshot
+from services.paper_position_validation import validate_ticker_format
 
 
 VALID_ORDER_SIDES = {"BUY", "SELL"}
@@ -57,11 +58,12 @@ def validate_order_inputs(ticker, side, quantity, execution_price):
     clean_ticker = normalize_ticker(ticker)
     clean_side = normalize_side(side)
 
-    if not clean_ticker:
-        return False, None, "Ticker cannot be empty."
+    ticker_valid, clean_ticker, ticker_error = (
+        validate_ticker_format(clean_ticker)
+    )
 
-    if not clean_ticker.replace(".", "").replace("-", "").isalnum():
-        return False, None, "Ticker contains unsupported characters."
+    if not ticker_valid:
+        return False, None, ticker_error
 
     if clean_side not in VALID_ORDER_SIDES:
         return False, None, "Order side must be BUY or SELL."

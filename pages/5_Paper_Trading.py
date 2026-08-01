@@ -14,6 +14,7 @@ from market_data import get_current_price
 from services.paper_trading_service import execute_market_order
 from services.paper_trading_analytics import calculate_paper_trading_analytics
 from services.paper_portfolio_exposure import calculate_portfolio_exposure
+from services.paper_portfolio_rebalance import calculate_rebalance_plan
 from services.paper_trading_risk import DEFAULT_RISK_SETTINGS
 from services.paper_trading_risk import evaluate_pre_trade_risk
 from services.paper_trading_performance import get_paper_equity_snapshots
@@ -1196,6 +1197,537 @@ def render_portfolio_exposure(
     )
 
 
+
+def render_portfolio_rebalancing(
+    account,
+    position_dataframe,
+    risk_settings,
+):
+    """Render editable target allocations and rebalance guidance."""
+
+    st.subheader("Portfolio Rebalancing and Drift Detection")
+
+    st.caption(
+        "Recommendations are informational only. "
+        "This section does not submit paper orders."
+    )
+
+    if position_dataframe.empty:
+        st.info(
+            "No open positions are available for "
+            "rebalancing analysis."
+        )
+        return
+
+    source_dataframe = position_dataframe.copy()
+
+    required_columns = {
+        "Ticker",
+        "Shares",
+        "Current Price",
+        "Market Value",
+    }
+
+    missing_columns = required_columns.difference(
+        source_dataframe.columns
+    )
+
+    if missing_columns:
+        st.error(
+            "Rebalance analysis cannot run because the "
+            "position data is missing: "
+            + ", ".join(sorted(missing_columns))
+        )
+        return
+
+    source_dataframe = source_dataframe[
+        source_dataframe["Shares"].astype(float) > 0
+    ].copy()
+
+    source_dataframe = source_dataframe[
+        source_dataframe["Current Price"].astype(float) > 0
+    ].copy()
+
+    if source_dataframe.empty:
+        st.info(
+            "No positions have valid quantities and prices."
+        )
+        return
+
+    cash_balance = float(account.cash_balance)
+
+    invested_value = float(
+        source_dataframe["Market Value"]
+        .astype(float)
+        .sum()
+    )
+
+    account_equity = cash_balance + invested_value
+
+    if account_equity <= 0:
+        st.error(
+            "Account equity must be greater than zero "
+            "to calculate portfolio drift."
+        )
+        return
+
+    source_dataframe["Current Weight %"] = (
+        source_dataframe["Market Value"].astype(float)
+        / account_equity
+        * 100.0
+    )
+
+    source_dataframe = source_dataframe.sort_values(
+        by=["Current Weight %", "Ticker"],
+        ascending=[False, True],
+    ).reset_index(drop=True)
+
+    target_state_key = (
+        f"paper_rebalance_targets_{int(account.id)}"
+    )
+
+    current_tickers = (
+        source_dataframe["Ticker"]
+        .astype(str)
+        .str.upper()
+        .str.strip()
+        .tolist()
+    )
+
+    if target_state_key not in st.session_state:
+        default_invested_target_pct = min(
+            40.0,
+            max(
+                0.0,
+                100.0
+                - float(
+                    risk_settings.get(
+                        "minimum_cash_reserve_pct",
+                        10.0,
+                    )
+                ),
+            ),
+        )
+
+        equal_target = (
+            default_invested_target_pct
+            / len(current_tickers)
+            if current_tickers
+            else 0.0
+        )
+
+        st.session_state[target_state_key] = {
+            ticker: equal_target
+            for ticker in current_tickers
+        }
+    else:
+        existing_targets = dict(
+            st.session_state[target_state_key]
+        )
+
+        for ticker in current_tickers:
+            existing_targets.setdefault(ticker, 0.0)
+
+        existing_targets = {
+            ticker: float(existing_targets.get(ticker, 0.0))
+            for ticker in current_tickers
+        }
+
+        st.session_state[target_state_key] = (
+            existing_targets
+        )
+
+    control1, control2, control3, control4 = (
+        st.columns(4)
+    )
+
+    drift_warning_pct = control1.number_input(
+        "Drift Warning %",
+        min_value=0.0,
+        max_value=100.0,
+        value=2.0,
+        step=0.5,
+        format="%.2f",
+        key=f"rebalance_warning_{account.id}",
+        help=(
+            "Positions crossing this absolute drift "
+            "threshold are marked WATCH."
+        ),
+    )
+
+    drift_rebalance_pct = control2.number_input(
+        "Rebalance Threshold %",
+        min_value=float(drift_warning_pct),
+        max_value=100.0,
+        value=max(5.0, float(drift_warning_pct)),
+        step=0.5,
+        format="%.2f",
+        key=f"rebalance_threshold_{account.id}",
+        help=(
+            "Positions crossing this absolute drift "
+            "threshold receive a rebalance recommendation."
+        ),
+    )
+
+    minimum_cash_reserve_pct = control3.number_input(
+        "Minimum Cash Reserve %",
+        min_value=0.0,
+        max_value=100.0,
+        value=float(
+            risk_settings.get(
+                "minimum_cash_reserve_pct",
+                10.0,
+            )
+        ),
+        step=0.5,
+        format="%.2f",
+        key=f"rebalance_cash_reserve_{account.id}",
+    )
+
+    allow_fractional_shares = control4.toggle(
+        "Allow Fractional Shares",
+        value=True,
+        key=f"rebalance_fractional_{account.id}",
+    )
+
+    target_editor = pd.DataFrame(
+        {
+            "Ticker": current_tickers,
+            "Current Weight %": [
+                round(float(value), 2)
+                for value in source_dataframe[
+                    "Current Weight %"
+                ].tolist()
+            ],
+            "Target Weight %": [
+                round(
+                    float(
+                        st.session_state[
+                            target_state_key
+                        ].get(ticker, 0.0)
+                    ),
+                    2,
+                )
+                for ticker in current_tickers
+            ],
+        }
+    )
+
+    st.markdown("#### Target Allocations")
+
+    edited_targets = st.data_editor(
+        target_editor,
+        use_container_width=True,
+        hide_index=True,
+        disabled=[
+            "Ticker",
+            "Current Weight %",
+        ],
+        column_config={
+            "Ticker": st.column_config.TextColumn(
+                "Ticker",
+            ),
+            "Current Weight %": (
+                st.column_config.NumberColumn(
+                    "Current Weight %",
+                    format="%.2f%%",
+                )
+            ),
+            "Target Weight %": (
+                st.column_config.NumberColumn(
+                    "Target Weight %",
+                    min_value=0.0,
+                    max_value=100.0,
+                    step=0.25,
+                    format="%.2f%%",
+                    required=True,
+                )
+            ),
+        },
+        key=f"rebalance_target_editor_{account.id}",
+    )
+
+    target_allocations = {}
+
+    for row in edited_targets.to_dict(
+        orient="records"
+    ):
+        ticker = str(row["Ticker"]).strip().upper()
+
+        try:
+            target_weight = float(
+                row["Target Weight %"]
+            )
+        except (TypeError, ValueError):
+            target_weight = 0.0
+
+        target_allocations[ticker] = max(
+            target_weight,
+            0.0,
+        )
+
+    st.session_state[target_state_key] = dict(
+        target_allocations
+    )
+
+    target_total_pct = sum(
+        target_allocations.values()
+    )
+
+    target_cash_pct = 100.0 - target_total_pct
+
+    summary1, summary2, summary3 = st.columns(3)
+
+    summary1.metric(
+        "Target Invested",
+        f"{target_total_pct:.2f}%",
+    )
+
+    summary2.metric(
+        "Target Cash",
+        f"{target_cash_pct:.2f}%",
+    )
+
+    summary3.metric(
+        "Current Cash",
+        f"{cash_balance / account_equity * 100.0:.2f}%",
+    )
+
+    if target_total_pct > 100.0:
+        st.error(
+            "Target position weights total "
+            f"{target_total_pct:.2f}%. "
+            "The total cannot exceed 100%."
+        )
+        return
+
+    if target_cash_pct < minimum_cash_reserve_pct:
+        st.warning(
+            f"Target cash is {target_cash_pct:.2f}%, "
+            f"below the configured minimum reserve of "
+            f"{minimum_cash_reserve_pct:.2f}%."
+        )
+
+    position_rows = []
+
+    for row in source_dataframe.to_dict(
+        orient="records"
+    ):
+        position_rows.append(
+            {
+                "ticker": row["Ticker"],
+                "quantity": float(row["Shares"]),
+                "current_price": float(
+                    row["Current Price"]
+                ),
+                "market_value": float(
+                    row["Market Value"]
+                ),
+            }
+        )
+
+    try:
+        plan = calculate_rebalance_plan(
+            account_equity=account_equity,
+            cash_balance=cash_balance,
+            position_rows=position_rows,
+            target_allocations=target_allocations,
+            settings={
+                "drift_warning_pct": (
+                    drift_warning_pct
+                ),
+                "drift_rebalance_pct": (
+                    drift_rebalance_pct
+                ),
+                "minimum_cash_reserve_pct": (
+                    minimum_cash_reserve_pct
+                ),
+                "allow_fractional_shares": (
+                    allow_fractional_shares
+                ),
+            },
+        )
+    except ValueError as error:
+        st.error(str(error))
+        return
+
+    status = plan["overall_status"]
+
+    if status == "REBALANCE REQUIRED":
+        st.error(
+            "Portfolio status: REBALANCE REQUIRED"
+        )
+    elif status == "WATCH":
+        st.warning("Portfolio status: WATCH")
+    else:
+        st.success("Portfolio status: ON TARGET")
+
+    metric1, metric2, metric3, metric4 = st.columns(4)
+
+    metric1.metric(
+        "Total Absolute Drift",
+        f'{float(plan["total_absolute_drift_pct"]):.2f}%',
+    )
+
+    metric2.metric(
+        "Raw Buy Value",
+        format_currency(plan["raw_buy_value"]),
+    )
+
+    metric3.metric(
+        "Raw Sell Value",
+        format_currency(plan["raw_sell_value"]),
+    )
+
+    metric4.metric(
+        "Available Buying Cash",
+        format_currency(
+            plan["available_buying_cash"]
+        ),
+        delta=(
+            f'Minimum reserve: '
+            f'{float(plan["minimum_cash_reserve_pct"]):.2f}%'
+        ),
+    )
+
+    alerts = plan.get("alerts", [])
+
+    if alerts:
+        with st.expander(
+            "Rebalance Alerts",
+            expanded=True,
+        ):
+            for alert in alerts:
+                st.warning(str(alert))
+    else:
+        st.info(
+            "No positions currently cross the configured "
+            "drift thresholds."
+        )
+
+    recommendation_rows = []
+
+    for row in plan.get("rows", []):
+        recommendation_rows.append(
+            {
+                "Ticker": row["ticker"],
+                "Current Weight %": (
+                    row["current_weight_pct"]
+                ),
+                "Target Weight %": (
+                    row["target_weight_pct"]
+                ),
+                "Drift %": row["drift_pct"],
+                "Absolute Drift %": (
+                    row["absolute_drift_pct"]
+                ),
+                "Allocation Status": (
+                    row["allocation_status"]
+                ),
+                "Alert Level": row["alert_level"],
+                "Suggested Action": (
+                    row["suggested_action"]
+                ),
+                "Suggested Shares": (
+                    row[
+                        "suggested_share_adjustment"
+                    ]
+                ),
+                "Suggested Value": (
+                    row[
+                        "suggested_adjustment_value"
+                    ]
+                ),
+                "Current Price": (
+                    row["current_price"]
+                ),
+                "Current Value": (
+                    row["current_value"]
+                ),
+                "Target Value": row["target_value"],
+                "Note": (
+                    row["recommendation_note"]
+                ),
+            }
+        )
+
+    recommendation_dataframe = pd.DataFrame(
+        recommendation_rows
+    )
+
+    if recommendation_dataframe.empty:
+        st.info(
+            "No rebalance recommendations are available."
+        )
+        return
+
+    st.markdown("#### Rebalance Recommendations")
+
+    st.dataframe(
+        recommendation_dataframe,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Current Weight %": (
+                st.column_config.NumberColumn(
+                    format="%.2f%%"
+                )
+            ),
+            "Target Weight %": (
+                st.column_config.NumberColumn(
+                    format="%.2f%%"
+                )
+            ),
+            "Drift %": (
+                st.column_config.NumberColumn(
+                    format="%+.2f%%"
+                )
+            ),
+            "Absolute Drift %": (
+                st.column_config.NumberColumn(
+                    format="%.2f%%"
+                )
+            ),
+            "Suggested Shares": (
+                st.column_config.NumberColumn(
+                    format="%.6f"
+                )
+            ),
+            "Suggested Value": (
+                st.column_config.NumberColumn(
+                    format="$%.2f"
+                )
+            ),
+            "Current Price": (
+                st.column_config.NumberColumn(
+                    format="$%.2f"
+                )
+            ),
+            "Current Value": (
+                st.column_config.NumberColumn(
+                    format="$%.2f"
+                )
+            ),
+            "Target Value": (
+                st.column_config.NumberColumn(
+                    format="$%.2f"
+                )
+            ),
+        },
+    )
+
+    actionable_rows = recommendation_dataframe[
+        recommendation_dataframe[
+            "Suggested Action"
+        ].isin(["BUY", "SELL"])
+    ]
+
+    st.caption(
+        f"{len(actionable_rows)} actionable recommendation(s). "
+        "ON TARGET positions remain HOLD."
+    )
+
+
 def render_paper_trading_page():
     """Render the complete paper-trading dashboard."""
 
@@ -1237,6 +1769,14 @@ def render_paper_trading_page():
     st.divider()
 
     render_portfolio_exposure(
+        account=account,
+        position_dataframe=position_dataframe,
+        risk_settings=risk_settings,
+    )
+
+    st.divider()
+
+    render_portfolio_rebalancing(
         account=account,
         position_dataframe=position_dataframe,
         risk_settings=risk_settings,
