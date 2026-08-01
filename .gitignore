@@ -37,3 +37,6 @@ requirements.full-backup.txt
 *_backup.py
 *_broken_backup.py
 *.before_*
+
+# PostgreSQL backup archives
+*.dump
