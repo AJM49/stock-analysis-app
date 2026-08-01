@@ -417,3 +417,29 @@ def get_rebalance_batch_items(batch_id):
 
     finally:
         session.close()
+
+
+def get_rebalance_batch(batch_id, account_id=None):
+    """Return one rebalance batch, optionally scoped by account."""
+
+    session = get_database_session()
+
+    try:
+        query = (
+            session.query(PaperRebalanceBatch)
+            .filter(
+                PaperRebalanceBatch.id == int(batch_id)
+            )
+        )
+
+        if account_id is not None:
+            query = query.filter(
+                PaperRebalanceBatch.account_id
+                == int(account_id)
+            )
+
+        return query.first()
+
+    finally:
+        session.close()
+

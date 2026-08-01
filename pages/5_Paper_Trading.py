@@ -17,6 +17,10 @@ from services.paper_portfolio_exposure import calculate_portfolio_exposure
 from services.paper_portfolio_rebalance import calculate_rebalance_plan
 from services.paper_rebalance_execution import execute_rebalance_batch
 from services.paper_rebalance_execution import validate_rebalance_batch
+from services.paper_rebalance_audit import get_rebalance_batch
+from services.paper_rebalance_audit import get_rebalance_batches
+from services.paper_rebalance_audit import get_rebalance_batch_items
+from services.paper_rebalance_audit import json_loads
 from services.paper_trading_risk import DEFAULT_RISK_SETTINGS
 from services.paper_trading_risk import evaluate_pre_trade_risk
 from services.paper_trading_performance import get_paper_equity_snapshots
@@ -2157,6 +2161,702 @@ def render_portfolio_rebalancing(
     )
 
 
+
+def build_rebalance_batch_dataframe(batches):
+    """Convert rebalance audit batches to a display dataframe."""
+
+    rows = []
+
+    for batch in batches:
+        rows.append(
+            {
+                "Batch ID": batch.id,
+                "Batch UID": batch.batch_uid,
+                "Created": batch.created_at,
+                "Started": batch.started_at,
+                "Completed": batch.completed_at,
+                "Status": batch.status,
+                "Selected": batch.selected_count,
+                "Filled": batch.filled_count,
+                "Failed": batch.failed_count,
+                "Not Executed": batch.unexecuted_count,
+                "Estimated Buys": (
+                    batch.estimated_buy_value
+                ),
+                "Estimated Sells": (
+                    batch.estimated_sell_value
+                ),
+                "Stop on Failure": (
+                    batch.stop_on_failure
+                ),
+                "Message": batch.result_message,
+            }
+        )
+
+    return pd.DataFrame(rows)
+
+
+def build_rebalance_item_dataframe(items):
+    """Convert rebalance audit items to a display dataframe."""
+
+    rows = []
+
+    for item in items:
+        rows.append(
+            {
+                "Sequence": item.sequence_number,
+                "Ticker": item.ticker,
+                "Action": item.action,
+                "Requested Quantity": (
+                    item.requested_quantity
+                ),
+                "Requested Price": (
+                    item.requested_price
+                ),
+                "Estimated Value": (
+                    item.estimated_value
+                ),
+                "Status": item.status,
+                "Order ID": item.order_id,
+                "Trade ID": item.trade_id,
+                "Owned Before": (
+                    item.owned_quantity_before
+                ),
+                "Quantity After": (
+                    item.quantity_after
+                ),
+                "Cash After": (
+                    item.cash_balance_after
+                ),
+                "Realized P/L": (
+                    item.realized_profit_loss
+                ),
+                "Executed": item.executed_at,
+                "Message": item.result_message,
+            }
+        )
+
+    return pd.DataFrame(rows)
+
+
+def build_portfolio_comparison(
+    pre_portfolio,
+    post_portfolio,
+):
+    """Compare pre- and post-rebalance position quantities."""
+
+    pre_portfolio = pre_portfolio or {}
+    post_portfolio = post_portfolio or {}
+
+    pre_positions = {
+        str(row.get("ticker", "")).upper(): row
+        for row in pre_portfolio.get("positions", [])
+        if row.get("ticker")
+    }
+
+    post_positions = {
+        str(row.get("ticker", "")).upper(): row
+        for row in post_portfolio.get("positions", [])
+        if row.get("ticker")
+    }
+
+    tickers = sorted(
+        set(pre_positions) | set(post_positions)
+    )
+
+    rows = []
+
+    for ticker in tickers:
+        pre_row = pre_positions.get(ticker, {})
+        post_row = post_positions.get(ticker, {})
+
+        quantity_before = float(
+            pre_row.get("quantity", 0.0) or 0.0
+        )
+        quantity_after = float(
+            post_row.get("quantity", 0.0) or 0.0
+        )
+
+        average_cost_before = float(
+            pre_row.get("average_cost", 0.0) or 0.0
+        )
+        average_cost_after = float(
+            post_row.get("average_cost", 0.0) or 0.0
+        )
+
+        realized_before = float(
+            pre_row.get(
+                "realized_profit_loss",
+                0.0,
+            )
+            or 0.0
+        )
+        realized_after = float(
+            post_row.get(
+                "realized_profit_loss",
+                0.0,
+            )
+            or 0.0
+        )
+
+        rows.append(
+            {
+                "Ticker": ticker,
+                "Quantity Before": quantity_before,
+                "Quantity After": quantity_after,
+                "Quantity Change": (
+                    quantity_after - quantity_before
+                ),
+                "Average Cost Before": (
+                    average_cost_before
+                ),
+                "Average Cost After": (
+                    average_cost_after
+                ),
+                "Realized P/L Before": (
+                    realized_before
+                ),
+                "Realized P/L After": (
+                    realized_after
+                ),
+                "Realized P/L Change": (
+                    realized_after - realized_before
+                ),
+            }
+        )
+
+    return pd.DataFrame(rows)
+
+
+def render_json_settings_table(title, values):
+    """Render a dictionary as a two-column table."""
+
+    st.markdown(f"##### {title}")
+
+    if not isinstance(values, dict) or not values:
+        st.info(f"No {title.lower()} were stored.")
+        return
+
+    rows = []
+
+    for key, value in sorted(values.items()):
+        rows.append(
+            {
+                "Setting": str(key),
+                "Value": value,
+            }
+        )
+
+    st.dataframe(
+        pd.DataFrame(rows),
+        use_container_width=True,
+        hide_index=True,
+    )
+
+
+def render_rebalance_history(account_id):
+    """Render persistent rebalance batch history and drill-down."""
+
+    st.subheader("Rebalance Audit History")
+
+    all_batches = get_rebalance_batches(
+        account_id=account_id,
+        limit=500,
+    )
+
+    if not all_batches:
+        st.info(
+            "No persisted rebalance audit batches "
+            "are available."
+        )
+        return
+
+    filter1, filter2, filter3 = st.columns(3)
+
+    available_statuses = sorted(
+        {
+            str(batch.status)
+            for batch in all_batches
+            if batch.status
+        }
+    )
+
+    selected_statuses = filter1.multiselect(
+        "Batch Status",
+        options=available_statuses,
+        default=available_statuses,
+        key=f"rebalance_history_status_{account_id}",
+    )
+
+    minimum_filled = filter2.number_input(
+        "Minimum Filled Orders",
+        min_value=0,
+        max_value=100000,
+        value=0,
+        step=1,
+        key=f"rebalance_history_min_filled_{account_id}",
+    )
+
+    history_limit = filter3.selectbox(
+        "Recent Batch Limit",
+        options=[10, 25, 50, 100, 250, 500],
+        index=2,
+        key=f"rebalance_history_limit_{account_id}",
+    )
+
+    filtered_batches = [
+        batch
+        for batch in all_batches
+        if (
+            (
+                not selected_statuses
+                or batch.status in selected_statuses
+            )
+            and int(batch.filled_count or 0)
+            >= int(minimum_filled)
+        )
+    ][:int(history_limit)]
+
+    if not filtered_batches:
+        st.warning(
+            "No rebalance batches match the "
+            "selected filters."
+        )
+        return
+
+    batch_dataframe = (
+        build_rebalance_batch_dataframe(
+            filtered_batches
+        )
+    )
+
+    summary1, summary2, summary3, summary4 = (
+        st.columns(4)
+    )
+
+    summary1.metric(
+        "Visible Batches",
+        len(filtered_batches),
+    )
+
+    summary2.metric(
+        "Filled Orders",
+        int(
+            batch_dataframe["Filled"]
+            .fillna(0)
+            .sum()
+        ),
+    )
+
+    summary3.metric(
+        "Failed Orders",
+        int(
+            batch_dataframe["Failed"]
+            .fillna(0)
+            .sum()
+        ),
+    )
+
+    summary4.metric(
+        "Estimated Turnover",
+        format_currency(
+            batch_dataframe[
+                "Estimated Buys"
+            ].fillna(0).sum()
+            + batch_dataframe[
+                "Estimated Sells"
+            ].fillna(0).sum()
+        ),
+    )
+
+    st.dataframe(
+        batch_dataframe,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Estimated Buys": (
+                st.column_config.NumberColumn(
+                    format="$%.2f"
+                )
+            ),
+            "Estimated Sells": (
+                st.column_config.NumberColumn(
+                    format="$%.2f"
+                )
+            ),
+        },
+    )
+
+    batch_csv = batch_dataframe.to_csv(
+        index=False
+    ).encode("utf-8")
+
+    st.download_button(
+        "Download Batch History CSV",
+        data=batch_csv,
+        file_name=(
+            f"rebalance_batch_history_"
+            f"account_{account_id}.csv"
+        ),
+        mime="text/csv",
+        key=f"download_rebalance_batches_{account_id}",
+    )
+
+    batch_options = {
+        (
+            f"{batch.batch_uid} | "
+            f"{batch.status} | "
+            f"{batch.created_at}"
+        ): batch.id
+        for batch in filtered_batches
+    }
+
+    selected_label = st.selectbox(
+        "Select Batch for Drill-Down",
+        options=list(batch_options.keys()),
+        key=f"rebalance_history_batch_{account_id}",
+    )
+
+    selected_batch_id = batch_options[
+        selected_label
+    ]
+
+    batch = get_rebalance_batch(
+        batch_id=selected_batch_id,
+        account_id=account_id,
+    )
+
+    if batch is None:
+        st.error(
+            "The selected rebalance batch "
+            "could not be loaded."
+        )
+        return
+
+    st.markdown("#### Batch Detail")
+
+    detail1, detail2, detail3, detail4 = (
+        st.columns(4)
+    )
+
+    detail1.metric(
+        "Status",
+        batch.status,
+    )
+
+    detail2.metric(
+        "Filled",
+        int(batch.filled_count or 0),
+    )
+
+    detail3.metric(
+        "Failed",
+        int(batch.failed_count or 0),
+    )
+
+    detail4.metric(
+        "Not Executed",
+        int(batch.unexecuted_count or 0),
+    )
+
+    st.caption(
+        f"Batch UID: {batch.batch_uid} | "
+        f"Created: {batch.created_at} | "
+        f"Completed: {batch.completed_at or 'Not completed'}"
+    )
+
+    if batch.result_message:
+        st.info(batch.result_message)
+
+    target_allocations = json_loads(
+        batch.target_allocations_json,
+        default={},
+    )
+
+    risk_settings = json_loads(
+        batch.risk_settings_json,
+        default={},
+    )
+
+    rebalance_settings = json_loads(
+        batch.rebalance_settings_json,
+        default={},
+    )
+
+    settings_tab1, settings_tab2, settings_tab3 = (
+        st.tabs(
+            [
+                "Target Allocations",
+                "Risk Settings",
+                "Rebalance Settings",
+            ]
+        )
+    )
+
+    with settings_tab1:
+        if target_allocations:
+            allocation_rows = [
+                {
+                    "Ticker": ticker,
+                    "Target Weight %": value,
+                }
+                for ticker, value in sorted(
+                    target_allocations.items()
+                )
+            ]
+
+            st.dataframe(
+                pd.DataFrame(allocation_rows),
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Target Weight %": (
+                        st.column_config.NumberColumn(
+                            format="%.2f%%"
+                        )
+                    )
+                },
+            )
+        else:
+            st.info(
+                "No target allocations were stored."
+            )
+
+    with settings_tab2:
+        render_json_settings_table(
+            "Risk Settings",
+            risk_settings,
+        )
+
+    with settings_tab3:
+        render_json_settings_table(
+            "Rebalance Settings",
+            rebalance_settings,
+        )
+
+    items = get_rebalance_batch_items(
+        batch_id=batch.id
+    )
+
+    st.markdown("#### Batch Orders and Trades")
+
+    item_dataframe = (
+        build_rebalance_item_dataframe(items)
+    )
+
+    if item_dataframe.empty:
+        st.info(
+            "No item records were stored for this batch."
+        )
+    else:
+        st.dataframe(
+            item_dataframe,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Requested Quantity": (
+                    st.column_config.NumberColumn(
+                        format="%.6f"
+                    )
+                ),
+                "Requested Price": (
+                    st.column_config.NumberColumn(
+                        format="$%.2f"
+                    )
+                ),
+                "Estimated Value": (
+                    st.column_config.NumberColumn(
+                        format="$%.2f"
+                    )
+                ),
+                "Owned Before": (
+                    st.column_config.NumberColumn(
+                        format="%.6f"
+                    )
+                ),
+                "Quantity After": (
+                    st.column_config.NumberColumn(
+                        format="%.6f"
+                    )
+                ),
+                "Cash After": (
+                    st.column_config.NumberColumn(
+                        format="$%.2f"
+                    )
+                ),
+                "Realized P/L": (
+                    st.column_config.NumberColumn(
+                        format="$%.2f"
+                    )
+                ),
+            },
+        )
+
+        item_csv = item_dataframe.to_csv(
+            index=False
+        ).encode("utf-8")
+
+        st.download_button(
+            "Download Selected Batch Items CSV",
+            data=item_csv,
+            file_name=(
+                f"{batch.batch_uid}_items.csv"
+            ),
+            mime="text/csv",
+            key=(
+                f"download_rebalance_items_"
+                f"{batch.id}"
+            ),
+        )
+
+    pre_portfolio = json_loads(
+        batch.pre_portfolio_json,
+        default={},
+    )
+
+    post_portfolio = json_loads(
+        batch.post_portfolio_json,
+        default={},
+    )
+
+    st.markdown("#### Pre/Post Portfolio Comparison")
+
+    cash_before = pre_portfolio.get(
+        "cash_balance"
+    )
+    cash_after = post_portfolio.get(
+        "cash_balance"
+    )
+
+    cash1, cash2, cash3 = st.columns(3)
+
+    cash1.metric(
+        "Cash Before",
+        (
+            format_currency(cash_before)
+            if cash_before is not None
+            else "Not stored"
+        ),
+    )
+
+    cash2.metric(
+        "Cash After",
+        (
+            format_currency(cash_after)
+            if cash_after is not None
+            else "Not stored"
+        ),
+    )
+
+    if (
+        cash_before is not None
+        and cash_after is not None
+    ):
+        cash_change = (
+            float(cash_after)
+            - float(cash_before)
+        )
+
+        cash3.metric(
+            "Cash Change",
+            format_currency(cash_change),
+        )
+    else:
+        cash3.metric(
+            "Cash Change",
+            "Unavailable",
+        )
+
+    comparison_dataframe = (
+        build_portfolio_comparison(
+            pre_portfolio=pre_portfolio,
+            post_portfolio=post_portfolio,
+        )
+    )
+
+    if comparison_dataframe.empty:
+        st.info(
+            "No pre/post position comparison "
+            "is available."
+        )
+    else:
+        changed_only = st.toggle(
+            "Show Changed Positions Only",
+            value=True,
+            key=(
+                f"rebalance_changed_only_"
+                f"{batch.id}"
+            ),
+        )
+
+        display_comparison = (
+            comparison_dataframe.copy()
+        )
+
+        if changed_only:
+            display_comparison = (
+                display_comparison[
+                    display_comparison[
+                        "Quantity Change"
+                    ].abs() > 1e-9
+                ]
+            )
+
+        if display_comparison.empty:
+            st.info(
+                "No position quantities changed "
+                "in this batch."
+            )
+        else:
+            st.dataframe(
+                display_comparison,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Quantity Before": (
+                        st.column_config.NumberColumn(
+                            format="%.6f"
+                        )
+                    ),
+                    "Quantity After": (
+                        st.column_config.NumberColumn(
+                            format="%.6f"
+                        )
+                    ),
+                    "Quantity Change": (
+                        st.column_config.NumberColumn(
+                            format="%+.6f"
+                        )
+                    ),
+                    "Average Cost Before": (
+                        st.column_config.NumberColumn(
+                            format="$%.2f"
+                        )
+                    ),
+                    "Average Cost After": (
+                        st.column_config.NumberColumn(
+                            format="$%.2f"
+                        )
+                    ),
+                    "Realized P/L Before": (
+                        st.column_config.NumberColumn(
+                            format="$%.2f"
+                        )
+                    ),
+                    "Realized P/L After": (
+                        st.column_config.NumberColumn(
+                            format="$%.2f"
+                        )
+                    ),
+                    "Realized P/L Change": (
+                        st.column_config.NumberColumn(
+                            format="$%.2f"
+                        )
+                    ),
+                },
+            )
+
+
 def render_paper_trading_page():
     """Render the complete paper-trading dashboard."""
 
@@ -2209,6 +2909,12 @@ def render_paper_trading_page():
         account=account,
         position_dataframe=position_dataframe,
         risk_settings=risk_settings,
+    )
+
+    st.divider()
+
+    render_rebalance_history(
+        account_id=account.id,
     )
 
     st.divider()
