@@ -1,8 +1,15 @@
 """Pre-trade risk controls for simulated paper orders."""
 
+from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from math import isfinite
+
+def utc_now():
+    """Return naive UTC for existing timestamp columns."""
+
+    return datetime.now(UTC).replace(tzinfo=None)
+
 
 from database import PaperOrder
 from database import PaperPosition
@@ -181,7 +188,7 @@ def find_recent_duplicate_order(
     if int(window_seconds) <= 0:
         return None
 
-    cutoff_time = datetime.utcnow() - timedelta(
+    cutoff_time = utc_now() - timedelta(
         seconds=int(window_seconds)
     )
 

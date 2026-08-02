@@ -193,4 +193,30 @@ Sprint 72 adds a complete simulated paper-trading workflow to the Stock Analysis
 A new Streamlit page is available:
 
 ```text
-Paper Trading
+Paper Trading Sprint 1
+```
+
+## Supported environment
+
+The current validated release environment is:
+
+- Python 3.14
+- Streamlit 1.60.0
+- SQLAlchemy
+- PostgreSQL 18
+- SQLite for local fallback and isolated tests
+- pytest 9.1.1
+
+The application uses naive UTC timestamps for compatibility
+with the existing database schema. Timestamp creation uses
+timezone-aware UTC internally and removes the timezone
+marker before persistence.
+
+## Installation
+
+Create and activate a virtual environment:
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```

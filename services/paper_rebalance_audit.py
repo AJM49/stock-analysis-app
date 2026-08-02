@@ -1,6 +1,7 @@
 """Persistence service for rebalance execution audit records."""
 
 import json
+from datetime import UTC
 from datetime import datetime
 from uuid import uuid4
 
@@ -8,6 +9,14 @@ from database import PaperPosition
 from database import PaperRebalanceBatch
 from database import PaperRebalanceItem
 from database import get_database_session
+
+
+def utc_now():
+    """
+    Return naive UTC for existing timestamp-without-timezone columns.
+    """
+
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 BATCH_STATUSES = {
@@ -103,7 +112,7 @@ def capture_portfolio_state(
                 else float(cash_balance)
             ),
             "positions": rows,
-            "captured_at": datetime.utcnow().isoformat(),
+            "captured_at": utc_now().isoformat(),
         }
 
     finally:
@@ -165,7 +174,7 @@ def create_rebalance_audit_batch(
             pre_portfolio_json=json_dumps(
                 pre_portfolio
             ),
-            created_at=datetime.utcnow(),
+            created_at=utc_now(),
         )
 
         session.add(batch)
@@ -198,7 +207,7 @@ def create_rebalance_audit_batch(
                 owned_quantity_before=(
                     candidate.get("owned_quantity")
                 ),
-                created_at=datetime.utcnow(),
+                created_at=utc_now(),
             )
 
             session.add(item)
@@ -239,7 +248,7 @@ def mark_rebalance_batch_started(batch_id):
             )
 
         batch.status = "IN_PROGRESS"
-        batch.started_at = datetime.utcnow()
+        batch.started_at = utc_now()
 
         session.commit()
 
@@ -302,7 +311,7 @@ def update_rebalance_item(
         item.quantity_after = quantity_after
 
         if clean_status in {"FILLED", "FAILED"}:
-            item.executed_at = datetime.utcnow()
+            item.executed_at = utc_now()
 
         session.commit()
 
@@ -361,7 +370,7 @@ def finalize_rebalance_audit_batch(
         batch.post_portfolio_json = json_dumps(
             post_portfolio
         )
-        batch.completed_at = datetime.utcnow()
+        batch.completed_at = utc_now()
 
         session.commit()
 

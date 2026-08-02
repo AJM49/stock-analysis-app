@@ -1,7 +1,14 @@
 """Paper-trading equity history, drawdown, and account reset service."""
 
+from datetime import UTC
 from datetime import datetime
 from math import isfinite
+
+def utc_now():
+    """Return naive UTC for existing timestamp columns."""
+
+    return datetime.now(UTC).replace(tzinfo=None)
+
 
 from database import PaperAccount
 from database import PaperEquitySnapshot
@@ -169,7 +176,7 @@ def save_equity_snapshot(
     try:
         snapshot = PaperEquitySnapshot(
             account_id=int(account_id),
-            snapshot_time=datetime.utcnow(),
+            snapshot_time=utc_now(),
             cash_balance=clean_cash,
             market_value=clean_market_value,
             account_equity=account_equity,
@@ -178,7 +185,7 @@ def save_equity_snapshot(
             peak_equity=peak_equity,
             drawdown_value=drawdown_value,
             drawdown_pct=drawdown_pct,
-            created_at=datetime.utcnow(),
+            created_at=utc_now(),
         )
 
         session.add(snapshot)
@@ -321,7 +328,7 @@ def reset_paper_account(
 
         account.starting_cash = clean_starting_cash
         account.cash_balance = clean_starting_cash
-        account.updated_at = datetime.utcnow()
+        account.updated_at = utc_now()
 
         session.commit()
 

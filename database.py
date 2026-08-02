@@ -1,4 +1,5 @@
 import os
+from datetime import UTC
 from datetime import datetime
 
 import streamlit as st
@@ -16,6 +17,16 @@ from sqlalchemy.orm import sessionmaker
 
 
 LOCAL_DATABASE_URL = "sqlite:///stocks.db"
+
+
+def utc_now():
+    """
+    Return naive UTC for existing timestamp-without-timezone columns.
+
+    utc_now() is deprecated in Python 3.14.
+    """
+
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 def normalize_database_url(database_url):
@@ -121,7 +132,7 @@ class WatchlistStock(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     ticker = Column(String, unique=True, nullable=False, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
 
 class PortfolioPosition(Base):
@@ -131,7 +142,7 @@ class PortfolioPosition(Base):
     ticker = Column(String, unique=True, nullable=False, index=True)
     shares = Column(Float, nullable=False)
     buy_price = Column(Float, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
 
 
@@ -142,7 +153,7 @@ class PortfolioSnapshot(Base):
     __tablename__ = "portfolio_snapshots"
 
     id = Column(Integer, primary_key=True, index=True)
-    snapshot_date = Column(DateTime, default=datetime.utcnow, index=True)
+    snapshot_date = Column(DateTime, default=utc_now, index=True)
     total_cost_basis = Column(Float, nullable=False, default=0.0)
     total_current_value = Column(Float, nullable=False, default=0.0)
     total_gain_loss = Column(Float, nullable=False, default=0.0)
@@ -151,7 +162,7 @@ class PortfolioSnapshot(Base):
     risk_score = Column(Float, nullable=True)
     risk_level = Column(String, nullable=True)
     risk_notes = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
 class PaperAccount(Base):
     """Simulated brokerage account used for paper trading."""
@@ -181,13 +192,13 @@ class PaperAccount(Base):
     )
     created_at = Column(
         DateTime,
-        default=datetime.utcnow,
+        default=utc_now,
         nullable=False,
     )
     updated_at = Column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=utc_now,
+        onupdate=utc_now,
         nullable=False,
     )
 
@@ -225,13 +236,13 @@ class PaperPosition(Base):
     )
     created_at = Column(
         DateTime,
-        default=datetime.utcnow,
+        default=utc_now,
         nullable=False,
     )
     updated_at = Column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=utc_now,
+        onupdate=utc_now,
         nullable=False,
     )
 
@@ -288,7 +299,7 @@ class PaperOrder(Base):
     )
     submitted_at = Column(
         DateTime,
-        default=datetime.utcnow,
+        default=utc_now,
         nullable=False,
     )
     executed_at = Column(
@@ -341,7 +352,7 @@ class PaperTrade(Base):
     )
     executed_at = Column(
         DateTime,
-        default=datetime.utcnow,
+        default=utc_now,
         nullable=False,
     )
 
@@ -358,7 +369,7 @@ class PaperEquitySnapshot(Base):
     )
     snapshot_time = Column(
         DateTime,
-        default=datetime.utcnow,
+        default=utc_now,
         nullable=False,
         index=True,
     )
@@ -404,7 +415,7 @@ class PaperEquitySnapshot(Base):
     )
     created_at = Column(
         DateTime,
-        default=datetime.utcnow,
+        default=utc_now,
         nullable=False,
     )
 
@@ -496,7 +507,7 @@ class PaperRebalanceBatch(Base):
     )
     created_at = Column(
         DateTime,
-        default=datetime.utcnow,
+        default=utc_now,
         nullable=False,
         index=True,
     )
@@ -597,7 +608,7 @@ class PaperRebalanceItem(Base):
     )
     created_at = Column(
         DateTime,
-        default=datetime.utcnow,
+        default=utc_now,
         nullable=False,
     )
     executed_at = Column(
@@ -617,9 +628,9 @@ class MarketDataCache(Base):
     low_price = Column(Float)
     close_price = Column(Float)
     volume = Column(Integer)
-    fetched_at = Column(DateTime, default=datetime.utcnow)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    fetched_at = Column(DateTime, default=utc_now)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
 
 
@@ -868,7 +879,7 @@ def save_market_data_cache(ticker, market_dataframe):
                 low_price=row.get("Low"),
                 close_price=row.get("Close"),
                 volume=row.get("Volume"),
-                fetched_at=datetime.utcnow()
+                fetched_at=utc_now()
             )
 
             session.add(cached_row)
@@ -1020,7 +1031,7 @@ def get_market_data_freshness_for_ticker(ticker):
 
         newest_value = newest_date[0]
 
-        age_days = (datetime.utcnow().date() - newest_value).days
+        age_days = (utc_now().date() - newest_value).days
         is_fresh = age_days <= 5
 
         return {
@@ -1224,7 +1235,7 @@ class PortfolioScenario(Base):
     __tablename__ = "portfolio_scenarios"
 
     id = Column(Integer, primary_key=True, index=True)
-    scenario_date = Column(DateTime, default=datetime.utcnow, nullable=False)
+    scenario_date = Column(DateTime, default=utc_now, nullable=False)
     ticker = Column(String, nullable=False)
     action = Column(String, nullable=False)
     scenario_portfolio_value = Column(Float, nullable=False)

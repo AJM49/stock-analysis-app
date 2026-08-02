@@ -1,7 +1,14 @@
 """Paper-trading order validation and execution service."""
 
+from datetime import UTC
 from datetime import datetime
 from math import isfinite
+
+def utc_now():
+    """Return naive UTC for existing timestamp columns."""
+
+    return datetime.now(UTC).replace(tzinfo=None)
+
 
 from database import PaperAccount
 from database import PaperOrder
@@ -187,7 +194,7 @@ def create_rejected_order(
         order_value=None,
         status=REJECTED_STATUS,
         rejection_reason=str(reason),
-        submitted_at=datetime.utcnow(),
+        submitted_at=utc_now(),
         executed_at=None,
     )
 
@@ -255,8 +262,8 @@ def execute_buy_order(
             quantity=quantity,
             average_cost=execution_price,
             realized_profit_loss=0.0,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            created_at=utc_now(),
+            updated_at=utc_now(),
         )
         session.add(position)
     else:
@@ -277,13 +284,13 @@ def execute_buy_order(
             new_total_cost / new_quantity,
             MONEY_PRECISION,
         )
-        position.updated_at = datetime.utcnow()
+        position.updated_at = utc_now()
 
     account.cash_balance = round(
         float(account.cash_balance) - order_value,
         MONEY_PRECISION,
     )
-    account.updated_at = datetime.utcnow()
+    account.updated_at = utc_now()
 
     return position, order_value, 0.0
 
@@ -334,7 +341,7 @@ def execute_sell_order(
         + realized_profit_loss,
         MONEY_PRECISION,
     )
-    position.updated_at = datetime.utcnow()
+    position.updated_at = utc_now()
 
     if remaining_quantity <= FLOAT_TOLERANCE:
         position.quantity = 0.0
@@ -346,7 +353,7 @@ def execute_sell_order(
         float(account.cash_balance) + order_value,
         MONEY_PRECISION,
     )
-    account.updated_at = datetime.utcnow()
+    account.updated_at = utc_now()
 
     return position, order_value, realized_profit_loss
 
@@ -482,7 +489,7 @@ def execute_market_order(
             order_value=None,
             status="PENDING",
             rejection_reason=None,
-            submitted_at=datetime.utcnow(),
+            submitted_at=utc_now(),
             executed_at=None,
         )
 
@@ -529,7 +536,7 @@ def execute_market_order(
                 account=account,
             )
 
-        executed_at = datetime.utcnow()
+        executed_at = utc_now()
 
         paper_order.executed_price = clean_price
         paper_order.order_value = order_value
