@@ -12,6 +12,7 @@ from sqlalchemy import Integer
 from sqlalchemy import String
 from sqlalchemy import Text
 from sqlalchemy import create_engine
+from sqlalchemy import inspect
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker
 
@@ -1179,7 +1180,12 @@ def delete_portfolio_snapshot(snapshot_id: int) -> bool:
 
 
 def ensure_portfolio_snapshot_risk_columns() -> None:
-    """Ensure portfolio snapshot risk columns exist for existing databases."""
+    """Ensure risk columns exist when the snapshot table already exists."""
+    inspector = inspect(engine)
+
+    if not inspector.has_table("portfolio_snapshots"):
+        return
+
     engine_name = engine.dialect.name
 
     with engine.begin() as connection:
@@ -1539,7 +1545,7 @@ def create_paper_account(
 def get_or_create_paper_account(
     starting_cash=100000.0,
 ):
-    """Return the active account or create the default 
+    """Return the active account or create the default
 account."""
 
     account = get_active_paper_account()
