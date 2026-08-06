@@ -102,6 +102,11 @@ def apply_period_filter(history: pd.DataFrame, period: str = "6mo") -> pd.DataFr
     if limit is None:
         return history.reset_index(drop=True)
 
+    history = history.sort_values(
+        "Date",
+        ascending=True,
+    )
+
     return history.tail(limit).reset_index(drop=True)
 
 
