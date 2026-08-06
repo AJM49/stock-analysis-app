@@ -344,26 +344,173 @@ def get_stock_data(
     return filtered_history, None
 
 
+
+def safe_optional_float(value: object) -> float | None:
+    if value in (None, "", "None", "-", "N/A"):
+        return None
+
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def parse_alpha_vantage_company_overview(
+    data: dict[str, Any],
+    ticker: str,
+) -> tuple[dict[str, Any], str | None]:
+    provider_error = parse_alpha_vantage_error(data)
+
+    if provider_error:
+        return {}, provider_error
+
+    if not data or not data.get("Symbol"):
+        return {}, "No company overview found for " + ticker
+
+    profile = {
+        "ticker": ticker,
+        "longName": data.get("Name") or ticker,
+        "sector": data.get("Sector") or "N/A",
+        "industry": data.get("Industry") or "N/A",
+        "longBusinessSummary": (
+            data.get("Description")
+            or "No company description available."
+        ),
+        "marketCap": safe_optional_float(
+            data.get("MarketCapitalization")
+        ),
+        "fiftyTwoWeekHigh": safe_optional_float(
+            data.get("52WeekHigh")
+        ),
+        "fiftyTwoWeekLow": safe_optional_float(
+            data.get("52WeekLow")
+        ),
+        "trailingPE": safe_optional_float(
+            data.get("PERatio")
+        ),
+        "dividendYield": safe_optional_float(
+            data.get("DividendYield")
+        ),
+        "beta": safe_optional_float(
+            data.get("Beta")
+        ),
+        "source": "Alpha Vantage Company Overview",
+    }
+
+    return profile, None
+
+
+@st.cache_data(ttl=86400)
+def fetch_alpha_vantage_company_overview(
+    ticker: object,
+) -> tuple[dict[str, Any], str | None]:
+    clean_ticker = clean_ticker_symbol(ticker)
+
+    is_valid_format, validation_result = is_valid_ticker_format(
+        clean_ticker
+    )
+
+    if not is_valid_format:
+        return {}, validation_result
+
+    api_key = get_alpha_vantage_key()
+
+    if not api_key:
+        return {}, "Missing Alpha Vantage API key."
+
+    params = {
+        "function": "OVERVIEW",
+        "symbol": clean_ticker,
+        "apikey": api_key,
+    }
+
+    try:
+        response = requests.get(
+            BASE_URL,
+            params=params,
+            timeout=15,
+        )
+        response.raise_for_status()
+
+        data = response.json()
+
+        return parse_alpha_vantage_company_overview(
+            data,
+            clean_ticker,
+        )
+
+    except requests.exceptions.Timeout as error:
+        log_error(
+            f"Company overview request timed out for {clean_ticker}",
+            error,
+        )
+        return {}, "Company overview request timed out."
+
+    except requests.exceptions.RequestException as error:
+        log_error(
+            f"Company overview request failed for {clean_ticker}",
+            error,
+        )
+        return {}, "Company overview request failed."
+
+    except ValueError as error:
+        log_error(
+            f"Company overview JSON parse failed for {clean_ticker}",
+            error,
+        )
+        return {}, "Company overview response was not valid JSON."
+
+    except Exception as error:
+        log_error(
+            f"Unexpected company overview error for {clean_ticker}",
+            error,
+        )
+        return {}, "Unexpected company overview error."
+
+
 def load_stock_data(
     ticker: object,
     period: str = "6mo",
     force_refresh: bool = False,
     cache_only: bool = False,
 ):
+    clean_ticker = clean_ticker_symbol(ticker)
+
     history, error = get_stock_data(
-        ticker,
+        clean_ticker,
         period,
         force_refresh=force_refresh,
         cache_only=cache_only,
     )
 
     info = {
-        "ticker": clean_ticker_symbol(ticker),
+        "ticker": clean_ticker,
+        "longName": clean_ticker,
+        "sector": "N/A",
+        "industry": "N/A",
+        "longBusinessSummary": (
+            "Company profile data has not been loaded."
+        ),
         "source": "Neon Cache / Alpha Vantage",
     }
 
     if error:
         return info, history, error
+
+    if not cache_only:
+        profile, profile_error = (
+            fetch_alpha_vantage_company_overview(clean_ticker)
+        )
+
+        if profile:
+            info.update(profile)
+        elif profile_error:
+            log_warning(
+                "Company overview unavailable for "
+                + clean_ticker
+                + ": "
+                + profile_error
+            )
 
     return info, history, None
 
@@ -467,6 +614,14 @@ def get_stock_volatility(ticker: object) -> float:
 
 
 def clear_market_data_cache() -> None:
+    try:
+        fetch_alpha_vantage_company_overview.clear()
+    except Exception as error:
+        log_error(
+            "Failed to clear company overview cache",
+            error,
+        )
+
     try:
         get_stock_data.clear()
     except Exception as error:

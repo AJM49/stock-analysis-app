@@ -22,6 +22,13 @@ from services.market_data_service import load_stock_data
 from services.market_data_service import normalize_market_dataframe
 from services.market_data_service import parse_alpha_vantage_daily_response
 from services.market_data_service import parse_alpha_vantage_error
+from services.market_data_service import (
+    fetch_alpha_vantage_company_overview,
+)
+from services.market_data_service import (
+    parse_alpha_vantage_company_overview,
+)
+from services.market_data_service import safe_optional_float
 from services.quota_state import clear_market_data_quota_limited
 from services.quota_state import is_market_data_quota_limited
 from services.quota_state import set_market_data_quota_limited
