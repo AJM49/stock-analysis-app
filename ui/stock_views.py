@@ -6,11 +6,7 @@ from datetime import date
 import pandas as pd
 import streamlit as st
 
-from indicators import (
-    get_macd_signal,
-    get_rsi_signal,
-    get_volatility_signal,
-)
+from indicators import get_volatility_signal
 
 def get_rsi_signal(rsi_value):
     if rsi_value is None:
@@ -63,6 +59,8 @@ def get_moving_average_signal(current_price, moving_average):
         return "Bearish"
 
     return "Neutral"
+
+
 def get_market_data_freshness(history):
     """
     Return the latest market date, age in days,
@@ -94,13 +92,14 @@ def get_market_data_freshness(history):
 
     return latest_market_date, age_days, status
 
+
 def render_stock_header(
     info,
     ticker,
     latest_close,
     price_change_pct,
     history=None,
-cache_only=False,
+    cache_only=False,
 ):
     company_name = info.get("longName") or ticker
     st.subheader(company_name)
