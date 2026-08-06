@@ -220,3 +220,48 @@ Create and activate a virtual environment:
 python3 -m venv venv
 source venv/bin/activate
 ```
+
+Install runtime dependencies:
+
+```bash
+python3 -m pip install --upgrade pip
+python3 -m pip install -r requirements.txt
+```
+
+Install development and testing dependencies:
+
+```bash
+python3 -m pip install -r requirements-dev.txt
+```
+
+## Configuration
+
+Create the Streamlit secrets directory:
+
+```bash
+mkdir -p .streamlit
+nano .streamlit/secrets.toml
+```
+
+Add your credentials:
+
+```toml
+DATABASE_URL = "your-postgresql-connection-string"
+ALPHA_VANTAGE_API_KEY = "your-alpha-vantage-api-key"
+```
+
+Do not commit `.streamlit/secrets.toml` to Git.
+
+## Run the Application
+
+```bash
+python3 -m streamlit run stock_app.py
+```
+
+## Run the Test Suite
+
+```bash
+python3 -m pytest -W error -q
+```
+
+The current validated release branch passes 339 tests.
