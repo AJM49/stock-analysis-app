@@ -12,7 +12,10 @@ from core.provider_errors import is_provider_quota_error
 from core.ticker import clean_ticker_symbol
 from core.ticker import is_valid_ticker_format
 from core.ticker import validate_ticker
+from database import company_profile_row_to_dict
+from database import get_cached_company_profile
 from database import get_cached_market_data
+from database import save_company_profile_cache
 from database import save_market_data_cache
 
 
@@ -468,6 +471,26 @@ def fetch_alpha_vantage_company_overview(
         return {}, "Unexpected company overview error."
 
 
+
+def load_cached_company_profile(
+    ticker: object,
+) -> dict[str, Any]:
+    clean_ticker = clean_ticker_symbol(ticker)
+
+    try:
+        profile_row = get_cached_company_profile(
+            clean_ticker
+        )
+        return company_profile_row_to_dict(profile_row)
+
+    except Exception as error:
+        log_error(
+            f"Company profile cache read failed for {clean_ticker}",
+            error,
+        )
+        return {}
+
+
 def load_stock_data(
     ticker: object,
     period: str = "6mo",
@@ -497,20 +520,48 @@ def load_stock_data(
     if error:
         return info, history, error
 
-    if not cache_only:
-        profile, profile_error = (
-            fetch_alpha_vantage_company_overview(clean_ticker)
+    cached_profile = load_cached_company_profile(
+        clean_ticker
+    )
+
+    if cached_profile:
+        info.update(cached_profile)
+
+    if cache_only:
+        return info, history, None
+
+    should_fetch_profile = (
+        force_refresh
+        or not cached_profile
+    )
+
+    if not should_fetch_profile:
+        return info, history, None
+
+    profile, profile_error = (
+        fetch_alpha_vantage_company_overview(
+            clean_ticker
+        )
+    )
+
+    if profile:
+        info.update(profile)
+
+        saved, save_message = save_company_profile_cache(
+            clean_ticker,
+            profile,
         )
 
-        if profile:
-            info.update(profile)
-        elif profile_error:
-            log_warning(
-                "Company overview unavailable for "
-                + clean_ticker
-                + ": "
-                + profile_error
-            )
+        if not saved:
+            log_warning(save_message)
+
+    elif profile_error:
+        log_warning(
+            "Company overview unavailable for "
+            + clean_ticker
+            + ": "
+            + profile_error
+        )
 
     return info, history, None
 

@@ -18,6 +18,8 @@ from services.market_data_service import get_market_data
 from services.market_data_service import get_stock_data
 from services.market_data_service import get_stock_volatility
 from services.market_data_service import load_cached_stock_data
+from services.market_data_service import load_cached_company_profile
+from services.market_data_service import load_cached_company_profile
 from services.market_data_service import load_stock_data
 from services.market_data_service import normalize_market_dataframe
 from services.market_data_service import parse_alpha_vantage_daily_response

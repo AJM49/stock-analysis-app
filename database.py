@@ -635,6 +635,46 @@ class MarketDataCache(Base):
 
 
 
+class CompanyProfileCache(Base):
+    __tablename__ = "company_profile_cache"
+
+    id = Column(Integer, primary_key=True, index=True)
+    ticker = Column(
+        String,
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    company_name = Column(String)
+    sector = Column(String)
+    industry = Column(String)
+    description = Column(Text)
+    market_cap = Column(Float)
+    fifty_two_week_high = Column(Float)
+    fifty_two_week_low = Column(Float)
+    trailing_pe = Column(Float)
+    dividend_yield = Column(Float)
+    beta = Column(Float)
+    source = Column(String)
+    fetched_at = Column(
+        DateTime,
+        default=utc_now,
+        nullable=False,
+    )
+    created_at = Column(
+        DateTime,
+        default=utc_now,
+        nullable=False,
+    )
+    updated_at = Column(
+        DateTime,
+        default=utc_now,
+        onupdate=utc_now,
+        nullable=False,
+    )
+
+
+
 def init_database():
     Base.metadata.create_all(bind=engine)
 
@@ -852,6 +892,143 @@ def get_cached_market_data(ticker):
 
     except Exception:
         return []
+
+    finally:
+        session.close()
+
+
+def get_cached_company_profile(ticker):
+    clean_ticker = ticker.upper().strip()
+
+    if not clean_ticker:
+        return None
+
+    session = get_database_session()
+
+    try:
+        return (
+            session.query(CompanyProfileCache)
+            .filter(
+                CompanyProfileCache.ticker == clean_ticker
+            )
+            .first()
+        )
+
+    except Exception:
+        return None
+
+    finally:
+        session.close()
+
+
+def company_profile_row_to_dict(profile_row):
+    if profile_row is None:
+        return {}
+
+    return {
+        "ticker": profile_row.ticker,
+        "longName": (
+            profile_row.company_name
+            or profile_row.ticker
+        ),
+        "sector": profile_row.sector or "N/A",
+        "industry": profile_row.industry or "N/A",
+        "longBusinessSummary": (
+            profile_row.description
+            or "No company description available."
+        ),
+        "marketCap": profile_row.market_cap,
+        "fiftyTwoWeekHigh": (
+            profile_row.fifty_two_week_high
+        ),
+        "fiftyTwoWeekLow": (
+            profile_row.fifty_two_week_low
+        ),
+        "trailingPE": profile_row.trailing_pe,
+        "dividendYield": profile_row.dividend_yield,
+        "beta": profile_row.beta,
+        "source": (
+            profile_row.source
+            or "Database Company Profile Cache"
+        ),
+        "profileFetchedAt": profile_row.fetched_at,
+    }
+
+
+def save_company_profile_cache(ticker, profile):
+    clean_ticker = ticker.upper().strip()
+
+    if not clean_ticker:
+        return False, "Ticker cannot be empty."
+
+    if not profile:
+        return False, "No company profile to cache."
+
+    session = get_database_session()
+
+    try:
+        cached_profile = (
+            session.query(CompanyProfileCache)
+            .filter(
+                CompanyProfileCache.ticker == clean_ticker
+            )
+            .first()
+        )
+
+        if cached_profile is None:
+            cached_profile = CompanyProfileCache(
+                ticker=clean_ticker
+            )
+            session.add(cached_profile)
+
+        cached_profile.company_name = profile.get(
+            "longName"
+        )
+        cached_profile.sector = profile.get("sector")
+        cached_profile.industry = profile.get("industry")
+        cached_profile.description = profile.get(
+            "longBusinessSummary"
+        )
+        cached_profile.market_cap = profile.get(
+            "marketCap"
+        )
+        cached_profile.fifty_two_week_high = profile.get(
+            "fiftyTwoWeekHigh"
+        )
+        cached_profile.fifty_two_week_low = profile.get(
+            "fiftyTwoWeekLow"
+        )
+        cached_profile.trailing_pe = profile.get(
+            "trailingPE"
+        )
+        cached_profile.dividend_yield = profile.get(
+            "dividendYield"
+        )
+        cached_profile.beta = profile.get("beta")
+        cached_profile.source = profile.get(
+            "source",
+            "Alpha Vantage Company Overview",
+        )
+        cached_profile.fetched_at = utc_now()
+        cached_profile.updated_at = utc_now()
+
+        session.commit()
+
+        return (
+            True,
+            clean_ticker + " company profile cached.",
+        )
+
+    except Exception as error:
+        session.rollback()
+        return (
+            False,
+            "Company profile cache error: " + str(error),
+        )
+
+    finally:
+        session.close()
+
 
 def save_market_data_cache(ticker, market_dataframe):
     clean_ticker = ticker.upper().strip()

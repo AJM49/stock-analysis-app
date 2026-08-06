@@ -147,8 +147,20 @@ def render_stock_header(
     col4, col5, col6 = st.columns(3)
 
     market_cap = info.get("marketCap")
-    volume = info.get("volume")
-    average_volume = info.get("averageVolume")
+
+    volume = None
+    average_volume = None
+
+    if (
+        history is not None
+        and not history.empty
+        and "Volume" in history.columns
+    ):
+        volume_series = history["Volume"].dropna()
+
+        if not volume_series.empty:
+            volume = volume_series.iloc[-1]
+            average_volume = volume_series.mean()
 
     col4.metric(
         "Market Cap",
