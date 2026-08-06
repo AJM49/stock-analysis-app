@@ -321,7 +321,8 @@ try:
         info,
         ticker,
         current_price,
-        price_change_pct
+        price_change_pct,
+        history,
     )
 
     render_company_profile(

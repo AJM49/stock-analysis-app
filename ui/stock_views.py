@@ -59,42 +59,116 @@ def get_moving_average_signal(current_price, moving_average):
     return "Neutral"
 
 
-def render_stock_header(info, ticker, current_price, price_change_pct):
-    st.subheader(info.get("longName", ticker))
+def render_stock_header(
+    info,
+    ticker,
+    latest_close,
+    price_change_pct,
+    history=None,
+):
+    company_name = info.get("longName") or ticker
+    st.subheader(company_name)
+
+    selected_period_high = None
+    selected_period_low = None
+
+    if history is not None and not history.empty:
+        if "High" in history.columns:
+            high_values = pd.to_numeric(
+                history["High"],
+                errors="coerce",
+            ).dropna()
+
+            if not high_values.empty:
+                selected_period_high = float(high_values.max())
+
+        if "Low" in history.columns:
+            low_values = pd.to_numeric(
+                history["Low"],
+                errors="coerce",
+            ).dropna()
+
+            if not low_values.empty:
+                selected_period_low = float(low_values.min())
+
+    provider_high = info.get("fiftyTwoWeekHigh")
+    provider_low = info.get("fiftyTwoWeekLow")
+
+    high_value = (
+        provider_high
+        if provider_high is not None
+        else selected_period_high
+    )
+
+    low_value = (
+        provider_low
+        if provider_low is not None
+        else selected_period_low
+    )
+
+    high_label = (
+        "52-Week High"
+        if provider_high is not None
+        else "Selected-Period High"
+    )
+
+    low_label = (
+        "52-Week Low"
+        if provider_low is not None
+        else "Selected-Period Low"
+    )
 
     col1, col2, col3 = st.columns(3)
 
     col1.metric(
-        "Current Price",
-        f"${current_price:.2f}",
-        f"{price_change_pct:.2f}%"
+        "Latest Daily Close",
+        f"${latest_close:.2f}",
+        f"{price_change_pct:.2f}%",
+        help=(
+            "The latest available daily closing price. "
+            "This is not a real-time market quote."
+        ),
     )
 
     col2.metric(
-        "52 Week High",
-        f"${info.get('fiftyTwoWeekHigh', 0):.2f}"
+        high_label,
+        f"${float(high_value):.2f}"
+        if high_value is not None
+        else "N/A",
     )
 
     col3.metric(
-        "52 Week Low",
-        f"${info.get('fiftyTwoWeekLow', 0):.2f}"
+        low_label,
+        f"${float(low_value):.2f}"
+        if low_value is not None
+        else "N/A",
     )
 
     col4, col5, col6 = st.columns(3)
 
+    market_cap = info.get("marketCap")
+    volume = info.get("volume")
+    average_volume = info.get("averageVolume")
+
     col4.metric(
         "Market Cap",
-        f"${info.get('marketCap', 0):,}"
+        f"${float(market_cap):,.0f}"
+        if market_cap is not None
+        else "N/A",
     )
 
     col5.metric(
         "Volume",
-        f"{info.get('volume', 0):,}"
+        f"{float(volume):,.0f}"
+        if volume is not None
+        else "N/A",
     )
 
     col6.metric(
         "Average Volume",
-        f"{info.get('averageVolume', 0):,}"
+        f"{float(average_volume):,.0f}"
+        if average_volume is not None
+        else "N/A",
     )
 
     pe_ratio = info.get("trailingPE")
@@ -105,18 +179,23 @@ def render_stock_header(info, ticker, current_price, price_change_pct):
 
     col7.metric(
         "P/E Ratio",
-        f"{pe_ratio:.2f}" if pe_ratio else "N/A"
+        f"{float(pe_ratio):.2f}"
+        if pe_ratio is not None
+        else "N/A",
     )
 
     col8.metric(
         "Dividend Yield",
-        f"{dividend_yield * 100:.2f}%"
-        if dividend_yield else "N/A"
+        f"{float(dividend_yield) * 100:.2f}%"
+        if dividend_yield is not None
+        else "N/A",
     )
 
     col9.metric(
         "Beta",
-        f"{beta:.2f}" if beta else "N/A"
+        f"{float(beta):.2f}"
+        if beta is not None
+        else "N/A",
     )
 
 def render_company_profile(info, show_company_overview):
