@@ -1,10 +1,16 @@
+
 from __future__ import annotations
+
+from datetime import date
 
 import pandas as pd
 import streamlit as st
-from indicators import get_macd_signal, get_rsi_signal, get_volatility_signal
-from indicators import get_macd_signal, get_rsi_signal, get_volatility_signal
 
+from indicators import (
+    get_macd_signal,
+    get_rsi_signal,
+    get_volatility_signal,
+)
 
 def get_rsi_signal(rsi_value):
     if rsi_value is None:
@@ -57,7 +63,36 @@ def get_moving_average_signal(current_price, moving_average):
         return "Bearish"
 
     return "Neutral"
+def get_market_data_freshness(history):
+    """
+    Return the latest market date, age in days,
+    and freshness status.
+    """
+    if history is None or history.empty:
+        return None, None, "Unavailable"
 
+    if "Date" not in history.columns:
+        return None, None, "Unavailable"
+
+    date_values = pd.to_datetime(
+        history["Date"],
+        errors="coerce",
+    ).dropna()
+
+    if date_values.empty:
+        return None, None, "Unavailable"
+
+    latest_market_date = date_values.max().date()
+    age_days = (date.today() - latest_market_date).days
+
+    if age_days <= 3:
+        status = "Fresh"
+    elif age_days <= 7:
+        status = "Delayed"
+    else:
+        status = "Stale"
+
+    return latest_market_date, age_days, status
 
 def render_stock_header(
     info,
@@ -65,6 +100,7 @@ def render_stock_header(
     latest_close,
     price_change_pct,
     history=None,
+cache_only=False,
 ):
     company_name = info.get("longName") or ticker
     st.subheader(company_name)

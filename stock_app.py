@@ -323,6 +323,7 @@ try:
         current_price,
         price_change_pct,
         history,
+        cache_only=cache_only_mode,
     )
 
     render_company_profile(
