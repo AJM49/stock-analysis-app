@@ -117,3 +117,43 @@ def test_attention_is_empty_when_data_is_healthy():
     )
 
     assert items == []
+
+
+
+def test_attention_items_are_sorted_by_priority():
+    old_date = date.today() - timedelta(days=20)
+
+    metrics = [
+        {
+            "Ticker": "STALE",
+            "Cache Status": "Cached",
+            "Latest Market Date": str(old_date),
+        },
+        {
+            "Ticker": "MISSING",
+            "Cache Status": "Unavailable",
+            "Latest Market Date": None,
+        },
+    ]
+
+    snapshot = SimpleNamespace(
+        snapshot_date=old_date,
+        risk_level="High Risk",
+    )
+
+    items = build_dashboard_attention_items(
+        metrics,
+        snapshot,
+    )
+
+    priorities = [
+        item["priority"]
+        for item in items
+    ]
+
+    assert priorities == [
+        "critical",
+        "high",
+        "medium",
+        "low",
+    ]

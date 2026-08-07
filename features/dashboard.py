@@ -9,6 +9,25 @@ from database import get_portfolio_snapshots
 from database import get_watchlist_cached_metrics
 
 
+ATTENTION_PRIORITY = {
+    "critical": 4,
+    "high": 3,
+    "medium": 2,
+    "low": 1,
+}
+
+
+def sort_attention_items(items):
+    return sorted(
+        items,
+        key=lambda item: ATTENTION_PRIORITY.get(
+            item.get("priority", "low"),
+            0,
+        ),
+        reverse=True,
+    )
+
+
 def build_dashboard_attention_items(
     watchlist_metrics,
     latest_snapshot,
@@ -25,7 +44,12 @@ def build_dashboard_attention_items(
         items.append(
             {
                 "severity": "warning",
+                "priority": "high",
                 "title": "Missing watchlist cache",
+                "action": (
+                    "Open Watchlist and review unsupported "
+                    "or uncached symbols."
+                ),
                 "message": (
                     f"{len(unavailable_tickers)} saved ticker(s) "
                     "do not have cached market data."
@@ -66,7 +90,12 @@ def build_dashboard_attention_items(
         items.append(
             {
                 "severity": "warning",
+                "priority": "medium",
                 "title": "Stale watchlist market data",
+                "action": (
+                    "Review stale tickers before using them "
+                    "for research decisions."
+                ),
                 "message": (
                     f"{len(stale_tickers)} cached ticker(s) "
                     "are more than 7 days old."
@@ -85,7 +114,12 @@ def build_dashboard_attention_items(
         items.append(
             {
                 "severity": "info",
+                "priority": "low",
                 "title": "Portfolio snapshot missing",
+                "action": (
+                    "Open Portfolio Summary and save a "
+                    "portfolio snapshot."
+                ),
                 "message": (
                     "No saved portfolio snapshot is available."
                 ),
@@ -117,7 +151,12 @@ def build_dashboard_attention_items(
                 items.append(
                     {
                         "severity": "warning",
+                        "priority": "low",
                         "title": "Portfolio snapshot stale",
+                        "action": (
+                            "Open Portfolio Summary and save "
+                            "a fresh portfolio snapshot."
+                        ),
                         "message": (
                             "The latest portfolio snapshot is "
                             f"{snapshot_age_days} days old."
@@ -144,7 +183,12 @@ def build_dashboard_attention_items(
         items.append(
             {
                 "severity": "error",
+                "priority": "critical",
                 "title": "Portfolio risk requires attention",
+                "action": (
+                    "Open Portfolio Summary and review "
+                    "concentration, allocation, and risk."
+                ),
                 "message": (
                     "Latest portfolio risk level: "
                     + risk_level
@@ -153,7 +197,7 @@ def build_dashboard_attention_items(
             }
         )
 
-    return items
+    return sort_attention_items(items)
 
 
 def render_attention_items(attention_items):
@@ -168,8 +212,14 @@ def render_attention_items(attention_items):
 
     for item in attention_items:
         severity = item["severity"]
+        priority = item.get(
+            "priority",
+            "low",
+        ).upper()
+
         message = (
-            item["title"]
+            f"[{priority}] "
+            + item["title"]
             + ": "
             + item["message"]
         )
@@ -180,6 +230,13 @@ def render_attention_items(attention_items):
             st.warning(message)
         else:
             st.info(message)
+
+        action = item.get("action")
+
+        if action:
+            st.caption(
+                "Recommended action: " + action
+            )
 
         details = item.get("details") or []
 
