@@ -1,5 +1,7 @@
 import pandas as pd
 
+from database import get_latest_cached_prices
+
 def get_latest_price_for_ticker(ticker: str) -> float:
     """Return latest cached close price for a ticker."""
     from services.market_data_service import get_stock_data
@@ -38,24 +40,59 @@ def build_portfolio_dataframe(portfolio_positions):
     if not portfolio_positions:
         return pd.DataFrame(portfolio_rows)
 
+    tickers = [
+        str(position.ticker).strip().upper()
+        for position in portfolio_positions
+    ]
+
+    cached_prices = get_latest_cached_prices(
+        tickers
+    )
+
     for position in portfolio_positions:
-        ticker = str(position.ticker).upper()
-        shares = float(position.shares or 0)
-        buy_price = float(position.buy_price or 0)
+        ticker = str(
+            position.ticker
+        ).strip().upper()
 
-        current_price = get_latest_price_for_ticker(ticker)
+        shares = float(
+            position.shares or 0
+        )
 
-        if current_price > 0:
+        buy_price = float(
+            position.buy_price or 0
+        )
+
+        cached_price = cached_prices.get(
+            ticker
+        )
+
+        if cached_price:
+            current_price = float(
+                cached_price["price"]
+            )
             price_status = "Available"
         else:
+            current_price = 0.0
             price_status = "Missing"
 
-        cost_basis = shares * buy_price
-        current_value = shares * current_price
-        gain_loss = current_value - cost_basis
+        cost_basis = (
+            shares * buy_price
+        )
+
+        current_value = (
+            shares * current_price
+        )
+
+        gain_loss = (
+            current_value - cost_basis
+        )
 
         if cost_basis > 0:
-            gain_loss_pct = (gain_loss / cost_basis) * 100
+            gain_loss_pct = (
+                gain_loss
+                / cost_basis
+                * 100
+            )
         else:
             gain_loss_pct = 0.0
 
@@ -73,19 +110,33 @@ def build_portfolio_dataframe(portfolio_positions):
             }
         )
 
-    portfolio_df = pd.DataFrame(portfolio_rows)
+    portfolio_df = pd.DataFrame(
+        portfolio_rows
+    )
 
     if portfolio_df.empty:
         return portfolio_df
 
-    total_current_value = portfolio_df["Current Value"].sum()
+    total_current_value = (
+        portfolio_df[
+            "Current Value"
+        ].sum()
+    )
 
     if total_current_value > 0:
-        portfolio_df["Allocation %"] = (
-            portfolio_df["Current Value"] / total_current_value
-        ) * 100
+        portfolio_df[
+            "Allocation %"
+        ] = (
+            portfolio_df[
+                "Current Value"
+            ]
+            / total_current_value
+            * 100
+        )
     else:
-        portfolio_df["Allocation %"] = 0.0
+        portfolio_df[
+            "Allocation %"
+        ] = 0.0
 
     return portfolio_df
 

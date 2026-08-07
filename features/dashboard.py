@@ -7,6 +7,7 @@ from database import get_database_status
 from database import get_portfolio_positions
 from database import get_portfolio_snapshots
 from database import get_watchlist_cached_metrics
+from portfolio import build_portfolio_dataframe
 
 
 ATTENTION_PRIORITY = {
@@ -31,8 +32,37 @@ def sort_attention_items(items):
 def build_dashboard_attention_items(
     watchlist_metrics,
     latest_snapshot,
+    portfolio_df=None,
 ):
     items = []
+
+    if portfolio_df is not None and not portfolio_df.empty:
+        missing_price_tickers = (
+            portfolio_df.loc[
+                portfolio_df["Price Status"] == "Missing",
+                "Ticker",
+            ]
+            .astype(str)
+            .tolist()
+        )
+
+        if missing_price_tickers:
+            items.append(
+                {
+                    "severity": "warning",
+                    "priority": "high",
+                    "title": "Missing portfolio prices",
+                    "action": (
+                        "Open Portfolio Summary and refresh "
+                        "cached prices for affected positions."
+                    ),
+                    "message": (
+                        f"{len(missing_price_tickers)} portfolio "
+                        "position(s) do not have cached market prices."
+                    ),
+                    "details": missing_price_tickers,
+                }
+            )
 
     unavailable_tickers = [
         row["Ticker"]
@@ -284,10 +314,15 @@ def render_dashboard(selected_ticker):
         else None
     )
 
+    portfolio_df = build_portfolio_dataframe(
+        portfolio_positions
+    )
+
     attention_items = (
         build_dashboard_attention_items(
             watchlist_metrics,
             latest_snapshot,
+            portfolio_df,
         )
     )
 

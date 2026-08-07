@@ -157,3 +157,45 @@ def test_attention_items_are_sorted_by_priority():
         "medium",
         "low",
     ]
+
+
+
+def test_attention_reports_missing_portfolio_prices():
+    import pandas as pd
+
+    portfolio_df = pd.DataFrame(
+        [
+            {
+                "Ticker": "AAPL",
+                "Price Status": "Available",
+            },
+            {
+                "Ticker": "ADVB",
+                "Price Status": "Missing",
+            },
+            {
+                "Ticker": "HL",
+                "Price Status": "Missing",
+            },
+        ]
+    )
+
+    snapshot = SimpleNamespace(
+        snapshot_date=date.today(),
+        risk_level="Low Risk",
+    )
+
+    items = build_dashboard_attention_items(
+        [],
+        snapshot,
+        portfolio_df,
+    )
+
+    alert = next(
+        item
+        for item in items
+        if item["title"] == "Missing portfolio prices"
+    )
+
+    assert alert["priority"] == "high"
+    assert alert["details"] == ["ADVB", "HL"]

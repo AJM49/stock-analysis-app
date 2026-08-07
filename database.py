@@ -796,6 +796,59 @@ def get_watchlist_cached_metrics():
         session.close()
 
 
+def get_latest_cached_prices(tickers):
+    clean_tickers = sorted(
+        {
+            str(ticker).strip().upper()
+            for ticker in tickers
+            if str(ticker).strip()
+        }
+    )
+
+    if not clean_tickers:
+        return {}
+
+    session = get_database_session()
+
+    try:
+        rows = (
+            session.query(MarketDataCache)
+            .filter(
+                MarketDataCache.ticker.in_(
+                    clean_tickers
+                )
+            )
+            .order_by(
+                MarketDataCache.ticker.asc(),
+                MarketDataCache.price_date.desc(),
+            )
+            .all()
+        )
+
+        latest_prices = {}
+
+        for row in rows:
+            ticker = str(
+                row.ticker
+            ).strip().upper()
+
+            if ticker in latest_prices:
+                continue
+
+            if row.close_price is None:
+                continue
+
+            latest_prices[ticker] = {
+                "price": float(row.close_price),
+                "price_date": row.price_date,
+            }
+
+        return latest_prices
+
+    finally:
+        session.close()
+
+
 def get_watchlist():
     session = get_database_session()
 
