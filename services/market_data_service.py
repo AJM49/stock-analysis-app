@@ -271,7 +271,6 @@ def load_cached_stock_data(
             return pd.DataFrame(columns=REQUIRED_MARKET_COLUMNS), "No cached market data."
 
         log_info(f"Loaded cached market data for {clean_ticker}")
-        log_info(f"Loaded cached market data for {clean_ticker}")
         return apply_period_filter(cached_history, period), None
 
     except Exception as error:
@@ -313,7 +312,6 @@ def get_stock_data(
             )
 
             log_warning(f"Cache-only miss for {clean_ticker}")
-            log_warning(f"Cache-only miss for {clean_ticker}")
             return pd.DataFrame(columns=REQUIRED_MARKET_COLUMNS), message
 
     if cache_only:
@@ -322,7 +320,6 @@ def get_stock_data(
             "Cache-only mode prevents Alpha Vantage requests."
         )
 
-        log_warning(f"Cache-only prevented provider request for {clean_ticker}")
         log_warning(f"Cache-only prevented provider request for {clean_ticker}")
         return pd.DataFrame(columns=REQUIRED_MARKET_COLUMNS), message
 
