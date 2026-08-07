@@ -429,9 +429,114 @@ def render_stock_header(
         else "N/A",
     )
 
+def get_company_profile_freshness(profile_fetched_at):
+    if profile_fetched_at is None:
+        return None, "Unavailable"
+
+    try:
+        fetched_at = pd.to_datetime(profile_fetched_at)
+    except (TypeError, ValueError):
+        return None, "Unavailable"
+
+    if pd.isna(fetched_at):
+        return None, "Unavailable"
+
+    fetched_date = fetched_at.date()
+    age_days = (date.today() - fetched_date).days
+
+    if age_days <= 7:
+        status = "Fresh"
+    elif age_days <= 30:
+        status = "Aging"
+    else:
+        status = "Stale"
+
+    return age_days, status
+
+
+def detect_profile_content_staleness(overview):
+    if not overview:
+        return False, []
+
+    text = str(overview)
+    current_year = date.today().year
+    stale_years = []
+
+    for year in range(2000, current_year - 1):
+        if str(year) in text:
+            stale_years.append(year)
+
+    return bool(stale_years), stale_years
+
+
 def render_company_profile(info, show_company_overview):
     st.divider()
     st.subheader("Company Profile")
+
+    profile_fetched_at = info.get("profileFetchedAt")
+    profile_age_days, profile_status = (
+        get_company_profile_freshness(profile_fetched_at)
+    )
+
+    profile_source = info.get(
+        "source",
+        "Unavailable",
+    )
+
+    fetched_display = "Unavailable"
+
+    if profile_fetched_at is not None:
+        try:
+            fetched_timestamp = pd.to_datetime(profile_fetched_at)
+
+            if pd.notna(fetched_timestamp):
+                fetched_display = fetched_timestamp.strftime(
+                    "%B %d, %Y"
+                )
+        except (TypeError, ValueError):
+            pass
+
+    profile_col1, profile_col2, profile_col3 = st.columns(3)
+
+    profile_col1.metric(
+        "Profile Status",
+        profile_status,
+    )
+
+    profile_col2.metric(
+        "Profile Age",
+        (
+            f"{profile_age_days} day"
+            if profile_age_days == 1
+            else f"{profile_age_days} days"
+        )
+        if profile_age_days is not None
+        else "Unavailable",
+    )
+
+    profile_col3.metric(
+        "Last Refreshed",
+        fetched_display,
+    )
+
+    st.caption(
+        "Profile source: " + str(profile_source)
+    )
+
+    if profile_status == "Stale":
+        st.warning(
+            "Company profile cache is stale. "
+            "Fundamental and descriptive fields may need refresh."
+        )
+    elif profile_status == "Aging":
+        st.info(
+            "Company profile cache is aging and may need refresh soon."
+        )
+    elif profile_status == "Unavailable":
+        st.warning(
+            "Company profile freshness is unavailable."
+        )
+
     st.write("Sector:", info.get("sector", "N/A"))
     st.write("Industry:", info.get("industry", "N/A"))
 
@@ -441,6 +546,20 @@ def render_company_profile(info, show_company_overview):
             "longBusinessSummary",
             "No company description available."
         )
+        content_stale, stale_years = (
+            detect_profile_content_staleness(overview)
+        )
+
+        if content_stale:
+            st.warning(
+                "The provider description contains older dated references "
+                "and may not reflect the company's current profile. "
+                "Detected years: "
+                + ", ".join(str(year) for year in stale_years)
+                + "."
+            )
+
+
         st.write(overview)
 
 def render_technical_indicators(history, volatility):
