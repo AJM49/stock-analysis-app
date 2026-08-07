@@ -683,6 +683,119 @@ def get_database_session():
     return SessionLocal()
 
 
+def get_watchlist_cached_metrics():
+    session = get_database_session()
+
+    try:
+        watchlist_items = (
+            session.query(WatchlistStock)
+            .order_by(WatchlistStock.ticker.asc())
+            .all()
+        )
+
+        tickers = [
+            str(item.ticker).strip().upper()
+            for item in watchlist_items
+        ]
+
+        if not tickers:
+            return []
+
+        cache_rows = (
+            session.query(MarketDataCache)
+            .filter(MarketDataCache.ticker.in_(tickers))
+            .order_by(
+                MarketDataCache.ticker.asc(),
+                MarketDataCache.price_date.desc(),
+            )
+            .all()
+        )
+
+        rows_by_ticker = {}
+        row_counts = {}
+
+        for row in cache_rows:
+            ticker = str(row.ticker).strip().upper()
+
+            row_counts[ticker] = row_counts.get(ticker, 0) + 1
+
+            if ticker not in rows_by_ticker:
+                rows_by_ticker[ticker] = []
+
+            if len(rows_by_ticker[ticker]) < 2:
+                rows_by_ticker[ticker].append(row)
+
+        metrics = []
+
+        for ticker in tickers:
+            ticker_rows = rows_by_ticker.get(ticker, [])
+
+            if not ticker_rows:
+                metrics.append(
+                    {
+                        "Ticker": ticker,
+                        "Latest Close": None,
+                        "Daily Change %": None,
+                        "Latest Market Date": None,
+                        "Cached Rows": 0,
+                        "Cache Status": "Unavailable",
+                    }
+                )
+                continue
+
+            latest_row = ticker_rows[0]
+            latest_close = (
+                float(latest_row.close_price)
+                if latest_row.close_price is not None
+                else None
+            )
+
+            daily_change_pct = None
+
+            if (
+                len(ticker_rows) >= 2
+                and latest_close is not None
+                and ticker_rows[1].close_price not in (None, 0)
+            ):
+                previous_close = float(
+                    ticker_rows[1].close_price
+                )
+
+                daily_change_pct = (
+                    (latest_close - previous_close)
+                    / previous_close
+                    * 100
+                )
+
+            metrics.append(
+                {
+                    "Ticker": ticker,
+                    "Latest Close": (
+                        round(latest_close, 2)
+                        if latest_close is not None
+                        else None
+                    ),
+                    "Daily Change %": (
+                        round(daily_change_pct, 2)
+                        if daily_change_pct is not None
+                        else None
+                    ),
+                    "Latest Market Date": (
+                        latest_row.price_date.strftime("%Y-%m-%d")
+                        if latest_row.price_date
+                        else None
+                    ),
+                    "Cached Rows": row_counts.get(ticker, 0),
+                    "Cache Status": "Cached",
+                }
+            )
+
+        return metrics
+
+    finally:
+        session.close()
+
+
 def get_watchlist():
     session = get_database_session()
 

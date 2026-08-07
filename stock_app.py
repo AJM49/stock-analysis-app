@@ -1,5 +1,6 @@
 import streamlit as st
 from features.company_research import render_company_research
+from features.watchlist import render_watchlist_feature
 from controllers.stock_controller import load_stock_dashboard_data
 from controllers.stock_controller import should_stop_for_error
 from core.user_messages import get_user_safe_app_error
@@ -41,7 +42,6 @@ from ui_components import render_comparison_chart
 from ui_components import render_stock_export
 from ui_components import render_stock_header
 from ui_components import render_technical_indicators
-from ui_components import render_watchlist_sidebar
 from ui_components import render_developer_status_panel
 from ui_components import render_app_diagnostics_page
 from ui_components import render_market_cache_panel
@@ -158,12 +158,6 @@ if active_section == "Company Research":
         st.rerun()
 
     if not primary_is_valid:
-        st.sidebar.warning(primary_result)
-
-elif active_section == "Watchlist":
-    if primary_is_valid:
-        render_watchlist_sidebar(ticker)
-    else:
         st.sidebar.warning(primary_result)
 
 
@@ -306,8 +300,7 @@ elif active_section == "Portfolio Summary":
         render_portfolio_snapshot_history(portfolio_snapshots)
 
 elif active_section == "Watchlist":
-    st.subheader("Watchlist")
-    st.info("Watchlist routing is next.")
+    render_watchlist_feature()
 
 elif active_section == "System Settings":
     st.header("System Settings")
