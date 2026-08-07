@@ -96,6 +96,7 @@ def get_market_data_freshness(history):
 def render_data_reliability_panel(
     history,
     cache_only=False,
+    provider_health=None,
 ):
     """Display market-data coverage and freshness details."""
     (
@@ -106,6 +107,28 @@ def render_data_reliability_panel(
 
     row_count = len(history) if history is not None else 0
     earliest_market_date = None
+
+    provider_health = provider_health or {}
+    provider_status = provider_health.get(
+        "status",
+        "not_attempted",
+    )
+    provider_source = provider_health.get(
+        "source",
+        "Unknown",
+    )
+    provider_attempted = provider_health.get(
+        "provider_attempted",
+        False,
+    )
+    fallback_used = provider_health.get(
+        "fallback_used",
+        False,
+    )
+    cache_persisted = provider_health.get(
+        "cache_persisted",
+    )
+    provider_message = provider_health.get("message")
 
     if (
         history is not None
@@ -121,9 +144,13 @@ def render_data_reliability_panel(
             earliest_market_date = date_values.min().date()
 
     source_label = (
-        "Database cache"
-        if cache_only
-        else "Database cache / Alpha Vantage"
+        provider_source
+        if provider_source != "Unknown"
+        else (
+            "Database cache"
+            if cache_only
+            else "Database cache / Alpha Vantage"
+        )
     )
 
     with st.expander(
@@ -135,7 +162,11 @@ def render_data_reliability_panel(
         col1.metric("Freshness", freshness_status)
         col2.metric(
             "Data Age",
-            f"{age_days} days"
+            (
+                f"{age_days} day"
+                if age_days == 1
+                else f"{age_days} days"
+            )
             if age_days is not None
             else "Unavailable",
         )
@@ -164,6 +195,58 @@ def render_data_reliability_panel(
             + " through "
             + latest_display
         )
+
+        st.markdown("**Provider Health**")
+
+        health_col1, health_col2, health_col3 = st.columns(3)
+
+        health_col1.metric(
+            "Provider Status",
+            provider_status.replace("_", " ").title(),
+        )
+
+        health_col2.metric(
+            "Provider Request",
+            "Attempted" if provider_attempted else "Not Attempted",
+        )
+
+        health_col3.metric(
+            "Fallback Used",
+            "Yes" if fallback_used else "No",
+        )
+
+        persistence_label = "Not Applicable"
+        if cache_persisted is True:
+            persistence_label = "Successful"
+        elif cache_persisted is False:
+            persistence_label = "Not Persisted"
+
+        st.caption(
+            "Provider source: "
+            + provider_source
+            + " | Cache persistence: "
+            + persistence_label
+        )
+
+        if provider_status == "limited":
+            st.warning(
+                "Alpha Vantage is currently rate-limited. "
+                "Cached market data may be used when available."
+            )
+        elif provider_status == "failed":
+            st.error(
+                "The market-data provider request failed."
+            )
+        elif provider_status == "suppressed":
+            st.info(
+                "Provider access was suppressed because "
+                "cache-only mode is enabled."
+            )
+
+        if provider_message:
+            st.caption(
+                "Provider message: " + str(provider_message)
+            )
 
         if freshness_status == "Stale":
             st.warning(
@@ -221,29 +304,31 @@ def render_stock_header(
     provider_high = info.get("fiftyTwoWeekHigh")
     provider_low = info.get("fiftyTwoWeekLow")
 
-    high_value = (
-        provider_high
-        if provider_high is not None
-        else selected_period_high
-    )
+    provider_range_valid = False
 
-    low_value = (
-        provider_low
-        if provider_low is not None
-        else selected_period_low
-    )
+    try:
+        if provider_high is not None and provider_low is not None:
+            provider_high = float(provider_high)
+            provider_low = float(provider_low)
 
-    high_label = (
-        "52-Week High"
-        if provider_high is not None
-        else "Selected-Period High"
-    )
+            provider_range_valid = (
+                provider_low > 0
+                and provider_high >= provider_low
+                and provider_low <= float(latest_close) <= provider_high
+            )
+    except (TypeError, ValueError):
+        provider_range_valid = False
 
-    low_label = (
-        "52-Week Low"
-        if provider_low is not None
-        else "Selected-Period Low"
-    )
+    if provider_range_valid:
+        high_value = provider_high
+        low_value = provider_low
+        high_label = "52-Week High"
+        low_label = "52-Week Low"
+    else:
+        high_value = selected_period_high
+        low_value = selected_period_low
+        high_label = "Selected-Period High"
+        low_label = "Selected-Period Low"
 
     col1, col2, col3 = st.columns(3)
 
@@ -275,6 +360,7 @@ def render_stock_header(
     render_data_reliability_panel(
         history,
         cache_only=cache_only,
+        provider_health=info.get("provider_health"),
     )
 
     col4, col5, col6 = st.columns(3)

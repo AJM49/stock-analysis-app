@@ -281,6 +281,41 @@ def load_cached_stock_data(
         )
 
 
+def _provider_health(
+    status,
+    *,
+    provider_attempted=False,
+    fallback_used=False,
+    source="Unknown",
+    message=None,
+    cache_persisted=None,
+):
+    return {
+        "status": status,
+        "provider_attempted": provider_attempted,
+        "fallback_used": fallback_used,
+        "source": source,
+        "message": message,
+        "cache_persisted": cache_persisted,
+    }
+
+
+def _provider_error_status(message):
+    normalized = str(message or "").lower()
+    limit_terms = (
+        "rate limit",
+        "provider limit",
+        "api limit",
+        "call frequency",
+        "quota",
+    )
+
+    if any(term in normalized for term in limit_terms):
+        return "limited"
+
+    return "failed"
+
+
 @st.cache_data(ttl=21600)
 def get_stock_data(
     ticker: object,
@@ -302,6 +337,13 @@ def get_stock_data(
         )
 
         if not cached_history.empty:
+            cached_history.attrs["provider_health"] = _provider_health(
+                "cache_hit",
+                provider_attempted=False,
+                fallback_used=True,
+                source="Database cache",
+                cache_persisted=True,
+            )
             return cached_history, None
 
         if cache_only:
@@ -312,7 +354,16 @@ def get_stock_data(
             )
 
             log_warning(f"Cache-only miss for {clean_ticker}")
-            return pd.DataFrame(columns=REQUIRED_MARKET_COLUMNS), message
+            empty_history = pd.DataFrame(columns=REQUIRED_MARKET_COLUMNS)
+            empty_history.attrs["provider_health"] = _provider_health(
+                "suppressed",
+                provider_attempted=False,
+                fallback_used=False,
+                source="Database cache",
+                message=message,
+                cache_persisted=False,
+            )
+            return empty_history, message
 
     if cache_only:
         message = (
@@ -321,29 +372,65 @@ def get_stock_data(
         )
 
         log_warning(f"Cache-only prevented provider request for {clean_ticker}")
-        return pd.DataFrame(columns=REQUIRED_MARKET_COLUMNS), message
+        empty_history = pd.DataFrame(columns=REQUIRED_MARKET_COLUMNS)
+        empty_history.attrs["provider_health"] = _provider_health(
+            "suppressed",
+            provider_attempted=False,
+            fallback_used=False,
+            source="Database cache",
+            message=message,
+            cache_persisted=False,
+        )
+        return empty_history, message
 
     fresh_history, fresh_error = fetch_alpha_vantage_daily_data(clean_ticker)
 
     if fresh_error:
         log_warning(f"Fresh market data fetch failed for {clean_ticker}: {fresh_error}")
-        return pd.DataFrame(columns=REQUIRED_MARKET_COLUMNS), fresh_error
+        empty_history = pd.DataFrame(columns=REQUIRED_MARKET_COLUMNS)
+        empty_history.attrs["provider_health"] = _provider_health(
+            _provider_error_status(fresh_error),
+            provider_attempted=True,
+            fallback_used=False,
+            source="Alpha Vantage",
+            message=fresh_error,
+            cache_persisted=False,
+        )
+        return empty_history, fresh_error
 
     if fresh_history.empty:
         log_warning(f"Fresh market data response was empty for {clean_ticker}")
-        return (
-            pd.DataFrame(columns=REQUIRED_MARKET_COLUMNS),
-            "No market data found for " + clean_ticker,
+        empty_history = pd.DataFrame(columns=REQUIRED_MARKET_COLUMNS)
+        message = "No market data found for " + clean_ticker
+        empty_history.attrs["provider_health"] = _provider_health(
+            "failed",
+            provider_attempted=True,
+            fallback_used=False,
+            source="Alpha Vantage",
+            message=message,
+            cache_persisted=False,
         )
+        return empty_history, message
+
+    cache_persisted = True
 
     try:
         save_market_data_cache(clean_ticker, fresh_history)
         log_info(f"Saved fresh market data cache for {clean_ticker}")
     except Exception as error:
+        cache_persisted = False
         log_error(f"Failed to save market data cache for {clean_ticker}", error)
+
     filtered_history = apply_period_filter(
         fresh_history,
         period,
+    )
+    filtered_history.attrs["provider_health"] = _provider_health(
+        "available",
+        provider_attempted=True,
+        fallback_used=False,
+        source="Alpha Vantage",
+        cache_persisted=cache_persisted,
     )
 
     return filtered_history, None
@@ -517,6 +604,10 @@ def load_stock_data(
             "Company profile data has not been loaded."
         ),
         "source": "Neon Cache / Alpha Vantage",
+        "provider_health": history.attrs.get(
+            "provider_health",
+            _provider_health("not_attempted"),
+        ),
     }
 
     if error:
@@ -614,20 +705,26 @@ def calculate_price_change(history: pd.DataFrame) -> tuple[float, float]:
         errors="coerce",
     ).dropna()
 
-    if len(close_prices) < 2:
+    if close_prices.empty:
         return 0, 0
 
-    first_price = float(close_prices.iloc[0])
-    last_price = float(close_prices.iloc[-1])
+    latest_close = float(close_prices.iloc[-1])
 
-    price_change = last_price - first_price
+    if len(close_prices) < 2:
+        return latest_close, 0
 
-    if first_price == 0:
+    previous_close = float(close_prices.iloc[-2])
+
+    if previous_close == 0:
         percent_change = 0
     else:
-        percent_change = (price_change / first_price) * 100
+        percent_change = (
+            (latest_close - previous_close)
+            / previous_close
+            * 100
+        )
 
-    return price_change, percent_change
+    return latest_close, percent_change
 
 
 def get_stock_volatility(ticker: object) -> float:
