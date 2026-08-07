@@ -1,5 +1,6 @@
 import streamlit as st
 from features.company_research import render_company_research
+from features.dashboard import render_dashboard
 from features.watchlist import render_watchlist_feature
 from controllers.stock_controller import load_stock_dashboard_data
 from controllers.stock_controller import should_stop_for_error
@@ -165,8 +166,7 @@ if active_section == "Company Research":
 
 st.divider()
 if active_section == "Dashboard":
-    st.subheader("Dashboard")
-    st.info("Dashboard overview will be assembled here.")
+    render_dashboard(ticker)
 
 elif active_section == "Company Research":
     st.header("Company Research")
