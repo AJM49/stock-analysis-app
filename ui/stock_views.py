@@ -268,6 +268,145 @@ def render_data_reliability_panel(
             )
 
 
+
+def calculate_data_quality_score(history, info):
+    score = 0
+    breakdown = {}
+
+    _, _, market_status = get_market_data_freshness(history)
+
+    market_scores = {
+        "Fresh": 40,
+        "Delayed": 25,
+        "Stale": 10,
+        "Unavailable": 0,
+    }
+    market_score = market_scores.get(market_status, 0)
+    score += market_score
+    breakdown["Market Data"] = (market_score, 40)
+
+    provider_health = info.get("provider_health", {})
+    provider_status = provider_health.get(
+        "status",
+        "not_attempted",
+    )
+
+    provider_scores = {
+        "available": 25,
+        "cache_hit": 25,
+        "limited": 15,
+        "suppressed": 15,
+        "not_attempted": 10,
+        "failed": 5,
+    }
+    provider_score = provider_scores.get(provider_status, 0)
+    score += provider_score
+    breakdown["Provider Health"] = (provider_score, 25)
+
+    _, profile_status = get_company_profile_freshness(
+        info.get("profileFetchedAt")
+    )
+
+    profile_scores = {
+        "Fresh": 20,
+        "Aging": 12,
+        "Stale": 5,
+        "Unavailable": 0,
+    }
+    profile_score = profile_scores.get(profile_status, 0)
+    score += profile_score
+    breakdown["Profile Cache"] = (profile_score, 20)
+
+    overview = info.get("longBusinessSummary")
+    content_stale, _ = detect_profile_content_staleness(
+        overview
+    )
+
+    if (
+        not overview
+        or overview
+        == "Company profile data has not been loaded."
+    ):
+        content_score = 0
+    elif content_stale:
+        content_score = 7
+    else:
+        content_score = 15
+
+    score += content_score
+    breakdown["Profile Content"] = (
+        content_score,
+        15,
+    )
+
+    if score >= 90:
+        rating = "Excellent"
+    elif score >= 75:
+        rating = "Good"
+    elif score >= 60:
+        rating = "Fair"
+    else:
+        rating = "Poor"
+
+    return score, rating, breakdown
+
+
+def render_data_quality_dashboard(history, info):
+    score, rating, breakdown = (
+        calculate_data_quality_score(
+            history,
+            info,
+        )
+    )
+
+    with st.expander(
+        "Data Quality Score",
+        expanded=False,
+    ):
+        score_col, rating_col = st.columns(2)
+
+        score_col.metric(
+            "Quality Score",
+            f"{score} / 100",
+        )
+
+        rating_col.metric(
+            "Quality Rating",
+            rating,
+        )
+
+        for label, values in breakdown.items():
+            component_score, maximum = values
+            st.write(
+                f"{label}: "
+                f"{component_score} / {maximum}"
+            )
+
+        st.progress(score / 100)
+
+        if rating == "Excellent":
+            st.success(
+                "Data quality is strong across "
+                "the available sources."
+            )
+        elif rating == "Good":
+            st.info(
+                "Data quality is good, with "
+                "minor reliability gaps."
+            )
+        elif rating == "Fair":
+            st.warning(
+                "Use caution. Some data-quality "
+                "signals are degraded."
+            )
+        else:
+            st.error(
+                "Data quality is weak. Verify "
+                "the underlying data before "
+                "making decisions."
+            )
+
+
 def render_stock_header(
     info,
     ticker,
@@ -361,6 +500,11 @@ def render_stock_header(
         history,
         cache_only=cache_only,
         provider_health=info.get("provider_health"),
+    )
+
+    render_data_quality_dashboard(
+        history,
+        info,
     )
 
     col4, col5, col6 = st.columns(3)
