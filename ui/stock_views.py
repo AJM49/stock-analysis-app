@@ -93,6 +93,98 @@ def get_market_data_freshness(history):
     return latest_market_date, age_days, status
 
 
+def render_data_reliability_panel(
+    history,
+    cache_only=False,
+):
+    """Display market-data coverage and freshness details."""
+    (
+        latest_market_date,
+        age_days,
+        freshness_status,
+    ) = get_market_data_freshness(history)
+
+    row_count = len(history) if history is not None else 0
+    earliest_market_date = None
+
+    if (
+        history is not None
+        and not history.empty
+        and "Date" in history.columns
+    ):
+        date_values = pd.to_datetime(
+            history["Date"],
+            errors="coerce",
+        ).dropna()
+
+        if not date_values.empty:
+            earliest_market_date = date_values.min().date()
+
+    source_label = (
+        "Database cache"
+        if cache_only
+        else "Database cache / Alpha Vantage"
+    )
+
+    with st.expander(
+        "Market Data Reliability",
+        expanded=False,
+    ):
+        col1, col2, col3, col4 = st.columns(4)
+
+        col1.metric("Freshness", freshness_status)
+        col2.metric(
+            "Data Age",
+            f"{age_days} days"
+            if age_days is not None
+            else "Unavailable",
+        )
+        col3.metric("Rows Loaded", f"{row_count:,}")
+        col4.metric(
+            "Cache-Only Mode",
+            "On" if cache_only else "Off",
+        )
+
+        latest_display = (
+            latest_market_date.strftime("%B %d, %Y")
+            if latest_market_date is not None
+            else "Unavailable"
+        )
+        earliest_display = (
+            earliest_market_date.strftime("%B %d, %Y")
+            if earliest_market_date is not None
+            else "Unavailable"
+        )
+
+        st.caption(
+            "Source: "
+            + source_label
+            + " | Coverage: "
+            + earliest_display
+            + " through "
+            + latest_display
+        )
+
+        if freshness_status == "Stale":
+            st.warning(
+                "Cached market data is stale. "
+                "Latest available trading date: "
+                + latest_display
+                + "."
+            )
+        elif freshness_status == "Delayed":
+            st.info(
+                "Market data may be delayed. "
+                "Latest available trading date: "
+                + latest_display
+                + "."
+            )
+        elif freshness_status == "Unavailable":
+            st.warning(
+                "Market-data freshness is unavailable."
+            )
+
+
 def render_stock_header(
     info,
     ticker,
@@ -177,6 +269,12 @@ def render_stock_header(
         f"${float(low_value):.2f}"
         if low_value is not None
         else "N/A",
+    )
+
+
+    render_data_reliability_panel(
+        history,
+        cache_only=cache_only,
     )
 
     col4, col5, col6 = st.columns(3)
