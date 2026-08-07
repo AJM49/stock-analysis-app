@@ -166,9 +166,6 @@ elif active_section == "Watchlist":
     else:
         st.sidebar.warning(primary_result)
 
-render_market_cache_panel()
-st.sidebar.caption(BUILD_LABEL)
-render_release_notes_panel()
 
 
 
@@ -311,6 +308,13 @@ elif active_section == "Portfolio Summary":
 elif active_section == "Watchlist":
     st.subheader("Watchlist")
     st.info("Watchlist routing is next.")
+
+elif active_section == "System Settings":
+    st.header("System Settings")
+
+    render_market_cache_panel()
+    st.sidebar.caption(BUILD_LABEL)
+    render_release_notes_panel()
 
 else:
     st.subheader(active_section)
