@@ -178,6 +178,89 @@ def build_portfolio_dataframe(portfolio_positions):
     return portfolio_df
 
 
+def calculate_portfolio_data_health(portfolio_df):
+    health = {
+        "total_positions": 0,
+        "fresh_count": 0,
+        "stale_count": 0,
+        "missing_count": 0,
+        "available_count": 0,
+        "coverage_pct": 0.0,
+        "freshness_pct": 0.0,
+        "quality_score": 0.0,
+        "quality_status": "No Data",
+    }
+
+    if portfolio_df is None or portfolio_df.empty:
+        return health
+
+    total_positions = len(portfolio_df)
+
+    if "Price Freshness" in portfolio_df.columns:
+        freshness = (
+            portfolio_df["Price Freshness"]
+            .fillna("Missing")
+            .astype(str)
+        )
+    else:
+        freshness = pd.Series(
+            ["Missing"] * total_positions,
+            index=portfolio_df.index,
+        )
+
+    fresh_count = int(
+        (freshness == "Fresh").sum()
+    )
+    stale_count = int(
+        (freshness == "Stale").sum()
+    )
+    missing_count = int(
+        (freshness == "Missing").sum()
+    )
+
+    available_count = (
+        fresh_count + stale_count
+    )
+
+    coverage_pct = (
+        available_count
+        / total_positions
+        * 100
+    )
+
+    freshness_pct = (
+        fresh_count
+        / total_positions
+        * 100
+    )
+
+    quality_score = (
+        (fresh_count * 1.0)
+        + (stale_count * 0.5)
+    ) / total_positions * 100
+
+    if quality_score >= 90:
+        quality_status = "Excellent"
+    elif quality_score >= 75:
+        quality_status = "Good"
+    elif quality_score >= 60:
+        quality_status = "Fair"
+    else:
+        quality_status = "Poor"
+
+    return {
+        "total_positions": total_positions,
+        "fresh_count": fresh_count,
+        "stale_count": stale_count,
+        "missing_count": missing_count,
+        "available_count": available_count,
+        "coverage_pct": coverage_pct,
+        "freshness_pct": freshness_pct,
+        "quality_score": quality_score,
+        "quality_status": quality_status,
+    }
+
+
 def format_portfolio_dataframe(portfolio_df):
     formatted_df = portfolio_df.copy()
 

@@ -3738,3 +3738,75 @@ def render_project_metadata_panel() -> None:
         use_container_width=True,
         hide_index=True,
     )
+
+
+
+def render_portfolio_data_health(health):
+    st.subheader("Portfolio Data Health")
+
+    if not health or health.get("total_positions", 0) == 0:
+        st.info(
+            "No portfolio positions are available "
+            "for data-health analysis."
+        )
+        return
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    col1.metric(
+        "Positions",
+        health["total_positions"],
+    )
+
+    col2.metric(
+        "Fresh",
+        health["fresh_count"],
+    )
+
+    col3.metric(
+        "Stale",
+        health["stale_count"],
+    )
+
+    col4.metric(
+        "Missing",
+        health["missing_count"],
+    )
+
+    col5, col6, col7 = st.columns(3)
+
+    col5.metric(
+        "Price Coverage",
+        f"{health[coverage_pct]:.1f}%",
+    )
+
+    col6.metric(
+        "Freshness",
+        f"{health[freshness_pct]:.1f}%",
+    )
+
+    col7.metric(
+        "Quality Score",
+        f"{health[quality_score]:.1f}",
+    )
+
+    quality_status = health["quality_status"]
+
+    if quality_status in {"Excellent", "Good"}:
+        st.success(
+            f"Data Quality: {quality_status}"
+        )
+    elif quality_status == "Fair":
+        st.warning(
+            f"Data Quality: {quality_status}"
+        )
+    else:
+        st.error(
+            f"Data Quality: {quality_status}"
+        )
+
+    st.caption(
+        "Coverage measures positions with any cached "
+        "price. Freshness measures positions with "
+        "prices no more than 7 days old."
+    )
