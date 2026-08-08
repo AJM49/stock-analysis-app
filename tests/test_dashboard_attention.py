@@ -199,3 +199,47 @@ def test_attention_reports_missing_portfolio_prices():
 
     assert alert["priority"] == "high"
     assert alert["details"] == ["ADVB", "HL"]
+
+
+
+def test_attention_reports_stale_portfolio_prices():
+    import pandas as pd
+
+    portfolio_df = pd.DataFrame(
+        [
+            {
+                "Ticker": "AAPL",
+                "Price Status": "Available",
+                "Price Freshness": "Fresh",
+                "Price Age Days": 1,
+            },
+            {
+                "Ticker": "NVDA",
+                "Price Status": "Available",
+                "Price Freshness": "Stale",
+                "Price Age Days": 12,
+            },
+        ]
+    )
+
+    snapshot = SimpleNamespace(
+        snapshot_date=date.today(),
+        risk_level="Low Risk",
+    )
+
+    items = build_dashboard_attention_items(
+        [],
+        snapshot,
+        portfolio_df,
+    )
+
+    alert = next(
+        item
+        for item in items
+        if item["title"] == "Stale portfolio prices"
+    )
+
+    assert alert["priority"] == "medium"
+    assert alert["details"] == [
+        "NVDA (12 days)"
+    ]

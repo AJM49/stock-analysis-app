@@ -64,6 +64,48 @@ def build_dashboard_attention_items(
                 }
             )
 
+        if "Price Freshness" in portfolio_df.columns:
+            stale_price_rows = portfolio_df.loc[
+                portfolio_df["Price Freshness"] == "Stale"
+            ]
+        else:
+            stale_price_rows = portfolio_df.iloc[0:0]
+
+        if not stale_price_rows.empty:
+            stale_price_details = []
+
+            for _, row in stale_price_rows.iterrows():
+                ticker = str(row["Ticker"])
+                age_days = row.get("Price Age Days")
+
+                if pd.isna(age_days):
+                    stale_price_details.append(
+                        ticker
+                    )
+                else:
+                    stale_price_details.append(
+                        f"{ticker} ({int(age_days)} days)"
+                    )
+
+            items.append(
+                {
+                    "severity": "warning",
+                    "priority": "medium",
+                    "title": "Stale portfolio prices",
+                    "action": (
+                        "Open Portfolio Summary and refresh "
+                        "cached prices before relying on "
+                        "portfolio valuation or risk metrics."
+                    ),
+                    "message": (
+                        f"{len(stale_price_rows)} portfolio "
+                        "position(s) have market prices more "
+                        "than 7 days old."
+                    ),
+                    "details": stale_price_details,
+                }
+            )
+
     unavailable_tickers = [
         row["Ticker"]
         for row in watchlist_metrics

@@ -1,3 +1,4 @@
+from datetime import date
 import pandas as pd
 
 from database import get_latest_cached_prices
@@ -31,6 +32,29 @@ def empty_portfolio_dataframe():
     return pd.DataFrame(columns=PORTFOLIO_COLUMNS)
 
 
+
+
+def classify_cached_price_freshness(price_date):
+    if price_date is None:
+        return None, "Missing"
+
+    try:
+        age_days = (
+            date.today() - price_date
+        ).days
+    except TypeError:
+        try:
+            age_days = (
+                date.today()
+                - price_date.date()
+            ).days
+        except (AttributeError, TypeError):
+            return None, "Missing"
+
+    if age_days <= 7:
+        return age_days, "Fresh"
+
+    return age_days, "Stale"
 
 
 def build_portfolio_dataframe(portfolio_positions):
@@ -71,9 +95,19 @@ def build_portfolio_dataframe(portfolio_positions):
                 cached_price["price"]
             )
             price_status = "Available"
+            price_date = cached_price.get(
+                "price_date"
+            )
         else:
             current_price = 0.0
             price_status = "Missing"
+            price_date = None
+
+        price_age_days, price_freshness = (
+            classify_cached_price_freshness(
+                price_date
+            )
+        )
 
         cost_basis = (
             shares * buy_price
@@ -104,6 +138,9 @@ def build_portfolio_dataframe(portfolio_positions):
                 "Cost Basis": cost_basis,
                 "Current Price": current_price,
                 "Price Status": price_status,
+                "Price Date": price_date,
+                "Price Age Days": price_age_days,
+                "Price Freshness": price_freshness,
                 "Current Value": current_value,
                 "Gain/Loss": gain_loss,
                 "Gain/Loss %": gain_loss_pct,
