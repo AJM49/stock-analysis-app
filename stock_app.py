@@ -213,7 +213,10 @@ elif active_section == "Portfolio Summary":
 
     render_save_portfolio_snapshot_control(portfolio_df)
     render_portfolio_snapshot_cleanup_control()
-    render_portfolio_dashboard(portfolio_df)
+    render_portfolio_dashboard(
+        portfolio_df,
+        portfolio_reliability,
+    )
 
     snapshot_limit_label = st.sidebar.selectbox(
         "Portfolio history records",

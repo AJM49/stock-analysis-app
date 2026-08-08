@@ -54,6 +54,7 @@ def build_portfolio_analytics_reliability(portfolio_health):
         return {
             "status": "Unavailable",
             "severity": "info",
+            "display_mode": "unavailable",
             "decision_ready": False,
             "quality_score": quality_score,
             "coverage_pct": coverage_pct,
@@ -71,6 +72,7 @@ def build_portfolio_analytics_reliability(portfolio_health):
         return {
             "status": "Reliable",
             "severity": "success",
+            "display_mode": "full",
             "decision_ready": True,
             "quality_score": quality_score,
             "coverage_pct": coverage_pct,
@@ -85,6 +87,7 @@ def build_portfolio_analytics_reliability(portfolio_health):
         return {
             "status": "Use With Caution",
             "severity": "warning",
+            "display_mode": "caution",
             "decision_ready": False,
             "quality_score": quality_score,
             "coverage_pct": coverage_pct,
@@ -100,6 +103,7 @@ def build_portfolio_analytics_reliability(portfolio_health):
     return {
         "status": "Insufficient Data",
         "severity": "error",
+        "display_mode": "restricted",
         "decision_ready": False,
         "quality_score": quality_score,
         "coverage_pct": coverage_pct,
@@ -110,6 +114,29 @@ def build_portfolio_analytics_reliability(portfolio_health):
             "conclusions."
         ),
     }
+
+
+def get_portfolio_analytics_render_mode(reliability):
+    if not reliability:
+        return "full"
+
+    status = str(
+        reliability.get(
+            "status",
+            "Reliable",
+        )
+    )
+
+    if status == "Use With Caution":
+        return "caution"
+
+    if status in {
+        "Insufficient Data",
+        "Unavailable",
+    }:
+        return "holdings_only"
+
+    return "full"
 
 
 def build_portfolio_dashboard_data(portfolio_positions) -> pd.DataFrame:

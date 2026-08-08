@@ -4,6 +4,7 @@ from database import save_portfolio_scenario, get_portfolio_scenarios, delete_po
 
 import pandas as pd
 import streamlit as st
+from controllers.portfolio_controller import get_portfolio_analytics_render_mode
 
 REPORT_SPRINT_VERSION = "Sprint 64"
 REPORT_FEATURE_LABEL = "Portfolio Reporting and Decision Support"
@@ -126,8 +127,11 @@ def render_portfolio_analytics_reliability(reliability):
         st.info(message)
 
 
-def render_portfolio_dashboard(portfolio_df):
-    """Render the full portfolio analytics dashboard."""
+def render_portfolio_dashboard(
+    portfolio_df,
+    portfolio_reliability=None,
+):
+    """Render portfolio analytics according to data reliability."""
     st.subheader("Portfolio Analytics")
     render_production_status_banner()
 
@@ -156,12 +160,31 @@ def render_portfolio_dashboard(portfolio_df):
         )
         return
 
-    total_cost_basis = float(portfolio_df["Cost Basis"].sum())
-    total_current_value = float(portfolio_df["Current Value"].sum())
-    total_gain_loss = float(portfolio_df["Gain/Loss"].sum())
+    reliability_status = str(
+        (portfolio_reliability or {}).get(
+            "status",
+            "Unavailable",
+        )
+    )
+
+    total_cost_basis = float(
+        portfolio_df["Cost Basis"].sum()
+    )
+
+    total_current_value = float(
+        portfolio_df["Current Value"].sum()
+    )
+
+    total_gain_loss = float(
+        portfolio_df["Gain/Loss"].sum()
+    )
 
     if total_cost_basis > 0:
-        total_gain_loss_pct = (total_gain_loss / total_cost_basis) * 100
+        total_gain_loss_pct = (
+            total_gain_loss
+            / total_cost_basis
+            * 100
+        )
     else:
         total_gain_loss_pct = 0.0
 
@@ -183,41 +206,151 @@ def render_portfolio_dashboard(portfolio_df):
         f"{total_gain_loss_pct:.2f}%",
     )
 
-    render_portfolio_risk_alert_banner(portfolio_df)
-    render_portfolio_executive_summary(portfolio_df)
+    if reliability_status == "Use With Caution":
+        st.warning(
+            "Derived portfolio analytics are being shown with caution "
+            "because some market prices are stale or missing."
+        )
 
-    with st.expander("Portfolio What-If Scenario Planner", expanded=False):
-        render_portfolio_what_if_scenario(portfolio_df)
+    elif reliability_status == "Insufficient Data":
+        st.error(
+            "Derived portfolio analytics are suppressed because market-data "
+            "quality is insufficient. Refresh stale or missing prices before "
+            "using performance, allocation, or risk conclusions."
+        )
+
+        render_missing_price_warning(
+            portfolio_df
+        )
+
+        with st.expander(
+            "Portfolio Table",
+            expanded=True,
+        ):
+            render_portfolio_help_text(
+                "Portfolio Table"
+            )
+            render_portfolio_table(
+                portfolio_df
+            )
+
+        return
+
+    elif reliability_status == "Unavailable":
+        st.info(
+            "Derived portfolio analytics are unavailable until sufficient "
+            "market data is available."
+        )
+
+        with st.expander(
+            "Portfolio Table",
+            expanded=True,
+        ):
+            render_portfolio_help_text(
+                "Portfolio Table"
+            )
+            render_portfolio_table(
+                portfolio_df
+            )
+
+        return
+
+    render_portfolio_risk_alert_banner(
+        portfolio_df
+    )
+
+    render_portfolio_executive_summary(
+        portfolio_df
+    )
+
+    with st.expander(
+        "Portfolio What-If Scenario Planner",
+        expanded=False,
+    ):
+        render_portfolio_what_if_scenario(
+            portfolio_df
+        )
 
     st.divider()
 
-    with st.expander("Portfolio Overview", expanded=True):
-        render_portfolio_help_text("Portfolio Overview")
-        render_best_worst_performer_summary(portfolio_df)
-        render_unrealized_gain_loss_summary(portfolio_df)
+    with st.expander(
+        "Portfolio Overview",
+        expanded=True,
+    ):
+        render_portfolio_help_text(
+            "Portfolio Overview"
+        )
+        render_best_worst_performer_summary(
+            portfolio_df
+        )
+        render_unrealized_gain_loss_summary(
+            portfolio_df
+        )
 
-    with st.expander("Risk Intelligence", expanded=True):
-        render_portfolio_help_text("Risk Intelligence")
-        render_portfolio_risk_score(portfolio_df)
-        render_portfolio_risk_recommendations(portfolio_df)
-        render_portfolio_concentration_score(portfolio_df)
-        render_sector_concentration_warning(portfolio_df)
-        render_missing_price_warning(portfolio_df)
-        render_portfolio_risk_flags(portfolio_df)
+    with st.expander(
+        "Risk Intelligence",
+        expanded=True,
+    ):
+        render_portfolio_help_text(
+            "Risk Intelligence"
+        )
+        render_portfolio_risk_score(
+            portfolio_df
+        )
+        render_portfolio_risk_recommendations(
+            portfolio_df
+        )
+        render_portfolio_concentration_score(
+            portfolio_df
+        )
+        render_sector_concentration_warning(
+            portfolio_df
+        )
+        render_missing_price_warning(
+            portfolio_df
+        )
+        render_portfolio_risk_flags(
+            portfolio_df
+        )
 
-    with st.expander("Allocation and Exposure", expanded=True):
-        render_portfolio_help_text("Allocation and Exposure")
-        render_portfolio_allocation_chart(portfolio_df)
-        render_position_weight_summary(portfolio_df)
-        render_sector_exposure_summary(portfolio_df)
+    with st.expander(
+        "Allocation and Exposure",
+        expanded=True,
+    ):
+        render_portfolio_help_text(
+            "Allocation and Exposure"
+        )
+        render_portfolio_allocation_chart(
+            portfolio_df
+        )
+        render_position_weight_summary(
+            portfolio_df
+        )
+        render_sector_exposure_summary(
+            portfolio_df
+        )
 
-    with st.expander("Portfolio Export", expanded=False):
-        render_portfolio_help_text("Portfolio Export")
-        render_portfolio_export(portfolio_df)
+    with st.expander(
+        "Portfolio Export",
+        expanded=False,
+    ):
+        render_portfolio_help_text(
+            "Portfolio Export"
+        )
+        render_portfolio_export(
+            portfolio_df
+        )
 
-    with st.expander("Portfolio Table", expanded=False):
-        render_portfolio_help_text("Portfolio Table")
-        render_portfolio_table(portfolio_df)
+    with st.expander(
+        "Portfolio Table",
+        expanded=False,
+    ):
+        render_portfolio_help_text(
+            "Portfolio Table"
+        )
+        render_portfolio_table(
+            portfolio_df
+        )
 
 
 def render_missing_price_warning(portfolio_df: pd.DataFrame) -> None:
