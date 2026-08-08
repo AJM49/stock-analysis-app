@@ -1,5 +1,6 @@
 from controllers.portfolio_controller import (
     build_portfolio_analytics_reliability,
+    get_portfolio_analytics_render_mode,
 )
 
 
@@ -69,3 +70,36 @@ def test_empty_portfolio_health_is_unavailable():
     assert reliability["severity"] == "info"
     assert reliability["decision_ready"] is False
     assert reliability["display_mode"] == "unavailable"
+
+
+
+def test_reliable_analytics_use_full_render_mode():
+    assert get_portfolio_analytics_render_mode(
+        {
+            "status": "Reliable",
+        }
+    ) == "full"
+
+
+def test_caution_analytics_use_caution_render_mode():
+    assert get_portfolio_analytics_render_mode(
+        {
+            "status": "Use With Caution",
+        }
+    ) == "caution"
+
+
+def test_insufficient_analytics_use_holdings_only_mode():
+    assert get_portfolio_analytics_render_mode(
+        {
+            "status": "Insufficient Data",
+        }
+    ) == "holdings_only"
+
+
+def test_unavailable_analytics_use_holdings_only_mode():
+    assert get_portfolio_analytics_render_mode(
+        {
+            "status": "Unavailable",
+        }
+    ) == "holdings_only"

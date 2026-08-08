@@ -167,6 +167,12 @@ def render_portfolio_dashboard(
         )
     )
 
+    analytics_render_mode = (
+        get_portfolio_analytics_render_mode(
+            portfolio_reliability
+        )
+    )
+
     total_cost_basis = float(
         portfolio_df["Cost Basis"].sum()
     )
@@ -206,13 +212,16 @@ def render_portfolio_dashboard(
         f"{total_gain_loss_pct:.2f}%",
     )
 
-    if reliability_status == "Use With Caution":
+    if analytics_render_mode == "caution":
         st.warning(
             "Derived portfolio analytics are being shown with caution "
             "because some market prices are stale or missing."
         )
 
-    elif reliability_status == "Insufficient Data":
+    elif (
+        analytics_render_mode == "holdings_only"
+        and reliability_status == "Insufficient Data"
+    ):
         st.error(
             "Derived portfolio analytics are suppressed because market-data "
             "quality is insufficient. Refresh stale or missing prices before "
@@ -236,7 +245,10 @@ def render_portfolio_dashboard(
 
         return
 
-    elif reliability_status == "Unavailable":
+    elif (
+        analytics_render_mode == "holdings_only"
+        and reliability_status == "Unavailable"
+    ):
         st.info(
             "Derived portfolio analytics are unavailable until sufficient "
             "market data is available."
