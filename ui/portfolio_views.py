@@ -63,6 +63,69 @@ def format_portfolio_dataframe(portfolio_df: pd.DataFrame) -> pd.DataFrame:
     return display_df
 
 
+def render_portfolio_analytics_reliability(reliability):
+    if not reliability:
+        return
+
+    status = reliability.get(
+        "status",
+        "Unavailable",
+    )
+
+    severity = reliability.get(
+        "severity",
+        "info",
+    )
+
+    message = reliability.get(
+        "message",
+        "",
+    )
+
+    quality_score = float(
+        reliability.get(
+            "quality_score",
+            0.0,
+        )
+    )
+
+    coverage_pct = float(
+        reliability.get(
+            "coverage_pct",
+            0.0,
+        )
+    )
+
+    freshness_pct = float(
+        reliability.get(
+            "freshness_pct",
+            0.0,
+        )
+    )
+
+    st.subheader("Analytics Reliability")
+
+    st.metric(
+        "Decision Reliability",
+        status,
+        f"Quality score {quality_score:.1f}",
+    )
+
+    st.caption(
+        f"Price coverage: {coverage_pct:.1f}% | "
+        f"Fresh prices: {freshness_pct:.1f}%"
+    )
+
+    if severity == "success":
+        st.success(message)
+    elif severity == "warning":
+        st.warning(message)
+    elif severity == "error":
+        st.error(message)
+    else:
+        st.info(message)
+
+
 def render_portfolio_dashboard(portfolio_df):
     """Render the full portfolio analytics dashboard."""
     st.subheader("Portfolio Analytics")
@@ -3777,17 +3840,17 @@ def render_portfolio_data_health(health):
 
     col5.metric(
         "Price Coverage",
-        f"{health[coverage_pct]:.1f}%",
+        f"{health['coverage_pct']:.1f}%",
     )
 
     col6.metric(
         "Freshness",
-        f"{health[freshness_pct]:.1f}%",
+        f"{health['freshness_pct']:.1f}%",
     )
 
     col7.metric(
         "Quality Score",
-        f"{health[quality_score]:.1f}",
+        f"{health['quality_score']:.1f}",
     )
 
     quality_status = health["quality_status"]

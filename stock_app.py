@@ -27,9 +27,11 @@ from market_data import load_stock_data
 from market_data import validate_ticker
 from controllers.portfolio_controller import build_portfolio_dashboard_data
 from controllers.portfolio_controller import build_portfolio_data_health
+from controllers.portfolio_controller import build_portfolio_analytics_reliability
 from ui_components import render_company_profile
 from ui.portfolio_views import render_portfolio_dashboard
 from ui.portfolio_views import render_portfolio_data_health
+from ui.portfolio_views import render_portfolio_analytics_reliability
 from ui.portfolio_views import render_portfolio_snapshot_history
 from ui.portfolio_views import render_portfolio_snapshot_export
 from ui.portfolio_views import render_portfolio_value_history_chart
@@ -197,6 +199,16 @@ elif active_section == "Portfolio Summary":
 
     render_portfolio_data_health(
         portfolio_health
+    )
+
+    portfolio_reliability = (
+        build_portfolio_analytics_reliability(
+            portfolio_health
+        )
+    )
+
+    render_portfolio_analytics_reliability(
+        portfolio_reliability
     )
 
     render_save_portfolio_snapshot_control(portfolio_df)
