@@ -4,7 +4,6 @@ from database import save_portfolio_scenario, get_portfolio_scenarios, delete_po
 
 import pandas as pd
 import streamlit as st
-from controllers.portfolio_controller import should_render_portfolio_summary_metrics
 from controllers.portfolio_controller import (
     get_portfolio_analytics_render_mode,
     should_render_portfolio_summary_metrics,
