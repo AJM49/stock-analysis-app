@@ -1,6 +1,7 @@
 from controllers.portfolio_controller import (
     build_portfolio_analytics_reliability,
     get_portfolio_analytics_render_mode,
+    should_render_portfolio_summary_metrics,
 )
 
 
@@ -103,3 +104,22 @@ def test_unavailable_analytics_use_holdings_only_mode():
             "status": "Unavailable",
         }
     ) == "holdings_only"
+
+
+
+def test_reliable_analytics_render_summary_metrics():
+    assert should_render_portfolio_summary_metrics(
+        {"status": "Reliable"}
+    ) is True
+
+
+def test_caution_analytics_render_summary_metrics():
+    assert should_render_portfolio_summary_metrics(
+        {"status": "Use With Caution"}
+    ) is True
+
+
+def test_insufficient_analytics_suppress_summary_metrics():
+    assert should_render_portfolio_summary_metrics(
+        {"status": "Insufficient Data"}
+    ) is False

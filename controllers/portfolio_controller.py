@@ -139,5 +139,14 @@ def get_portfolio_analytics_render_mode(reliability):
     return "full"
 
 
+def should_render_portfolio_summary_metrics(reliability):
+    return (
+        get_portfolio_analytics_render_mode(
+            reliability
+        )
+        != "holdings_only"
+    )
+
+
 def build_portfolio_dashboard_data(portfolio_positions) -> pd.DataFrame:
     return build_portfolio_dataframe(portfolio_positions)

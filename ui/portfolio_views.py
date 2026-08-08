@@ -4,7 +4,11 @@ from database import save_portfolio_scenario, get_portfolio_scenarios, delete_po
 
 import pandas as pd
 import streamlit as st
-from controllers.portfolio_controller import get_portfolio_analytics_render_mode
+from controllers.portfolio_controller import should_render_portfolio_summary_metrics
+from controllers.portfolio_controller import (
+    get_portfolio_analytics_render_mode,
+    should_render_portfolio_summary_metrics,
+)
 
 REPORT_SPRINT_VERSION = "Sprint 64"
 REPORT_FEATURE_LABEL = "Portfolio Reporting and Decision Support"
@@ -173,44 +177,49 @@ def render_portfolio_dashboard(
         )
     )
 
-    total_cost_basis = float(
-        portfolio_df["Cost Basis"].sum()
-    )
-
-    total_current_value = float(
-        portfolio_df["Current Value"].sum()
-    )
-
-    total_gain_loss = float(
-        portfolio_df["Gain/Loss"].sum()
-    )
-
-    if total_cost_basis > 0:
-        total_gain_loss_pct = (
-            total_gain_loss
-            / total_cost_basis
-            * 100
+    if should_render_portfolio_summary_metrics(
+        portfolio_reliability
+    ):
+        total_cost_basis = float(
+            portfolio_df["Cost Basis"].sum()
         )
-    else:
-        total_gain_loss_pct = 0.0
 
-    summary_col1, summary_col2, summary_col3 = st.columns(3)
+        total_current_value = float(
+            portfolio_df["Current Value"].sum()
+        )
 
-    summary_col1.metric(
-        "Total Current Value",
-        f"${total_current_value:,.2f}",
-    )
+        total_gain_loss = float(
+            portfolio_df["Gain/Loss"].sum()
+        )
 
-    summary_col2.metric(
-        "Total Cost Basis",
-        f"${total_cost_basis:,.2f}",
-    )
+        if total_cost_basis > 0:
+            total_gain_loss_pct = (
+                total_gain_loss
+                / total_cost_basis
+                * 100
+            )
+        else:
+            total_gain_loss_pct = 0.0
 
-    summary_col3.metric(
-        "Total Gain/Loss",
-        f"${total_gain_loss:,.2f}",
-        f"{total_gain_loss_pct:.2f}%",
-    )
+        summary_col1, summary_col2, summary_col3 = (
+            st.columns(3)
+        )
+
+        summary_col1.metric(
+            "Total Current Value",
+            f"${total_current_value:,.2f}",
+        )
+
+        summary_col2.metric(
+            "Total Cost Basis",
+            f"${total_cost_basis:,.2f}",
+        )
+
+        summary_col3.metric(
+            "Total Gain/Loss",
+            f"${total_gain_loss:,.2f}",
+            f"{total_gain_loss_pct:.2f}%",
+        )
 
     if analytics_render_mode == "caution":
         st.warning(
