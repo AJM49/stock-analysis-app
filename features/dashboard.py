@@ -314,7 +314,7 @@ def render_attention_items(attention_items):
 
         if details:
             with st.expander(
-                f"View {item[title].lower()} details"
+                f"View {item['title'].lower()} details"
             ):
                 for detail in details:
                     st.write("- " + str(detail))

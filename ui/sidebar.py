@@ -9,7 +9,7 @@ from database import get_watchlist
 from market_data import validate_ticker
 from database import delete_portfolio_position
 from database import update_portfolio_position
-from services.market_data_service import get_stock_data
+from services.portfolio_refresh_service import refresh_portfolio_prices
 from database import save_portfolio_snapshot
 from database import delete_portfolio_snapshot
 from database import get_portfolio_snapshots
@@ -143,56 +143,75 @@ def render_portfolio_sidebar():
 
 
     st.sidebar.divider()
-
-    st.sidebar.divider()
-
-    st.sidebar.divider()
     st.sidebar.subheader("Refresh Portfolio Prices")
 
-    refresh_result = st.session_state.pop("portfolio_refresh_result", None)
+    refresh_result = st.session_state.get(
+        "portfolio_refresh_result"
+    )
 
     if refresh_result:
-        refreshed_count = refresh_result.get("refreshed_count", 0)
-        failed_tickers = refresh_result.get("failed_tickers", [])
+        attempted_count = refresh_result.get(
+            "attempted_count",
+            0,
+        )
 
-        if refreshed_count > 0:
+        refreshed_count = refresh_result.get(
+            "refreshed_count",
+            0,
+        )
+
+        skipped_fresh_count = refresh_result.get(
+            "skipped_fresh_count",
+            0,
+        )
+
+        failed_tickers = refresh_result.get(
+            "failed_tickers",
+            [],
+        )
+
+        if refreshed_count:
             st.sidebar.success(
-                f"Refreshed price data for {refreshed_count} ticker(s)."
+                f"Refreshed {refreshed_count} "
+                "stale/missing ticker(s)."
+            )
+
+        if skipped_fresh_count:
+            st.sidebar.info(
+                f"Skipped {skipped_fresh_count} "
+                "fresh ticker(s)."
             )
 
         if failed_tickers:
             st.sidebar.warning(
-                "Could not refresh: " + ", ".join(failed_tickers)
+                "Could not refresh: "
+                + ", ".join(failed_tickers)
             )
 
-        if refreshed_count == 0 and not failed_tickers:
-            st.sidebar.info("No portfolio tickers were refreshed.")
+        if (
+            attempted_count == 0
+            and skipped_fresh_count > 0
+        ):
+            st.sidebar.success(
+                "All portfolio prices are already fresh."
+            )
 
-    refresh_positions = get_portfolio_positions()
+    refresh_positions = (
+        get_portfolio_positions()
+    )
 
     if not refresh_positions:
-        st.sidebar.info("No saved portfolio positions to refresh.")
+        st.sidebar.info(
+            "No saved portfolio positions to refresh."
+        )
     else:
         if st.sidebar.button(
-            "Refresh Saved Ticker Prices",
+            "Refresh Stale/Missing Prices",
             key="refresh_portfolio_prices_button",
         ):
-            refreshed_count = 0
-            failed_tickers = []
-
-            for position in refresh_positions:
-                ticker = str(position.ticker).strip().upper()
-
-                try:
-                    get_stock_data(ticker, cache_only=False)
-                    refreshed_count += 1
-                except Exception:
-                    failed_tickers.append(ticker)
-
-            st.session_state["portfolio_refresh_result"] = {
-                "refreshed_count": refreshed_count,
-                "failed_tickers": failed_tickers,
-            }
+            st.session_state[
+                "portfolio_refresh_result"
+            ] = refresh_portfolio_prices()
 
             st.rerun()
 
