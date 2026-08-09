@@ -54,6 +54,7 @@ def build_portfolio_analytics_reliability(portfolio_health):
         return {
             "status": "Unavailable",
             "severity": "info",
+            "analytics_mode": "unavailable",
             "display_mode": "unavailable",
             "decision_ready": False,
             "quality_score": quality_score,
@@ -72,6 +73,7 @@ def build_portfolio_analytics_reliability(portfolio_health):
         return {
             "status": "Reliable",
             "severity": "success",
+            "analytics_mode": "full",
             "display_mode": "full",
             "decision_ready": True,
             "quality_score": quality_score,
@@ -87,6 +89,7 @@ def build_portfolio_analytics_reliability(portfolio_health):
         return {
             "status": "Use With Caution",
             "severity": "warning",
+            "analytics_mode": "caution",
             "display_mode": "caution",
             "decision_ready": False,
             "quality_score": quality_score,
@@ -103,6 +106,7 @@ def build_portfolio_analytics_reliability(portfolio_health):
     return {
         "status": "Insufficient Data",
         "severity": "error",
+        "analytics_mode": "limited",
         "display_mode": "restricted",
         "decision_ready": False,
         "quality_score": quality_score,

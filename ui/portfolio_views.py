@@ -130,6 +130,64 @@ def render_portfolio_analytics_reliability(reliability):
         st.info(message)
 
 
+def render_portfolio_reliability_safe_holdings(portfolio_df):
+    if portfolio_df is None or portfolio_df.empty:
+        st.info("No portfolio holdings are available.")
+        return
+
+    safe_columns = [
+        "Ticker",
+        "Shares",
+        "Buy Price",
+        "Cost Basis",
+        "Price Status",
+        "Price Date",
+        "Price Age Days",
+        "Price Freshness",
+    ]
+
+    available_columns = [
+        column
+        for column in safe_columns
+        if column in portfolio_df.columns
+    ]
+
+    if not available_columns:
+        st.info(
+            "Portfolio holdings are available, but "
+            "safe display fields are unavailable."
+        )
+        return
+
+    holdings_df = portfolio_df[
+        available_columns
+    ].copy()
+
+    if "Buy Price" in holdings_df.columns:
+        holdings_df["Buy Price"] = (
+            holdings_df["Buy Price"]
+            .map(lambda value: f"${float(value):,.2f}")
+        )
+
+    if "Cost Basis" in holdings_df.columns:
+        holdings_df["Cost Basis"] = (
+            holdings_df["Cost Basis"]
+            .map(lambda value: f"${float(value):,.2f}")
+        )
+
+    st.subheader("Portfolio Holdings")
+    st.caption(
+        "Derived valuation, performance, allocation, "
+        "and risk conclusions are suppressed because "
+        "market-data reliability is insufficient."
+    )
+
+    st.dataframe(
+        make_arrow_safe(holdings_df),
+        use_container_width=True,
+    )
+
+
 def render_portfolio_dashboard(
     portfolio_df,
     portfolio_reliability=None,
@@ -240,16 +298,9 @@ def render_portfolio_dashboard(
             portfolio_df
         )
 
-        with st.expander(
-            "Portfolio Table",
-            expanded=True,
-        ):
-            render_portfolio_help_text(
-                "Portfolio Table"
-            )
-            render_portfolio_table(
-                portfolio_df
-            )
+        render_portfolio_reliability_safe_holdings(
+            portfolio_df
+        )
 
         return
 
@@ -262,16 +313,9 @@ def render_portfolio_dashboard(
             "market data is available."
         )
 
-        with st.expander(
-            "Portfolio Table",
-            expanded=True,
-        ):
-            render_portfolio_help_text(
-                "Portfolio Table"
-            )
-            render_portfolio_table(
-                portfolio_df
-            )
+        render_portfolio_reliability_safe_holdings(
+            portfolio_df
+        )
 
         return
 
