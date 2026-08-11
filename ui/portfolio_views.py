@@ -4,6 +4,7 @@ from database import save_portfolio_scenario, get_portfolio_scenarios, delete_po
 
 import pandas as pd
 import streamlit as st
+from controllers.portfolio_controller import build_portfolio_render_policy
 from controllers.portfolio_controller import (
     get_portfolio_analytics_render_mode,
     should_render_portfolio_summary_metrics,
@@ -3170,18 +3171,24 @@ def render_database_scenario_history(limit: int = 100) -> None:
             if column in filtered_db_df.columns
         ]
 
-        search_text = filtered_db_df[available_search_columns].apply(
-            lambda row: " ".join(row.astype(str).tolist()),
-            axis=1,
-        )
-
-        filtered_db_df = filtered_db_df[
-            search_text.str.lower().str.contains(
-                search_term,
-                na=False,
-                regex=False,
+        if available_search_columns:
+            search_text = (
+                filtered_db_df[
+                    available_search_columns
+                ]
+                .astype(str)
+                .agg(" ".join, axis=1)
             )
-        ]
+
+            filtered_db_df = filtered_db_df[
+                search_text.str.lower().str.contains(
+                    search_term,
+                    na=False,
+                    regex=False,
+                )
+            ]
+        else:
+            filtered_db_df = filtered_db_df.iloc[0:0]
 
     st.caption(
         f"Showing {len(filtered_db_df)} of {len(scenario_db_df)} database-saved scenario(s). "

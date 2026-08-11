@@ -152,5 +152,41 @@ def should_render_portfolio_summary_metrics(reliability):
     )
 
 
+def build_portfolio_render_policy(reliability):
+    if not reliability:
+        return {
+            "status": "Unknown",
+            "show_derived_analytics": True,
+            "show_caution": False,
+        }
+
+    status = str(
+        reliability.get(
+            "status",
+            "Unavailable",
+        )
+    )
+
+    if status == "Reliable":
+        return {
+            "status": status,
+            "show_derived_analytics": True,
+            "show_caution": False,
+        }
+
+    if status == "Use With Caution":
+        return {
+            "status": status,
+            "show_derived_analytics": True,
+            "show_caution": True,
+        }
+
+    return {
+        "status": status,
+        "show_derived_analytics": False,
+        "show_caution": True,
+    }
+
+
 def build_portfolio_dashboard_data(portfolio_positions) -> pd.DataFrame:
     return build_portfolio_dataframe(portfolio_positions)
