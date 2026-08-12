@@ -14,6 +14,7 @@ from database import save_portfolio_snapshot
 from database import delete_portfolio_snapshot
 from database import get_portfolio_snapshots
 from services.portfolio_analytics_service import calculate_portfolio_risk_score
+from controllers.portfolio_controller import build_portfolio_snapshot_save_policy
 
 def render_watchlist_sidebar(ticker):
     st.sidebar.divider()
@@ -324,7 +325,7 @@ def render_portfolio_sidebar():
 
 
 
-def render_save_portfolio_snapshot_control(portfolio_df) -> None:
+def render_save_portfolio_snapshot_control(portfolio_df, portfolio_reliability=None) -> None:
     """Render sidebar control for saving portfolio performance snapshots."""
     st.sidebar.divider()
     st.sidebar.subheader("Portfolio Snapshot")
@@ -335,6 +336,21 @@ def render_save_portfolio_snapshot_control(portfolio_df) -> None:
     if portfolio_df is None or portfolio_df.empty:
         st.sidebar.info("Add portfolio positions before saving a snapshot.")
         return
+
+    save_policy = build_portfolio_snapshot_save_policy(
+        portfolio_reliability
+    )
+
+    if not save_policy["allowed"]:
+        st.sidebar.warning(
+            save_policy["message"]
+        )
+        return
+
+    if save_policy["status"] == "Use With Caution":
+        st.sidebar.warning(
+            save_policy["message"]
+        )
 
     if st.sidebar.button(
         "Save Portfolio Snapshot",

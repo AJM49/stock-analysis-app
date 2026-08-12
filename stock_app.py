@@ -211,7 +211,10 @@ elif active_section == "Portfolio Summary":
         portfolio_reliability
     )
 
-    render_save_portfolio_snapshot_control(portfolio_df)
+    render_save_portfolio_snapshot_control(
+        portfolio_df,
+        portfolio_reliability,
+    )
     render_portfolio_snapshot_cleanup_control()
     render_portfolio_dashboard(
         portfolio_df,

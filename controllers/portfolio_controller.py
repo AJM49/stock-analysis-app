@@ -188,5 +188,55 @@ def build_portfolio_render_policy(reliability):
     }
 
 
+def build_portfolio_snapshot_save_policy(reliability):
+    status = str(
+        (reliability or {}).get(
+            "status",
+            "Unavailable",
+        )
+    )
+
+    if status == "Reliable":
+        return {
+            "allowed": True,
+            "status": status,
+            "message": (
+                "Portfolio data reliability supports "
+                "saving a derived analytics snapshot."
+            ),
+        }
+
+    if status == "Use With Caution":
+        return {
+            "allowed": True,
+            "status": status,
+            "message": (
+                "This snapshot will include analytics "
+                "derived from stale or missing prices. "
+                "Refresh market data when possible."
+            ),
+        }
+
+    if status == "Insufficient Data":
+        return {
+            "allowed": False,
+            "status": status,
+            "message": (
+                "Snapshot saving is disabled because "
+                "market-data quality is insufficient for "
+                "reliable valuation and risk metrics."
+            ),
+        }
+
+    return {
+        "allowed": False,
+        "status": status,
+        "message": (
+            "Snapshot saving is unavailable until "
+            "sufficient portfolio market data exists."
+        ),
+    }
+
+
 def build_portfolio_dashboard_data(portfolio_positions) -> pd.DataFrame:
     return build_portfolio_dataframe(portfolio_positions)
