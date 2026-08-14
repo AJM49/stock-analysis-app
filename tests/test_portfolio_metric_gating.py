@@ -40,12 +40,12 @@ def test_caution_portfolio_still_renders_analytics():
     )
 
 
-def test_insufficient_portfolio_uses_holdings_only():
+def test_insufficient_portfolio_uses_limited_mode():
     result = reliability("Insufficient Data")
 
     assert (
         get_portfolio_analytics_render_mode(result)
-        == "holdings_only"
+        == "limited"
     )
     assert (
         should_render_portfolio_summary_metrics(
@@ -55,12 +55,12 @@ def test_insufficient_portfolio_uses_holdings_only():
     )
 
 
-def test_unavailable_portfolio_uses_holdings_only():
+def test_unavailable_portfolio_uses_unavailable_mode():
     result = reliability("Unavailable")
 
     assert (
         get_portfolio_analytics_render_mode(result)
-        == "holdings_only"
+        == "unavailable"
     )
     assert (
         should_render_portfolio_summary_metrics(

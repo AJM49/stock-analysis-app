@@ -189,6 +189,61 @@ def render_portfolio_reliability_safe_holdings(portfolio_df):
     )
 
 
+def get_portfolio_analytics_render_mode(reliability):
+    if not reliability:
+        return "unavailable"
+
+    render_mode = reliability.get(
+        "render_mode"
+    )
+
+    if render_mode in {
+        "full",
+        "caution",
+        "limited",
+        "unavailable",
+    }:
+        return render_mode
+
+    status = reliability.get(
+        "status",
+        "Unavailable",
+    )
+
+    if status == "Reliable":
+        return "full"
+
+    if status == "Use With Caution":
+        return "caution"
+
+    if status == "Insufficient Data":
+        return "limited"
+
+    return "unavailable"
+
+
+def should_render_portfolio_summary_metrics(
+    portfolio_reliability,
+):
+    return get_portfolio_analytics_render_mode(
+        portfolio_reliability
+    ) in {
+        "full",
+        "caution",
+    }
+
+
+def should_render_portfolio_derived_analytics(
+    portfolio_reliability,
+):
+    return get_portfolio_analytics_render_mode(
+        portfolio_reliability
+    ) in {
+        "full",
+        "caution",
+    }
+
+
 def render_portfolio_dashboard(
     portfolio_df,
     portfolio_reliability=None,
@@ -234,6 +289,23 @@ def render_portfolio_dashboard(
             portfolio_reliability
         )
     )
+
+    metric_gate = {
+        "show_derived_metrics": analytics_render_mode in {
+            "full",
+            "caution",
+        },
+        "show_risk_analytics": analytics_render_mode in {
+            "full",
+            "caution",
+        },
+        "show_performance_analytics": analytics_render_mode in {
+            "full",
+            "caution",
+        },
+        "show_raw_holdings": True,
+        "mode": analytics_render_mode,
+    }
 
     if should_render_portfolio_summary_metrics(
         portfolio_reliability
@@ -286,7 +358,7 @@ def render_portfolio_dashboard(
         )
 
     elif (
-        analytics_render_mode == "holdings_only"
+        analytics_render_mode == "limited"
         and reliability_status == "Insufficient Data"
     ):
         st.error(
@@ -306,7 +378,7 @@ def render_portfolio_dashboard(
         return
 
     elif (
-        analytics_render_mode == "holdings_only"
+        analytics_render_mode == "unavailable"
         and reliability_status == "Unavailable"
     ):
         st.info(
@@ -349,7 +421,8 @@ def render_portfolio_dashboard(
             portfolio_df
         )
         render_unrealized_gain_loss_summary(
-            portfolio_df
+            portfolio_df,
+            metric_gate,
         )
 
     with st.expander(
@@ -445,7 +518,10 @@ def render_missing_price_warning(portfolio_df: pd.DataFrame) -> None:
 
 
 
-def render_unrealized_gain_loss_summary(portfolio_df: pd.DataFrame) -> None:
+def render_unrealized_gain_loss_summary(
+    portfolio_df: pd.DataFrame,
+    metric_gate=None,
+) -> None:
     """Render unrealized gain/loss portfolio summary."""
     st.subheader("Unrealized Gain/Loss")
 
@@ -471,6 +547,59 @@ def render_unrealized_gain_loss_summary(portfolio_df: pd.DataFrame) -> None:
             "Portfolio gain/loss data is missing required columns: "
             + ", ".join(missing_columns)
         )
+        return
+
+    metric_gate = metric_gate or {
+        "show_derived_metrics": True,
+        "show_risk_analytics": True,
+        "show_performance_analytics": True,
+        "show_raw_holdings": True,
+        "mode": "normal",
+    }
+
+    gate_mode = metric_gate.get(
+        "mode",
+        "normal",
+    )
+
+    if gate_mode == "caution":
+        st.warning(
+            "Derived portfolio analytics are being shown with caution "
+            "because some underlying market prices are stale or missing."
+        )
+
+    if not metric_gate.get(
+        "show_derived_metrics",
+        True,
+    ):
+        if gate_mode == "limited":
+            st.error(
+                "Derived valuation, performance, and risk analytics "
+                "are suppressed because portfolio market-data quality "
+                "is insufficient."
+            )
+        else:
+            st.info(
+                "Derived portfolio analytics are unavailable until "
+                "usable market data is available."
+            )
+
+        render_missing_price_warning(
+            portfolio_df
+        )
+
+        if metric_gate.get(
+            "show_raw_holdings",
+            True,
+        ):
+            with st.expander(
+                "Portfolio Holdings",
+                expanded=True,
+            ):
+                render_portfolio_table(
+                    portfolio_df
+                )
+
         return
 
     total_cost_basis = float(portfolio_df["Cost Basis"].sum())
