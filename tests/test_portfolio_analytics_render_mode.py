@@ -15,13 +15,13 @@ def test_caution_portfolio_uses_caution_mode():
     ) == "caution"
 
 
-def test_insufficient_portfolio_uses_holdings_only_mode():
+def test_insufficient_portfolio_uses_limited_mode():
     assert get_portfolio_analytics_render_mode(
         {"status": "Insufficient Data"}
-    ) == "holdings_only"
+    ) == "limited"
 
 
-def test_unavailable_portfolio_uses_holdings_only_mode():
+def test_unavailable_portfolio_uses_unavailable_mode():
     assert get_portfolio_analytics_render_mode(
         {"status": "Unavailable"}
-    ) == "holdings_only"
+    ) == "unavailable"
