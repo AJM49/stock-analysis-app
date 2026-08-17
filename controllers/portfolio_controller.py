@@ -126,12 +126,24 @@ def build_portfolio_analytics_reliability(portfolio_health):
 
 def get_portfolio_analytics_render_mode(reliability):
     if not reliability:
-        return "full"
+        return "unavailable"
+
+    render_mode = reliability.get(
+        "render_mode"
+    )
+
+    if render_mode in {
+        "full",
+        "caution",
+        "limited",
+        "unavailable",
+    }:
+        return render_mode
 
     status = str(
         reliability.get(
             "status",
-            "",
+            "Unavailable",
         )
     )
 
@@ -141,13 +153,10 @@ def get_portfolio_analytics_render_mode(reliability):
     if status == "Use With Caution":
         return "caution"
 
-    if status in {
-        "Insufficient Data",
-        "Unavailable",
-    }:
-        return "holdings_only"
+    if status == "Insufficient Data":
+        return "limited"
 
-    return "full"
+    return "unavailable"
 
 
 def should_render_portfolio_summary_metrics(reliability):
@@ -155,7 +164,10 @@ def should_render_portfolio_summary_metrics(reliability):
         get_portfolio_analytics_render_mode(
             reliability
         )
-        != "holdings_only"
+        in {
+            "full",
+            "caution",
+        }
     )
 
 
@@ -291,26 +303,9 @@ def build_portfolio_metric_gate(reliability):
 
 
 def build_portfolio_analytics_render_mode(reliability):
-    if not reliability:
-        return "unavailable"
-
-    status = str(
-        reliability.get(
-            "status",
-            "Unavailable",
-        )
+    return get_portfolio_analytics_render_mode(
+        reliability
     )
-
-    if status == "Reliable":
-        return "full"
-
-    if status == "Use With Caution":
-        return "caution"
-
-    if status == "Insufficient Data":
-        return "limited"
-
-    return "unavailable"
 
 
 def build_portfolio_dashboard_data(portfolio_positions) -> pd.DataFrame:

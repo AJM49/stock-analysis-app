@@ -98,20 +98,20 @@ def test_caution_analytics_use_caution_render_mode():
     ) == "caution"
 
 
-def test_insufficient_analytics_use_holdings_only_mode():
+def test_insufficient_analytics_use_limited_mode():
     assert get_portfolio_analytics_render_mode(
         {
             "status": "Insufficient Data",
         }
-    ) == "holdings_only"
+    ) == "limited"
 
 
-def test_unavailable_analytics_use_holdings_only_mode():
+def test_unavailable_analytics_use_unavailable_mode():
     assert get_portfolio_analytics_render_mode(
         {
             "status": "Unavailable",
         }
-    ) == "holdings_only"
+    ) == "unavailable"
 
 
 

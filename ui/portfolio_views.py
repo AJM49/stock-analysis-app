@@ -4,7 +4,6 @@ from database import save_portfolio_scenario, get_portfolio_scenarios, delete_po
 
 import pandas as pd
 import streamlit as st
-from controllers.portfolio_controller import build_portfolio_render_policy
 from controllers.portfolio_controller import (
     get_portfolio_analytics_render_mode,
     should_render_portfolio_summary_metrics,
@@ -187,39 +186,6 @@ def render_portfolio_reliability_safe_holdings(portfolio_df):
         make_arrow_safe(holdings_df),
         use_container_width=True,
     )
-
-
-def get_portfolio_analytics_render_mode(reliability):
-    if not reliability:
-        return "unavailable"
-
-    render_mode = reliability.get(
-        "render_mode"
-    )
-
-    if render_mode in {
-        "full",
-        "caution",
-        "limited",
-        "unavailable",
-    }:
-        return render_mode
-
-    status = reliability.get(
-        "status",
-        "Unavailable",
-    )
-
-    if status == "Reliable":
-        return "full"
-
-    if status == "Use With Caution":
-        return "caution"
-
-    if status == "Insufficient Data":
-        return "limited"
-
-    return "unavailable"
 
 
 def should_render_portfolio_summary_metrics(
