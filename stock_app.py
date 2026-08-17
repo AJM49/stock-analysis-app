@@ -28,7 +28,6 @@ from market_data import validate_ticker
 from controllers.portfolio_controller import build_portfolio_dashboard_data
 from controllers.portfolio_controller import build_portfolio_data_health
 from controllers.portfolio_controller import build_portfolio_analytics_reliability
-from controllers.portfolio_controller import build_portfolio_analytics_render_mode
 from controllers.portfolio_controller import build_portfolio_metric_gate
 from ui_components import render_company_profile
 from ui.portfolio_views import render_portfolio_dashboard
@@ -211,12 +210,6 @@ elif active_section == "Portfolio Summary":
 
     render_portfolio_analytics_reliability(
         portfolio_reliability
-    )
-
-    portfolio_analytics_mode = (
-        build_portfolio_analytics_render_mode(
-            portfolio_reliability
-        )
     )
 
     render_save_portfolio_snapshot_control(

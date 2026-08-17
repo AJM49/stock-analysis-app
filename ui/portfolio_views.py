@@ -188,28 +188,6 @@ def render_portfolio_reliability_safe_holdings(portfolio_df):
     )
 
 
-def should_render_portfolio_summary_metrics(
-    portfolio_reliability,
-):
-    return get_portfolio_analytics_render_mode(
-        portfolio_reliability
-    ) in {
-        "full",
-        "caution",
-    }
-
-
-def should_render_portfolio_derived_analytics(
-    portfolio_reliability,
-):
-    return get_portfolio_analytics_render_mode(
-        portfolio_reliability
-    ) in {
-        "full",
-        "caution",
-    }
-
-
 def render_portfolio_dashboard(
     portfolio_df,
     portfolio_reliability=None,
@@ -255,23 +233,6 @@ def render_portfolio_dashboard(
             portfolio_reliability
         )
     )
-
-    metric_gate = {
-        "show_derived_metrics": analytics_render_mode in {
-            "full",
-            "caution",
-        },
-        "show_risk_analytics": analytics_render_mode in {
-            "full",
-            "caution",
-        },
-        "show_performance_analytics": analytics_render_mode in {
-            "full",
-            "caution",
-        },
-        "show_raw_holdings": True,
-        "mode": analytics_render_mode,
-    }
 
     if should_render_portfolio_summary_metrics(
         portfolio_reliability
