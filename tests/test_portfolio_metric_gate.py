@@ -57,3 +57,27 @@ def test_unavailable_data_suppresses_derived_analytics():
     assert gate["show_risk_analytics"] is False
     assert gate["show_performance_analytics"] is False
     assert gate["show_raw_holdings"] is True
+
+
+
+def test_metric_gate_uses_supported_render_modes():
+    supported_modes = {
+        "normal",
+        "caution",
+        "restricted",
+        "unavailable",
+    }
+
+    statuses = [
+        "Reliable",
+        "Use With Caution",
+        "Insufficient Data",
+        "Unavailable",
+    ]
+
+    for status in statuses:
+        gate = build_portfolio_metric_gate(
+            {"status": status}
+        )
+
+        assert gate["mode"] in supported_modes

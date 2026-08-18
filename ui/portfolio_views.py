@@ -509,7 +509,7 @@ def render_unrealized_gain_loss_summary(
         "show_derived_metrics",
         True,
     ):
-        if gate_mode == "limited":
+        if gate_mode == "restricted":
             st.error(
                 "Derived valuation, performance, and risk analytics "
                 "are suppressed because portfolio market-data quality "
