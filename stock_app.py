@@ -30,6 +30,7 @@ from controllers.portfolio_controller import build_portfolio_data_health
 from controllers.portfolio_controller import build_portfolio_analytics_reliability
 from controllers.portfolio_controller import build_portfolio_render_policy
 from controllers.portfolio_controller import build_portfolio_metric_gate
+from controllers.portfolio_controller import build_priced_portfolio_analytics_data
 from ui_components import render_company_profile
 from ui.portfolio_views import render_portfolio_dashboard
 from ui.portfolio_views import render_portfolio_data_health
@@ -206,6 +207,12 @@ elif active_section == "Portfolio Summary":
     portfolio_reliability = (
         build_portfolio_analytics_reliability(
             portfolio_health
+        )
+    )
+
+    priced_portfolio_df = (
+        build_priced_portfolio_analytics_data(
+            portfolio_df
         )
     )
 

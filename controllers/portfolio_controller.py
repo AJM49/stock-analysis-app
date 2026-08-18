@@ -310,5 +310,21 @@ def build_portfolio_analytics_render_mode(reliability):
     )
 
 
+def build_priced_portfolio_analytics_data(portfolio_df):
+    if portfolio_df is None or portfolio_df.empty:
+        return pd.DataFrame()
+
+    if "Price Status" not in portfolio_df.columns:
+        return pd.DataFrame()
+
+    return (
+        portfolio_df.loc[
+            portfolio_df["Price Status"] == "Available"
+        ]
+        .copy()
+        .reset_index(drop=True)
+    )
+
+
 def build_portfolio_dashboard_data(portfolio_positions) -> pd.DataFrame:
     return build_portfolio_dataframe(portfolio_positions)
