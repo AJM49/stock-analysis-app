@@ -60,7 +60,7 @@ def test_poor_portfolio_health_is_insufficient():
     assert reliability["severity"] == "error"
     assert reliability["decision_ready"] is False
     assert reliability["analytics_mode"] == "limited"
-    assert reliability["render_mode"] == "limited"
+    assert reliability["render_mode"] == "restricted"
     assert reliability["analytics_mode"] == "limited"
     assert reliability["display_mode"] == "restricted"
 
@@ -107,7 +107,7 @@ def test_insufficient_analytics_use_limited_mode():
         {
             "status": "Insufficient Data",
         }
-    ) == "limited"
+    ) == "restricted"
 
 
 def test_unavailable_analytics_use_unavailable_mode():

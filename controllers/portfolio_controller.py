@@ -56,7 +56,6 @@ def build_portfolio_analytics_reliability(portfolio_health):
             "severity": "info",
             "analytics_mode": "unavailable",
             "render_mode": "unavailable",
-            "analytics_mode": "unavailable",
             "display_mode": "unavailable",
             "decision_ready": False,
             "quality_score": quality_score,
@@ -94,7 +93,6 @@ def build_portfolio_analytics_reliability(portfolio_health):
             "severity": "warning",
             "analytics_mode": "caution",
             "render_mode": "caution",
-            "analytics_mode": "caution",
             "display_mode": "caution",
             "decision_ready": False,
             "quality_score": quality_score,
@@ -112,8 +110,7 @@ def build_portfolio_analytics_reliability(portfolio_health):
         "status": "Insufficient Data",
         "severity": "error",
         "analytics_mode": "limited",
-        "render_mode": "limited",
-        "analytics_mode": "limited",
+        "render_mode": "restricted",
         "display_mode": "restricted",
         "decision_ready": False,
         "quality_score": quality_score,
@@ -157,7 +154,7 @@ def get_portfolio_analytics_render_mode(reliability):
         return "caution"
 
     if status == "Insufficient Data":
-        return "limited"
+        return "restricted"
 
     return "unavailable"
 

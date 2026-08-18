@@ -45,7 +45,7 @@ def test_insufficient_portfolio_uses_limited_mode():
 
     assert (
         get_portfolio_analytics_render_mode(result)
-        == "limited"
+        == "restricted"
     )
     assert (
         should_render_portfolio_summary_metrics(

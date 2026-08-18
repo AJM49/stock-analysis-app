@@ -18,7 +18,7 @@ def test_caution_portfolio_uses_caution_mode():
 def test_insufficient_portfolio_uses_limited_mode():
     assert get_portfolio_analytics_render_mode(
         {"status": "Insufficient Data"}
-    ) == "limited"
+    ) == "restricted"
 
 
 def test_unavailable_portfolio_uses_unavailable_mode():
