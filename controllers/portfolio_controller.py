@@ -54,6 +54,7 @@ def build_portfolio_analytics_reliability(portfolio_health):
         return {
             "status": "Unavailable",
             "severity": "info",
+            "analytics_mode": "unavailable",
             "render_mode": "unavailable",
             "analytics_mode": "unavailable",
             "display_mode": "unavailable",
@@ -74,8 +75,8 @@ def build_portfolio_analytics_reliability(portfolio_health):
         return {
             "status": "Reliable",
             "severity": "success",
-            "render_mode": "full",
             "analytics_mode": "full",
+            "render_mode": "full",
             "display_mode": "full",
             "decision_ready": True,
             "quality_score": quality_score,
@@ -91,6 +92,7 @@ def build_portfolio_analytics_reliability(portfolio_health):
         return {
             "status": "Use With Caution",
             "severity": "warning",
+            "analytics_mode": "caution",
             "render_mode": "caution",
             "analytics_mode": "caution",
             "display_mode": "caution",
@@ -109,6 +111,7 @@ def build_portfolio_analytics_reliability(portfolio_health):
     return {
         "status": "Insufficient Data",
         "severity": "error",
+        "analytics_mode": "limited",
         "render_mode": "limited",
         "analytics_mode": "limited",
         "display_mode": "restricted",
@@ -135,7 +138,7 @@ def get_portfolio_analytics_render_mode(reliability):
     if render_mode in {
         "full",
         "caution",
-        "limited",
+        "restricted",
         "unavailable",
     }:
         return render_mode
@@ -276,46 +279,31 @@ def build_portfolio_snapshot_save_policy(reliability):
 
 
 def build_portfolio_metric_gate(reliability):
-    status = str(
-        (reliability or {}).get(
-            "status",
-            "Unavailable",
+    policy = build_portfolio_render_policy(
+        reliability
+    )
+
+    show_derived_analytics = bool(
+        policy.get(
+            "show_derived_analytics",
+            False,
         )
     )
 
-    if status == "Reliable":
-        return {
-            "show_derived_metrics": True,
-            "show_risk_analytics": True,
-            "show_performance_analytics": True,
-            "show_raw_holdings": True,
-            "mode": "normal",
-        }
-
-    if status == "Use With Caution":
-        return {
-            "show_derived_metrics": True,
-            "show_risk_analytics": True,
-            "show_performance_analytics": True,
-            "show_raw_holdings": True,
-            "mode": "caution",
-        }
-
-    if status == "Insufficient Data":
-        return {
-            "show_derived_metrics": False,
-            "show_risk_analytics": False,
-            "show_performance_analytics": False,
-            "show_raw_holdings": True,
-            "mode": "restricted",
-        }
-
     return {
-        "show_derived_metrics": False,
-        "show_risk_analytics": False,
-        "show_performance_analytics": False,
-        "show_raw_holdings": True,
-        "mode": "unavailable",
+        "show_derived_metrics": show_derived_analytics,
+        "show_risk_analytics": show_derived_analytics,
+        "show_performance_analytics": show_derived_analytics,
+        "show_raw_holdings": bool(
+            policy.get(
+                "show_raw_holdings",
+                True,
+            )
+        ),
+        "mode": policy.get(
+            "mode",
+            "unavailable",
+        ),
     }
 
 

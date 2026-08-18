@@ -19,6 +19,7 @@ def test_good_portfolio_health_is_reliable():
     assert reliability["status"] == "Reliable"
     assert reliability["severity"] == "success"
     assert reliability["decision_ready"] is True
+    assert reliability["analytics_mode"] == "full"
     assert reliability["render_mode"] == "full"
     assert reliability["analytics_mode"] == "full"
     assert reliability["display_mode"] == "full"
@@ -38,6 +39,7 @@ def test_fair_portfolio_health_requires_caution():
     assert reliability["status"] == "Use With Caution"
     assert reliability["severity"] == "warning"
     assert reliability["decision_ready"] is False
+    assert reliability["analytics_mode"] == "caution"
     assert reliability["render_mode"] == "caution"
     assert reliability["analytics_mode"] == "caution"
     assert reliability["display_mode"] == "caution"
@@ -57,6 +59,7 @@ def test_poor_portfolio_health_is_insufficient():
     assert reliability["status"] == "Insufficient Data"
     assert reliability["severity"] == "error"
     assert reliability["decision_ready"] is False
+    assert reliability["analytics_mode"] == "limited"
     assert reliability["render_mode"] == "limited"
     assert reliability["analytics_mode"] == "limited"
     assert reliability["display_mode"] == "restricted"
@@ -76,6 +79,7 @@ def test_empty_portfolio_health_is_unavailable():
     assert reliability["status"] == "Unavailable"
     assert reliability["severity"] == "info"
     assert reliability["decision_ready"] is False
+    assert reliability["analytics_mode"] == "unavailable"
     assert reliability["render_mode"] == "unavailable"
     assert reliability["analytics_mode"] == "unavailable"
     assert reliability["display_mode"] == "unavailable"

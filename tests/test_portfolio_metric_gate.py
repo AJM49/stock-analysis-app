@@ -10,7 +10,7 @@ def test_reliable_portfolio_allows_all_analytics():
         }
     )
 
-    assert gate["mode"] == "normal"
+    assert gate["mode"] == "full"
     assert gate["show_derived_metrics"] is True
     assert gate["show_risk_analytics"] is True
     assert gate["show_performance_analytics"] is True
@@ -62,7 +62,7 @@ def test_unavailable_data_suppresses_derived_analytics():
 
 def test_metric_gate_uses_supported_render_modes():
     supported_modes = {
-        "normal",
+        "full",
         "caution",
         "restricted",
         "unavailable",

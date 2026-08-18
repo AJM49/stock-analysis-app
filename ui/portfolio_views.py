@@ -491,12 +491,12 @@ def render_unrealized_gain_loss_summary(
         "show_risk_analytics": True,
         "show_performance_analytics": True,
         "show_raw_holdings": True,
-        "mode": "normal",
+        "mode": "full",
     }
 
     gate_mode = metric_gate.get(
         "mode",
-        "normal",
+        "full",
     )
 
     if gate_mode == "caution":
