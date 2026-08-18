@@ -5,6 +5,7 @@ from database import save_portfolio_scenario, get_portfolio_scenarios, delete_po
 import pandas as pd
 import streamlit as st
 from controllers.portfolio_controller import (
+    build_portfolio_metric_gate,
     get_portfolio_analytics_render_mode,
     should_render_portfolio_summary_metrics,
 )
@@ -190,139 +191,149 @@ def render_portfolio_reliability_safe_holdings(portfolio_df):
 
 def render_portfolio_dashboard(
     portfolio_df,
-    portfolio_reliability=None,
+    reliability=None,
+    render_policy=None,
 ):
-    """Render portfolio analytics according to data reliability."""
+    """Render portfolio analytics according to reliability policy."""
+
     st.subheader("Portfolio Analytics")
     render_production_status_banner()
 
-    with st.expander("Deployment Checklist", expanded=False):
+    with st.expander(
+        "Deployment Checklist",
+        expanded=False,
+    ):
         render_deployment_checklist_panel()
 
-    with st.expander("Portfolio User Guide", expanded=False):
+    with st.expander(
+        "Portfolio User Guide",
+        expanded=False,
+    ):
         render_portfolio_user_guide_panel()
 
-    with st.expander("Project Metadata", expanded=False):
+    with st.expander(
+        "Project Metadata",
+        expanded=False,
+    ):
         render_project_metadata_panel()
 
     if portfolio_df is None or portfolio_df.empty:
         render_empty_state_guidance(
             title="No portfolio positions available yet.",
             message=(
-                "The portfolio dashboard will activate after at least one "
-                "position is added from the sidebar."
+                "The portfolio dashboard will activate "
+                "after at least one position is added "
+                "from the sidebar."
             ),
             next_steps=[
                 "Use the Portfolio section in the sidebar.",
                 "Add a ticker, share count, and buy price.",
                 "Refresh saved prices after adding positions.",
-                "Return here to view value, gain/loss, risk, and scenarios.",
+                (
+                    "Return here to view value, gain/loss, "
+                    "risk, and scenarios."
+                ),
             ],
         )
         return
 
-    reliability_status = str(
-        (portfolio_reliability or {}).get(
-            "status",
-            "Unavailable",
+    policy = render_policy or {
+        "mode": "full",
+        "show_derived_analytics": True,
+        "show_raw_holdings": True,
+        "show_caution": False,
+    }
+
+    mode = policy.get(
+        "mode",
+        "full",
+    )
+
+    show_derived_analytics = bool(
+        policy.get(
+            "show_derived_analytics",
+            True,
         )
     )
 
-    analytics_render_mode = (
-        get_portfolio_analytics_render_mode(
-            portfolio_reliability
-        )
-    )
-
-    if should_render_portfolio_summary_metrics(
-        portfolio_reliability
-    ):
-        total_cost_basis = float(
-            portfolio_df["Cost Basis"].sum()
+    if mode == "caution":
+        st.warning(
+            "Derived portfolio analytics are being shown "
+            "with caution because some market prices are "
+            "stale or missing."
         )
 
-        total_current_value = float(
-            portfolio_df["Current Value"].sum()
-        )
-
-        total_gain_loss = float(
-            portfolio_df["Gain/Loss"].sum()
-        )
-
-        if total_cost_basis > 0:
-            total_gain_loss_pct = (
-                total_gain_loss
-                / total_cost_basis
-                * 100
+    if not show_derived_analytics:
+        if mode == "restricted":
+            st.error(
+                "Derived portfolio analytics are suppressed "
+                "because market-data quality is insufficient. "
+                "Refresh stale or missing prices before using "
+                "valuation, performance, allocation, or risk "
+                "conclusions."
             )
         else:
-            total_gain_loss_pct = 0.0
-
-        summary_col1, summary_col2, summary_col3 = (
-            st.columns(3)
-        )
-
-        summary_col1.metric(
-            "Total Current Value",
-            f"${total_current_value:,.2f}",
-        )
-
-        summary_col2.metric(
-            "Total Cost Basis",
-            f"${total_cost_basis:,.2f}",
-        )
-
-        summary_col3.metric(
-            "Total Gain/Loss",
-            f"${total_gain_loss:,.2f}",
-            f"{total_gain_loss_pct:.2f}%",
-        )
-
-    if analytics_render_mode == "caution":
-        st.warning(
-            "Derived portfolio analytics are being shown with caution "
-            "because some market prices are stale or missing."
-        )
-
-    elif (
-        analytics_render_mode == "limited"
-        and reliability_status == "Insufficient Data"
-    ):
-        st.error(
-            "Derived portfolio analytics are suppressed because market-data "
-            "quality is insufficient. Refresh stale or missing prices before "
-            "using performance, allocation, or risk conclusions."
-        )
+            st.info(
+                "Derived portfolio analytics are unavailable "
+                "until sufficient market data is available."
+            )
 
         render_missing_price_warning(
             portfolio_df
         )
 
-        render_portfolio_reliability_safe_holdings(
-            portfolio_df
-        )
+        if policy.get(
+            "show_raw_holdings",
+            True,
+        ):
+            render_portfolio_reliability_safe_holdings(
+                portfolio_df
+            )
 
         return
 
-    elif (
-        analytics_render_mode == "unavailable"
-        and reliability_status == "Unavailable"
-    ):
-        st.info(
-            "Derived portfolio analytics are unavailable until sufficient "
-            "market data is available."
-        )
+    total_cost_basis = float(
+        portfolio_df["Cost Basis"].sum()
+    )
+    total_current_value = float(
+        portfolio_df["Current Value"].sum()
+    )
+    total_gain_loss = float(
+        portfolio_df["Gain/Loss"].sum()
+    )
 
-        render_portfolio_reliability_safe_holdings(
-            portfolio_df
+    if total_cost_basis > 0:
+        total_gain_loss_pct = (
+            total_gain_loss
+            / total_cost_basis
+            * 100
         )
+    else:
+        total_gain_loss_pct = 0.0
 
-        return
+    summary_col1, summary_col2, summary_col3 = (
+        st.columns(3)
+    )
+
+    summary_col1.metric(
+        "Total Current Value",
+        f"${total_current_value:,.2f}",
+    )
+
+    summary_col2.metric(
+        "Total Cost Basis",
+        f"${total_cost_basis:,.2f}",
+    )
+
+    summary_col3.metric(
+        "Total Gain/Loss",
+        f"${total_gain_loss:,.2f}",
+        f"{total_gain_loss_pct:.2f}%",
+    )
 
     render_portfolio_risk_alert_banner(
         portfolio_df
     )
-
     render_portfolio_executive_summary(
         portfolio_df
     )
@@ -348,8 +359,7 @@ def render_portfolio_dashboard(
             portfolio_df
         )
         render_unrealized_gain_loss_summary(
-            portfolio_df,
-            metric_gate,
+            portfolio_df
         )
 
     with st.expander(

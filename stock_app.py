@@ -28,6 +28,7 @@ from market_data import validate_ticker
 from controllers.portfolio_controller import build_portfolio_dashboard_data
 from controllers.portfolio_controller import build_portfolio_data_health
 from controllers.portfolio_controller import build_portfolio_analytics_reliability
+from controllers.portfolio_controller import build_portfolio_render_policy
 from controllers.portfolio_controller import build_portfolio_metric_gate
 from ui_components import render_company_profile
 from ui.portfolio_views import render_portfolio_dashboard
@@ -208,6 +209,12 @@ elif active_section == "Portfolio Summary":
         )
     )
 
+    portfolio_metric_gate = (
+        build_portfolio_metric_gate(
+            portfolio_reliability
+        )
+    )
+
     render_portfolio_analytics_reliability(
         portfolio_reliability
     )
@@ -220,6 +227,7 @@ elif active_section == "Portfolio Summary":
     render_portfolio_dashboard(
         portfolio_df,
         portfolio_reliability,
+        portfolio_metric_gate,
     )
 
     snapshot_limit_label = st.sidebar.selectbox(

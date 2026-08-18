@@ -176,7 +176,9 @@ def build_portfolio_render_policy(reliability):
     if not reliability:
         return {
             "status": "Unknown",
+            "mode": "full",
             "show_derived_analytics": True,
+            "show_raw_holdings": True,
             "show_caution": False,
         }
 
@@ -190,20 +192,35 @@ def build_portfolio_render_policy(reliability):
     if status == "Reliable":
         return {
             "status": status,
+            "mode": "full",
             "show_derived_analytics": True,
+            "show_raw_holdings": True,
             "show_caution": False,
         }
 
     if status == "Use With Caution":
         return {
             "status": status,
+            "mode": "caution",
             "show_derived_analytics": True,
+            "show_raw_holdings": True,
+            "show_caution": True,
+        }
+
+    if status == "Insufficient Data":
+        return {
+            "status": status,
+            "mode": "restricted",
+            "show_derived_analytics": False,
+            "show_raw_holdings": True,
             "show_caution": True,
         }
 
     return {
         "status": status,
+        "mode": "unavailable",
         "show_derived_analytics": False,
+        "show_raw_holdings": True,
         "show_caution": True,
     }
 
