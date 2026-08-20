@@ -235,6 +235,7 @@ elif active_section == "Portfolio Summary":
         portfolio_df,
         portfolio_reliability,
         portfolio_metric_gate,
+        priced_portfolio_df,
     )
 
     snapshot_limit_label = st.sidebar.selectbox(

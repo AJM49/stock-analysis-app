@@ -193,6 +193,7 @@ def render_portfolio_dashboard(
     portfolio_df,
     reliability=None,
     render_policy=None,
+    analytics_df=None,
 ):
     """Render portfolio analytics according to reliability policy."""
 
@@ -256,6 +257,11 @@ def render_portfolio_dashboard(
         )
     )
 
+    derived_df = portfolio_df
+
+    if mode == "caution" and analytics_df is not None:
+        derived_df = analytics_df
+
     if mode == "caution":
         st.warning(
             "Derived portfolio analytics are being shown "
@@ -293,13 +299,13 @@ def render_portfolio_dashboard(
         return
 
     total_cost_basis = float(
-        portfolio_df["Cost Basis"].sum()
+        derived_df["Cost Basis"].sum()
     )
     total_current_value = float(
-        portfolio_df["Current Value"].sum()
+        derived_df["Current Value"].sum()
     )
     total_gain_loss = float(
-        portfolio_df["Gain/Loss"].sum()
+        derived_df["Gain/Loss"].sum()
     )
 
     if total_cost_basis > 0:
@@ -332,10 +338,10 @@ def render_portfolio_dashboard(
     )
 
     render_portfolio_risk_alert_banner(
-        portfolio_df
+        derived_df
     )
     render_portfolio_executive_summary(
-        portfolio_df
+        derived_df
     )
 
     with st.expander(
@@ -343,7 +349,7 @@ def render_portfolio_dashboard(
         expanded=False,
     ):
         render_portfolio_what_if_scenario(
-            portfolio_df
+            derived_df
         )
 
     st.divider()
@@ -356,10 +362,10 @@ def render_portfolio_dashboard(
             "Portfolio Overview"
         )
         render_best_worst_performer_summary(
-            portfolio_df
+            derived_df
         )
         render_unrealized_gain_loss_summary(
-            portfolio_df
+            derived_df
         )
 
     with st.expander(
@@ -370,22 +376,22 @@ def render_portfolio_dashboard(
             "Risk Intelligence"
         )
         render_portfolio_risk_score(
-            portfolio_df
+            derived_df
         )
         render_portfolio_risk_recommendations(
-            portfolio_df
+            derived_df
         )
         render_portfolio_concentration_score(
-            portfolio_df
+            derived_df
         )
         render_sector_concentration_warning(
-            portfolio_df
+            derived_df
         )
         render_missing_price_warning(
-            portfolio_df
+            derived_df
         )
         render_portfolio_risk_flags(
-            portfolio_df
+            derived_df
         )
 
     with st.expander(
@@ -396,13 +402,13 @@ def render_portfolio_dashboard(
             "Allocation and Exposure"
         )
         render_portfolio_allocation_chart(
-            portfolio_df
+            derived_df
         )
         render_position_weight_summary(
-            portfolio_df
+            derived_df
         )
         render_sector_exposure_summary(
-            portfolio_df
+            derived_df
         )
 
     with st.expander(
@@ -413,7 +419,7 @@ def render_portfolio_dashboard(
             "Portfolio Export"
         )
         render_portfolio_export(
-            portfolio_df
+            derived_df
         )
 
     with st.expander(
@@ -424,7 +430,7 @@ def render_portfolio_dashboard(
             "Portfolio Table"
         )
         render_portfolio_table(
-            portfolio_df
+            derived_df
         )
 
 
