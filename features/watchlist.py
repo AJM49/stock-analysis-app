@@ -3,6 +3,8 @@ import streamlit as st
 
 from database import get_watchlist_cached_metrics
 from market_data import validate_ticker
+from services.watchlist_signal_service import build_watchlist_research_signals
+from services.watchlist_health_service import build_watchlist_data_health
 from ui_components import render_watchlist_sidebar
 
 
@@ -48,17 +50,46 @@ def render_watchlist_feature():
         )
         return
 
-    metrics_df = pd.DataFrame(metric_rows)
-
-    cached_count = int(
-        (metrics_df["Cache Status"] == "Cached").sum()
+    signal_rows = build_watchlist_research_signals(
+        metric_rows
     )
 
-    unavailable_count = int(
-        (metrics_df["Cache Status"] != "Cached").sum()
+    metrics_df = pd.DataFrame(signal_rows)
+
+    watchlist_health = build_watchlist_data_health(
+        signal_rows
     )
 
-    col1, col2, col3 = st.columns(3)
+    st.subheader("Watchlist Data Health")
+
+    health_col1, health_col2 = st.columns(2)
+
+    health_col1.metric(
+        "Cache Coverage",
+        f"{watchlist_health['coverage_pct']:.1f}%",
+    )
+
+    health_col2.metric(
+        "Data Quality",
+        watchlist_health["quality_status"],
+    )
+
+    cached_count = watchlist_health[
+        "cached_count"
+    ]
+
+    unavailable_count = watchlist_health[
+        "unavailable_count"
+    ]
+
+    high_priority_count = int(
+        (
+            metrics_df["Research Priority"]
+            == "High"
+        ).sum()
+    )
+
+    col1, col2, col3, col4 = st.columns(4)
 
     col1.metric(
         "Saved Tickers",
@@ -73,6 +104,11 @@ def render_watchlist_feature():
     col3.metric(
         "Unavailable",
         unavailable_count,
+    )
+
+    col4.metric(
+        "High Priority",
+        high_priority_count,
     )
 
     st.dataframe(
@@ -102,6 +138,15 @@ def render_watchlist_feature():
             ),
             "Cache Status": st.column_config.TextColumn(
                 "Cache Status"
+            ),
+            "Data Freshness": st.column_config.TextColumn(
+                "Data Freshness"
+            ),
+            "Move Signal": st.column_config.TextColumn(
+                "Move Signal"
+            ),
+            "Research Priority": st.column_config.TextColumn(
+                "Research Priority"
             ),
         },
     )
