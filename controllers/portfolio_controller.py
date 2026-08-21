@@ -55,7 +55,6 @@ def build_portfolio_analytics_reliability(portfolio_health):
             "status": "Unavailable",
             "severity": "info",
             "analytics_mode": "unavailable",
-            "analytics_mode": "unavailable",
             "render_mode": "unavailable",
             "display_mode": "unavailable",
             "decision_ready": False,
@@ -76,7 +75,6 @@ def build_portfolio_analytics_reliability(portfolio_health):
             "status": "Reliable",
             "severity": "success",
             "analytics_mode": "full",
-            "analytics_mode": "full",
             "render_mode": "full",
             "display_mode": "full",
             "decision_ready": True,
@@ -93,7 +91,6 @@ def build_portfolio_analytics_reliability(portfolio_health):
         return {
             "status": "Use With Caution",
             "severity": "warning",
-            "analytics_mode": "caution",
             "analytics_mode": "caution",
             "render_mode": "caution",
             "display_mode": "caution",
@@ -113,7 +110,6 @@ def build_portfolio_analytics_reliability(portfolio_health):
         "status": "Insufficient Data",
         "severity": "error",
         "analytics_mode": "restricted",
-        "analytics_mode": "limited",
         "render_mode": "restricted",
         "display_mode": "restricted",
         "decision_ready": False,
@@ -292,6 +288,7 @@ def build_portfolio_metric_gate(reliability):
     )
 
     return {
+        "show_derived_analytics": show_derived_analytics,
         "show_derived_metrics": show_derived_analytics,
         "show_risk_analytics": show_derived_analytics,
         "show_performance_analytics": show_derived_analytics,
