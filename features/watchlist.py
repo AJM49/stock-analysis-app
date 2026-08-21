@@ -4,7 +4,10 @@ import streamlit as st
 from database import get_watchlist_cached_metrics
 from market_data import validate_ticker
 from services.watchlist_signal_service import build_watchlist_research_signals
-from services.watchlist_health_service import build_watchlist_data_health
+from services.watchlist_health_service import (
+    build_watchlist_data_health,
+    build_watchlist_research_reliability,
+)
 from ui_components import render_watchlist_sidebar
 
 
@@ -73,6 +76,49 @@ def render_watchlist_feature():
         "Data Quality",
         watchlist_health["quality_status"],
     )
+
+    watchlist_reliability = (
+        build_watchlist_research_reliability(
+            watchlist_health
+        )
+    )
+
+    st.subheader("Research Reliability")
+
+    reliability_col1, reliability_col2 = st.columns(2)
+
+    reliability_col1.metric(
+        "Decision Reliability",
+        watchlist_reliability["status"],
+    )
+
+    reliability_col2.metric(
+        "Quality Score",
+        f"{watchlist_reliability[quality_score]:.1f}",
+    )
+
+    st.caption(
+        f"Price coverage: "
+        f"{watchlist_reliability[coverage_pct]:.1f}% | "
+        f"Fresh prices: "
+        f"{watchlist_reliability[freshness_pct]:.1f}%"
+    )
+
+    reliability_severity = watchlist_reliability[
+        "severity"
+    ]
+    reliability_message = watchlist_reliability[
+        "message"
+    ]
+
+    if reliability_severity == "success":
+        st.success(reliability_message)
+    elif reliability_severity == "warning":
+        st.warning(reliability_message)
+    elif reliability_severity == "error":
+        st.error(reliability_message)
+    else:
+        st.info(reliability_message)
 
     cached_count = watchlist_health[
         "cached_count"
