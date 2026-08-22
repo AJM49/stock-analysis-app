@@ -269,6 +269,33 @@ def render_portfolio_dashboard(
             "stale or missing."
         )
 
+    scenario_df = (
+        analytics_df
+        if analytics_df is not None
+        and not analytics_df.empty
+        else portfolio_df
+    )
+
+    with st.expander(
+        "Portfolio What-If Scenario Planner",
+        expanded=False,
+    ):
+        if mode == "caution":
+            st.warning(
+                "Scenario outputs use the best available "
+                "priced positions, but some portfolio market "
+                "data is stale or missing."
+            )
+        elif mode == "restricted":
+            st.error(
+                "Scenario outputs are exploratory only because "
+                "portfolio market-data reliability is insufficient."
+            )
+
+        render_portfolio_what_if_scenario(
+            scenario_df
+        )
+
     if not show_derived_analytics:
         if mode == "restricted":
             st.error(
@@ -343,14 +370,6 @@ def render_portfolio_dashboard(
     render_portfolio_executive_summary(
         derived_df
     )
-
-    with st.expander(
-        "Portfolio What-If Scenario Planner",
-        expanded=False,
-    ):
-        render_portfolio_what_if_scenario(
-            derived_df
-        )
 
     st.divider()
 
