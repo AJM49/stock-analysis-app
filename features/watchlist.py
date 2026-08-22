@@ -94,14 +94,14 @@ def render_watchlist_feature():
 
     reliability_col2.metric(
         "Quality Score",
-        f"{watchlist_reliability[quality_score]:.1f}",
+        f"{watchlist_reliability['quality_score']:.1f}",
     )
 
     st.caption(
         f"Price coverage: "
-        f"{watchlist_reliability[coverage_pct]:.1f}% | "
+        f"{watchlist_reliability['coverage_pct']:.1f}% | "
         f"Fresh prices: "
-        f"{watchlist_reliability[freshness_pct]:.1f}%"
+        f"{watchlist_reliability['freshness_pct']:.1f}%"
     )
 
     reliability_severity = watchlist_reliability[
