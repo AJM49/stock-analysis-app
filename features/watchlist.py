@@ -2,6 +2,11 @@ import pandas as pd
 import streamlit as st
 
 from database import get_watchlist_cached_metrics
+from controllers.watchlist_controller import (
+    build_watchlist_data_health,
+    build_watchlist_reliability,
+    build_watchlist_reliability_data,
+)
 from market_data import validate_ticker
 from services.watchlist_signal_service import build_watchlist_research_signals
 from services.watchlist_health_service import (
@@ -184,6 +189,13 @@ def render_watchlist_feature():
             ),
             "Cache Status": st.column_config.TextColumn(
                 "Cache Status"
+            ),
+            "Market Age Days": st.column_config.NumberColumn(
+                "Age (Days)",
+                format="%d",
+            ),
+            "Data Freshness": st.column_config.TextColumn(
+                "Freshness"
             ),
             "Data Freshness": st.column_config.TextColumn(
                 "Data Freshness"
