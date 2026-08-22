@@ -2,6 +2,8 @@ from controllers.portfolio_controller import (
     build_portfolio_analytics_reliability,
     get_portfolio_analytics_render_mode,
     should_render_portfolio_summary_metrics,
+    build_portfolio_metric_gate,
+    build_priced_portfolio_analytics_data,
 )
 
 
@@ -21,7 +23,6 @@ def test_good_portfolio_health_is_reliable():
     assert reliability["decision_ready"] is True
     assert reliability["analytics_mode"] == "full"
     assert reliability["render_mode"] == "full"
-    assert reliability["analytics_mode"] == "full"
     assert reliability["display_mode"] == "full"
 
 
@@ -41,7 +42,6 @@ def test_fair_portfolio_health_requires_caution():
     assert reliability["decision_ready"] is False
     assert reliability["analytics_mode"] == "caution"
     assert reliability["render_mode"] == "caution"
-    assert reliability["analytics_mode"] == "caution"
     assert reliability["display_mode"] == "caution"
 
 
@@ -80,7 +80,6 @@ def test_empty_portfolio_health_is_unavailable():
     assert reliability["decision_ready"] is False
     assert reliability["analytics_mode"] == "unavailable"
     assert reliability["render_mode"] == "unavailable"
-    assert reliability["analytics_mode"] == "unavailable"
     assert reliability["display_mode"] == "unavailable"
 
 
@@ -134,3 +133,60 @@ def test_insufficient_analytics_suppress_summary_metrics():
     assert should_render_portfolio_summary_metrics(
         {"status": "Insufficient Data"}
     ) is False
+
+
+
+def test_insufficient_data_gate_suppresses_derived_analytics():
+    gate = build_portfolio_metric_gate(
+        {
+            "status": "Insufficient Data",
+        }
+    )
+
+    assert gate["mode"] == "restricted"
+    assert gate["show_derived_metrics"] is False
+    assert gate["show_risk_analytics"] is False
+    assert gate["show_performance_analytics"] is False
+    assert gate["show_raw_holdings"] is True
+
+
+def test_caution_gate_keeps_derived_analytics_visible():
+    gate = build_portfolio_metric_gate(
+        {
+            "status": "Use With Caution",
+        }
+    )
+
+    assert gate["mode"] == "caution"
+    assert gate["show_derived_metrics"] is True
+    assert gate["show_raw_holdings"] is True
+
+
+def test_priced_analytics_exclude_missing_price_positions():
+    import pandas as pd
+
+    portfolio_df = pd.DataFrame(
+        [
+            {
+                "Ticker": "AAPL",
+                "Price Status": "Available",
+            },
+            {
+                "Ticker": "ADVB",
+                "Price Status": "Missing",
+            },
+            {
+                "Ticker": "MSFT",
+                "Price Status": "Available",
+            },
+        ]
+    )
+
+    priced_df = build_priced_portfolio_analytics_data(
+        portfolio_df
+    )
+
+    assert priced_df["Ticker"].tolist() == [
+        "AAPL",
+        "MSFT",
+    ]
