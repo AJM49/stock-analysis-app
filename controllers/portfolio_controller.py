@@ -175,11 +175,11 @@ def should_render_portfolio_summary_metrics(reliability):
 def build_portfolio_render_policy(reliability):
     if not reliability:
         return {
-            "status": "Unknown",
-            "mode": "full",
-            "show_derived_analytics": True,
+            "status": "Unavailable",
+            "mode": "unavailable",
+            "show_derived_analytics": False,
             "show_raw_holdings": True,
-            "show_caution": False,
+            "show_caution": True,
         }
 
     status = str(

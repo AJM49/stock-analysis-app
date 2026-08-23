@@ -190,3 +190,24 @@ def test_priced_analytics_exclude_missing_price_positions():
         "AAPL",
         "MSFT",
     ]
+
+
+
+def test_missing_reliability_fails_closed():
+    from controllers.portfolio_controller import (
+        build_portfolio_metric_gate,
+        build_portfolio_render_policy,
+    )
+
+    policy = build_portfolio_render_policy(None)
+    gate = build_portfolio_metric_gate(None)
+
+    assert policy["mode"] == "unavailable"
+    assert policy["show_derived_analytics"] is False
+    assert policy["show_raw_holdings"] is True
+    assert policy["show_caution"] is True
+
+    assert gate["show_derived_metrics"] is False
+    assert gate["show_risk_analytics"] is False
+    assert gate["show_performance_analytics"] is False
+    assert gate["show_raw_holdings"] is True

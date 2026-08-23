@@ -39,8 +39,11 @@ def test_unavailable_data_suppresses_derived_analytics():
     assert policy["show_caution"] is True
 
 
-def test_missing_reliability_preserves_existing_behavior():
+def test_missing_reliability_fails_closed():
     policy = build_portfolio_render_policy(None)
 
-    assert policy["show_derived_analytics"] is True
-    assert policy["show_caution"] is False
+    assert policy["status"] == "Unavailable"
+    assert policy["mode"] == "unavailable"
+    assert policy["show_derived_analytics"] is False
+    assert policy["show_raw_holdings"] is True
+    assert policy["show_caution"] is True
