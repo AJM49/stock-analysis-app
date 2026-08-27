@@ -120,9 +120,15 @@ def render_watchlist_feature():
     else:
         st.info(reliability_message)
 
-    cached_count = watchlist_health[
-        "cached_count"
-    ]
+    cached_count = int(
+        watchlist_health.get(
+            "cached_count",
+            watchlist_health.get(
+                "available_count",
+                0,
+            ),
+        )
+    )
 
     unavailable_count = watchlist_health[
         "unavailable_count"
