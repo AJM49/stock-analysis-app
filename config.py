@@ -1,9 +1,9 @@
-from app_metadata import SPRINT_LABEL
+from app_metadata import RELEASE_LABEL
 
 APP_TITLE = "Stock Analysis Dashboard"
 APP_PAGE_TITLE = "Stock Analysis Dashboard"
 APP_LAYOUT = "wide"
-APP_CAPTION = SPRINT_LABEL
+APP_CAPTION = RELEASE_LABEL
 
 DEFAULT_PRIMARY_TICKER = "AAPL"
 DEFAULT_COMPARISON_TICKER = "MSFT"

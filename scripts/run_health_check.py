@@ -16,7 +16,7 @@ def main() -> int:
     print("Production Health Check")
     print("=======================")
     print(f"App version: {health.app_version}")
-    print(f"Sprint: {health.sprint_label}")
+    print(f"Release: {health.release_label}")
     print(f"Database configured: {health.database_configured}")
     print(f"Alpha Vantage configured: {health.alpha_vantage_configured}")
     print(f"Database connected: {health.database_connected}")

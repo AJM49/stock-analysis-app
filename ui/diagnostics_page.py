@@ -10,7 +10,7 @@ import streamlit as st
 
 from sqlalchemy import text
 
-from app_metadata import APP_NAME, APP_VERSION, BUILD_LABEL, SPRINT_LABEL
+from app_metadata import APP_NAME, APP_VERSION, BUILD_LABEL, RELEASE_LABEL
 from core.app_logging import log_error, log_info
 from database import clear_market_data_cache_for_ticker
 from database import delete_portfolio_position
@@ -64,7 +64,7 @@ def render_build_diagnostics():
     st.write("App name:", APP_NAME)
     st.write("Build:", BUILD_LABEL)
     st.write("Version:", APP_VERSION)
-    st.write("Sprint:", SPRINT_LABEL)
+    st.write("Release:", RELEASE_LABEL)
 
 
 def render_runtime_diagnostics():
@@ -353,7 +353,7 @@ def build_diagnostics_report(cache_only_mode: bool) -> dict:
         "app_name": APP_NAME,
         "build": BUILD_LABEL,
         "version": APP_VERSION,
-        "sprint": SPRINT_LABEL,
+        "release": RELEASE_LABEL,
         "python": sys.version.split()[0],
         "platform": platform.platform(),
         "database_secret": get_secret_status("DATABASE_URL"),
@@ -878,7 +878,7 @@ def render_production_health_panel():
     col2.metric("Market cache rows", health.market_cache_rows)
     col3.metric("Quota lock", "Locked" if health.provider_quota_locked else "Open")
 
-    st.write("Sprint:", health.sprint_label)
+    st.write("Release:", health.release_label)
     st.write("Database configured:", "Yes" if health.database_configured else "No")
     st.write("Alpha Vantage configured:", "Yes" if health.alpha_vantage_configured else "No")
     st.write("Database connection:", "Healthy" if health.database_connected else "Unavailable")

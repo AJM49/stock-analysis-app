@@ -8,7 +8,7 @@ import os
 import streamlit as st
 from sqlalchemy import text
 
-from app_metadata import APP_VERSION, SPRINT_LABEL
+from app_metadata import APP_VERSION, RELEASE_LABEL
 from database import engine
 from database import get_market_data_cache_summary
 from market_data import is_market_data_quota_limited
@@ -17,7 +17,7 @@ from market_data import is_market_data_quota_limited
 @dataclass(frozen=True)
 class HealthCheckResult:
     app_version: str
-    sprint_label: str
+    release_label: str
     database_configured: bool
     alpha_vantage_configured: bool
     database_connected: bool
@@ -110,7 +110,7 @@ def run_production_health_check() -> HealthCheckResult:
 
     return HealthCheckResult(
         app_version=APP_VERSION,
-        sprint_label=SPRINT_LABEL,
+        release_label=RELEASE_LABEL,
         database_configured=database_configured,
         alpha_vantage_configured=alpha_vantage_configured,
         database_connected=database_connected,

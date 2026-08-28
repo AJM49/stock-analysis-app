@@ -4,7 +4,7 @@ import os
 
 import streamlit as st
 
-from app_metadata import APP_VERSION, BUILD_LABEL, SPRINT_LABEL
+from app_metadata import APP_VERSION, BUILD_LABEL, RELEASE_LABEL
 from database import get_market_data_cache_summary
 from database import get_portfolio_positions
 
@@ -38,7 +38,7 @@ def render_developer_status_panel(cache_only_mode: bool):
 
         st.write("Build:", BUILD_LABEL)
         st.write("Version:", APP_VERSION)
-        st.write("Sprint:", SPRINT_LABEL)
+        st.write("Release:", RELEASE_LABEL)
         st.write("Database secret:", database_secret_loaded)
         st.write("Database env:", database_env_loaded)
         st.write("Alpha Vantage secret:", alpha_vantage_secret_loaded)
