@@ -131,7 +131,7 @@ def render_watchlist_feature():
     )
 
     unavailable_count = watchlist_health[
-        "unavailable_count"
+        "missing_count"
     ]
 
     high_priority_count = int(
