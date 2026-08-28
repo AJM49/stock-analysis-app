@@ -259,9 +259,6 @@ def render_portfolio_dashboard(
 
     derived_df = portfolio_df
 
-    if mode == "caution" and analytics_df is not None:
-        derived_df = analytics_df
-
     if mode == "caution":
         st.warning(
             "Derived portfolio analytics are being shown "

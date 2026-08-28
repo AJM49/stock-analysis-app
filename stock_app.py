@@ -57,7 +57,7 @@ from ui_components import render_release_notes_panel
 from ui_components import render_selected_ticker_freshness
 from ui_components import render_price_chart
 from ui_components import render_risk_dashboard
-from app_metadata import APP_NAME, BUILD_LABEL, SPRINT_LABEL
+from app_metadata import APP_NAME, BUILD_LABEL, RELEASE_LABEL
 
 st.set_page_config(
     page_title=APP_PAGE_TITLE,
@@ -192,7 +192,6 @@ elif active_section == "Portfolio Summary":
     st.header("Portfolio Summary")
 
     render_portfolio_sidebar()
-    st.sidebar.success("Sprint 62: Portfolio UX and Release Hardening")
     portfolio_positions = get_portfolio_positions()
     portfolio_df = build_portfolio_dashboard_data(portfolio_positions)
 
