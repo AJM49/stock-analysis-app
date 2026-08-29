@@ -21,6 +21,7 @@ def test_good_portfolio_health_is_reliable():
     assert reliability["status"] == "Reliable"
     assert reliability["severity"] == "success"
     assert reliability["decision_ready"] is True
+    assert reliability["analytics_mode"] == "full"
     assert reliability["render_mode"] == "full"
     assert reliability["display_mode"] == "full"
 
@@ -39,6 +40,7 @@ def test_fair_portfolio_health_requires_caution():
     assert reliability["status"] == "Use With Caution"
     assert reliability["severity"] == "warning"
     assert reliability["decision_ready"] is False
+    assert reliability["analytics_mode"] == "caution"
     assert reliability["render_mode"] == "caution"
     assert reliability["display_mode"] == "caution"
 
@@ -57,6 +59,7 @@ def test_poor_portfolio_health_is_insufficient():
     assert reliability["status"] == "Insufficient Data"
     assert reliability["severity"] == "error"
     assert reliability["decision_ready"] is False
+    assert reliability["analytics_mode"] == "restricted"
     assert reliability["render_mode"] == "restricted"
     assert reliability["display_mode"] == "restricted"
 
@@ -75,6 +78,7 @@ def test_empty_portfolio_health_is_unavailable():
     assert reliability["status"] == "Unavailable"
     assert reliability["severity"] == "info"
     assert reliability["decision_ready"] is False
+    assert reliability["analytics_mode"] == "unavailable"
     assert reliability["render_mode"] == "unavailable"
     assert reliability["display_mode"] == "unavailable"
 
@@ -382,3 +386,54 @@ def test_restricted_health_blocks_derived_analytics():
         )
         is False
     )
+
+
+
+def test_reliability_modes_are_consistent():
+    cases = [
+        (
+            {
+                "total_positions": 0,
+                "quality_status": "No Data",
+            },
+            "unavailable",
+        ),
+        (
+            {
+                "total_positions": 10,
+                "quality_status": "Good",
+            },
+            "full",
+        ),
+        (
+            {
+                "total_positions": 10,
+                "quality_status": "Fair",
+            },
+            "caution",
+        ),
+        (
+            {
+                "total_positions": 10,
+                "quality_status": "Poor",
+            },
+            "restricted",
+        ),
+    ]
+
+    for health, expected_mode in cases:
+        reliability = (
+            build_portfolio_analytics_reliability(
+                health
+            )
+        )
+
+        assert (
+            reliability["analytics_mode"]
+            == expected_mode
+        )
+
+        assert (
+            reliability["render_mode"]
+            == expected_mode
+        )
