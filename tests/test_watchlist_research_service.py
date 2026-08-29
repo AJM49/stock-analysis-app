@@ -1,3 +1,5 @@
+from datetime import date, timedelta
+
 from services.watchlist_research_service import (
     build_watchlist_research_queue,
     classify_watchlist_research_priority,
@@ -22,6 +24,7 @@ def test_large_daily_move_requires_review():
         {
             "Ticker": "NOW",
             "Cache Status": "Cached",
+            "Latest Market Date": date.today(),
             "Daily Change %": -6.2,
         }
     )
@@ -35,6 +38,7 @@ def test_moderate_daily_move_is_monitor():
         {
             "Ticker": "AAPL",
             "Cache Status": "Cached",
+            "Latest Market Date": date.today(),
             "Daily Change %": 2.5,
         }
     )
@@ -48,6 +52,7 @@ def test_small_daily_move_is_stable():
         {
             "Ticker": "MSFT",
             "Cache Status": "Cached",
+            "Latest Market Date": date.today(),
             "Daily Change %": 0.8,
         }
     )
@@ -61,11 +66,13 @@ def test_research_queue_sorts_highest_priority_first():
         {
             "Ticker": "MSFT",
             "Cache Status": "Cached",
+            "Latest Market Date": date.today(),
             "Daily Change %": 0.5,
         },
         {
             "Ticker": "NOW",
             "Cache Status": "Cached",
+            "Latest Market Date": date.today(),
             "Daily Change %": -7.0,
         },
         {
@@ -87,3 +94,35 @@ def test_research_queue_sorts_highest_priority_first():
         "NOW",
         "MSFT",
     ]
+
+
+
+def test_stale_cached_market_data_needs_data():
+    result = classify_watchlist_research_priority(
+        {
+            "Ticker": "NVDA",
+            "Cache Status": "Cached",
+            "Latest Market Date": (
+                date.today() - timedelta(days=8)
+            ),
+            "Daily Change %": -9.0,
+        }
+    )
+
+    assert result["research_status"] == "Needs Data"
+    assert result["priority"] == 4
+    assert "8 days old" in result["reason"]
+
+
+def test_cached_row_without_market_date_needs_data():
+    result = classify_watchlist_research_priority(
+        {
+            "Ticker": "AAPL",
+            "Cache Status": "Cached",
+            "Daily Change %": 6.0,
+        }
+    )
+
+    assert result["research_status"] == "Needs Data"
+    assert result["priority"] == 4
+    assert "freshness could not be determined" in result["reason"]
