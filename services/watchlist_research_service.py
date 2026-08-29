@@ -47,6 +47,30 @@ def classify_watchlist_research_priority(metric_row):
             "reason": "No cached market data is available.",
         }
 
+    age_days = get_watchlist_market_data_age_days(
+        metric_row
+    )
+
+    if age_days is None:
+        return {
+            "research_status": "Needs Data",
+            "priority": 4,
+            "reason": (
+                "Market data freshness could not "
+                "be determined."
+            ),
+        }
+
+    if age_days > 7:
+        return {
+            "research_status": "Needs Data",
+            "priority": 4,
+            "reason": (
+                f"Cached market data is "
+                f"{age_days} days old."
+            ),
+        }
+
     daily_change = metric_row.get(
         "Daily Change %"
     )
