@@ -257,13 +257,22 @@ def render_portfolio_dashboard(
         )
     )
 
-    derived_df = portfolio_df
+    if (
+        mode == "caution"
+        and analytics_df is not None
+        and not analytics_df.empty
+    ):
+        derived_df = analytics_df
+    else:
+        derived_df = portfolio_df
 
     if mode == "caution":
         st.warning(
             "Derived portfolio analytics are being shown "
             "with caution because some market prices are "
-            "stale or missing."
+            "stale or missing. Positions without available "
+            "prices are excluded from derived valuation, "
+            "performance, allocation, and risk analytics."
         )
 
     scenario_df = (

@@ -323,5 +323,19 @@ def build_priced_portfolio_analytics_data(portfolio_df):
     )
 
 
+def should_render_portfolio_derived_analytics(
+    reliability,
+):
+    return (
+        get_portfolio_analytics_render_mode(
+            reliability
+        )
+        in {
+            "full",
+            "caution",
+        }
+    )
+
+
 def build_portfolio_dashboard_data(portfolio_positions) -> pd.DataFrame:
     return build_portfolio_dataframe(portfolio_positions)
