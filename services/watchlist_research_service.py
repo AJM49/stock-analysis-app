@@ -1,5 +1,36 @@
 from __future__ import annotations
 
+from datetime import date
+from datetime import datetime
+
+
+def get_watchlist_market_data_age_days(metric_row):
+    market_date = metric_row.get(
+        "Latest Market Date"
+    )
+
+    if market_date is None:
+        return None
+
+    if isinstance(market_date, datetime):
+        market_date = market_date.date()
+
+    if isinstance(market_date, date):
+        return (
+            date.today() - market_date
+        ).days
+
+    try:
+        parsed_date = datetime.fromisoformat(
+            str(market_date)
+        ).date()
+    except (TypeError, ValueError):
+        return None
+
+    return (
+        date.today() - parsed_date
+    ).days
+
 
 def classify_watchlist_research_priority(metric_row):
     cache_status = str(
