@@ -337,5 +337,43 @@ def should_render_portfolio_derived_analytics(
     )
 
 
+def build_portfolio_analytics_render_policy(reliability):
+    reliability = reliability or {}
+
+    status = str(
+        reliability.get(
+            "status",
+            "Unavailable",
+        )
+    )
+
+    if status == "Reliable":
+        return {
+            "mode": "full",
+            "allow_derived_analytics": True,
+            "show_caution": False,
+        }
+
+    if status == "Use With Caution":
+        return {
+            "mode": "caution",
+            "allow_derived_analytics": True,
+            "show_caution": True,
+        }
+
+    if status == "Insufficient Data":
+        return {
+            "mode": "limited",
+            "allow_derived_analytics": False,
+            "show_caution": True,
+        }
+
+    return {
+        "mode": "unavailable",
+        "allow_derived_analytics": False,
+        "show_caution": False,
+    }
+
+
 def build_portfolio_dashboard_data(portfolio_positions) -> pd.DataFrame:
     return build_portfolio_dataframe(portfolio_positions)

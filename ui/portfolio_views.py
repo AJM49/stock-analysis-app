@@ -566,6 +566,60 @@ def render_unrealized_gain_loss_summary(
 
         return
 
+    analytics_policy = analytics_policy or {
+        "mode": "full",
+        "allow_derived_analytics": True,
+        "show_caution": False,
+    }
+
+    analytics_mode = analytics_policy.get(
+        "mode",
+        "full",
+    )
+
+    allow_derived_analytics = bool(
+        analytics_policy.get(
+            "allow_derived_analytics",
+            True,
+        )
+    )
+
+    if analytics_mode == "caution":
+        st.warning(
+            "Analytics reliability: Use With Caution. "
+            "Derived portfolio metrics are being shown, "
+            "but stale or missing prices reduce confidence "
+            "in valuation, performance, and risk conclusions."
+        )
+
+    if not allow_derived_analytics:
+        if analytics_mode == "limited":
+            st.error(
+                "Derived portfolio analytics are suppressed "
+                "because current market-data quality is "
+                "insufficient for reliable conclusions."
+            )
+        else:
+            st.info(
+                "Derived portfolio analytics are unavailable "
+                "until usable market data is available."
+            )
+
+        st.caption(
+            "Raw position and price-health information remains "
+            "available below."
+        )
+
+        render_portfolio_reliability_holdings(
+            portfolio_df
+        )
+
+        render_missing_price_warning(
+            portfolio_df
+        )
+
+        return
+
     total_cost_basis = float(portfolio_df["Cost Basis"].sum())
     total_current_value = float(portfolio_df["Current Value"].sum())
     total_gain_loss = float(portfolio_df["Gain/Loss"].sum())
