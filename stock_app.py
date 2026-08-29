@@ -2,7 +2,6 @@ import streamlit as st
 from features.company_research import render_company_research
 from features.dashboard import render_dashboard
 from features.watchlist import render_watchlist_feature
-from controllers.stock_controller import load_stock_dashboard_data
 from controllers.stock_controller import should_stop_for_error
 from core.user_messages import get_user_safe_app_error
 from core.user_messages import get_user_safe_market_data_error
@@ -54,7 +53,6 @@ from ui_components import render_developer_status_panel
 from ui_components import render_app_diagnostics_page
 from ui_components import render_market_cache_panel
 from ui_components import render_release_notes_panel
-from ui_components import render_selected_ticker_freshness
 from ui_components import render_price_chart
 from ui_components import render_risk_dashboard
 from app_metadata import APP_NAME, BUILD_LABEL, RELEASE_LABEL
