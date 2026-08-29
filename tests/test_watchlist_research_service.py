@@ -126,3 +126,43 @@ def test_cached_row_without_market_date_needs_data():
     assert result["research_status"] == "Needs Data"
     assert result["priority"] == 4
     assert "freshness could not be determined" in result["reason"]
+
+
+
+def test_research_queue_uses_descending_numeric_priority():
+    rows = [
+        {
+            "Ticker": "STABLE",
+            "Cache Status": "Cached",
+            "Latest Market Date": date.today(),
+            "Daily Change %": 0.5,
+        },
+        {
+            "Ticker": "REVIEW",
+            "Cache Status": "Cached",
+            "Latest Market Date": date.today(),
+            "Daily Change %": 6.0,
+        },
+        {
+            "Ticker": "MISSING",
+            "Cache Status": "Missing",
+            "Latest Market Date": None,
+            "Daily Change %": None,
+        },
+    ]
+
+    queue = build_watchlist_research_queue(rows)
+
+    assert [
+        row["Research Priority"]
+        for row in queue
+    ] == [4, 3, 1]
+
+    assert [
+        row["Research Status"]
+        for row in queue
+    ] == [
+        "Needs Data",
+        "Review Now",
+        "Stable",
+    ]
