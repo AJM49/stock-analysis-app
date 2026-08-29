@@ -242,3 +242,143 @@ def test_unavailable_metric_gate_preserves_raw_holdings_only():
     assert gate["mode"] == "unavailable"
     assert gate["show_derived_metrics"] is False
     assert gate["show_raw_holdings"] is True
+
+
+
+def test_reliable_health_uses_full_render_mode():
+    from controllers.portfolio_controller import (
+        get_portfolio_analytics_render_mode,
+        should_render_portfolio_summary_metrics,
+    )
+
+    reliability = {
+        "status": "Reliable",
+        "render_mode": "full",
+    }
+
+    assert (
+        get_portfolio_analytics_render_mode(
+            reliability
+        )
+        == "full"
+    )
+
+    assert (
+        should_render_portfolio_summary_metrics(
+            reliability
+        )
+        is True
+    )
+
+
+def test_caution_health_keeps_summary_metrics():
+    from controllers.portfolio_controller import (
+        get_portfolio_analytics_render_mode,
+        should_render_portfolio_summary_metrics,
+    )
+
+    reliability = {
+        "status": "Use With Caution",
+        "render_mode": "caution",
+    }
+
+    assert (
+        get_portfolio_analytics_render_mode(
+            reliability
+        )
+        == "caution"
+    )
+
+    assert (
+        should_render_portfolio_summary_metrics(
+            reliability
+        )
+        is True
+    )
+
+
+def test_restricted_health_suppresses_summary_metrics():
+    from controllers.portfolio_controller import (
+        get_portfolio_analytics_render_mode,
+        should_render_portfolio_summary_metrics,
+    )
+
+    reliability = {
+        "status": "Insufficient Data",
+        "render_mode": "restricted",
+    }
+
+    assert (
+        get_portfolio_analytics_render_mode(
+            reliability
+        )
+        == "restricted"
+    )
+
+    assert (
+        should_render_portfolio_summary_metrics(
+            reliability
+        )
+        is False
+    )
+
+
+def test_unavailable_health_suppresses_summary_metrics():
+    from controllers.portfolio_controller import (
+        get_portfolio_analytics_render_mode,
+        should_render_portfolio_summary_metrics,
+    )
+
+    reliability = {
+        "status": "Unavailable",
+        "render_mode": "unavailable",
+    }
+
+    assert (
+        get_portfolio_analytics_render_mode(
+            reliability
+        )
+        == "unavailable"
+    )
+
+    assert (
+        should_render_portfolio_summary_metrics(
+            reliability
+        )
+        is False
+    )
+
+
+
+def test_caution_health_allows_derived_analytics():
+    from controllers.portfolio_controller import (
+        should_render_portfolio_derived_analytics,
+    )
+
+    reliability = {
+        "render_mode": "caution",
+    }
+
+    assert (
+        should_render_portfolio_derived_analytics(
+            reliability
+        )
+        is True
+    )
+
+
+def test_restricted_health_blocks_derived_analytics():
+    from controllers.portfolio_controller import (
+        should_render_portfolio_derived_analytics,
+    )
+
+    reliability = {
+        "render_mode": "restricted",
+    }
+
+    assert (
+        should_render_portfolio_derived_analytics(
+            reliability
+        )
+        is False
+    )
