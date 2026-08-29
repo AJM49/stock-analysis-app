@@ -9,6 +9,7 @@ from services.watchlist_health_service import (
     build_watchlist_research_reliability,
 )
 from ui_components import render_watchlist_sidebar
+from services.watchlist_research_service import build_watchlist_research_queue
 
 
 def render_watchlist_feature():
@@ -134,6 +135,20 @@ def render_watchlist_feature():
         "missing_count"
     ]
 
+    review_now_count = int(
+        (
+            metrics_df["Research Status"]
+            == "Review Now"
+        ).sum()
+    )
+
+    needs_data_count = int(
+        (
+            metrics_df["Research Status"]
+            == "Needs Data"
+        ).sum()
+    )
+
     high_priority_count = int(
         (
             metrics_df["Research Priority"]
@@ -141,7 +156,7 @@ def render_watchlist_feature():
         ).sum()
     )
 
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
 
     col1.metric(
         "Saved Tickers",
@@ -154,17 +169,27 @@ def render_watchlist_feature():
     )
 
     col3.metric(
-        "Unavailable",
-        unavailable_count,
+        "Review Now",
+        review_now_count,
     )
 
     col4.metric(
+        "Needs Data",
+        needs_data_count,
+    )
+
+    col5.metric(
         "High Priority",
         high_priority_count,
     )
 
+    display_df = metrics_df.drop(
+        columns=["Research Priority"],
+        errors="ignore",
+    )
+
     st.dataframe(
-        metrics_df,
+        display_df,
         width="stretch",
         hide_index=True,
         column_config={
@@ -190,6 +215,12 @@ def render_watchlist_feature():
             ),
             "Cache Status": st.column_config.TextColumn(
                 "Cache Status"
+            ),
+            "Research Status": st.column_config.TextColumn(
+                "Research Status"
+            ),
+            "Research Reason": st.column_config.TextColumn(
+                "Research Reason"
             ),
             "Market Age Days": st.column_config.NumberColumn(
                 "Age (Days)",
