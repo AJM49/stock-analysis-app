@@ -198,6 +198,36 @@ def render_portfolio_dashboard(
     """Render portfolio analytics according to reliability policy."""
 
     st.subheader("Portfolio Analytics")
+    metric_gate = metric_gate or {
+        "render_derived_analytics": True,
+        "render_caution_banner": False,
+        "gate_reason": "",
+    }
+
+    render_derived_analytics = bool(
+        metric_gate.get(
+            "render_derived_analytics",
+            True,
+        )
+    )
+
+    render_caution_banner = bool(
+        metric_gate.get(
+            "render_caution_banner",
+            False,
+        )
+    )
+
+    gate_reason = str(
+        metric_gate.get(
+            "gate_reason",
+            "",
+        )
+    )
+
+    if render_caution_banner and gate_reason:
+        st.warning(gate_reason)
+
     render_production_status_banner()
 
     with st.expander(
