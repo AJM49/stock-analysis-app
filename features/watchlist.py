@@ -153,7 +153,13 @@ def render_watchlist_feature():
         metric_rows
     )
 
-    metrics_df = pd.DataFrame(signal_rows)
+    research_rows = build_watchlist_research_queue(
+        signal_rows
+    )
+
+    metrics_df = pd.DataFrame(
+        research_rows
+    )
 
     watchlist_health = build_watchlist_data_health(
         signal_rows
@@ -284,8 +290,9 @@ def render_watchlist_feature():
     )
 
     st.caption(
-        "Research queue priority: Needs Attention → Stale → Ready. "
-        "Older stale observations rank ahead of newer ones."
+        "Research queue priority: Needs Data → Review Now → "
+        "Monitor → Stable. Higher-priority research items "
+        "appear first."
     )
 
     st.dataframe(
