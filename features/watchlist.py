@@ -1,5 +1,3 @@
-from datetime import date
-
 import pandas as pd
 import streamlit as st
 
@@ -12,99 +10,6 @@ from services.watchlist_health_service import (
 )
 from ui_components import render_watchlist_sidebar
 from services.watchlist_research_service import build_watchlist_research_queue
-
-
-RESEARCH_PRIORITY = {
-    "Needs Attention": 0,
-    "Stale": 1,
-    "Ready": 2,
-}
-
-
-def classify_watchlist_research_status(
-    row,
-    today=None,
-):
-    current_date = today or date.today()
-
-    cache_status = str(
-        row.get("Cache Status", "")
-    ).strip()
-
-    market_date_value = row.get(
-        "Latest Market Date"
-    )
-
-    if cache_status != "Cached":
-        return "Needs Attention", None
-
-    market_timestamp = pd.to_datetime(
-        market_date_value,
-        errors="coerce",
-    )
-
-    if pd.isna(market_timestamp):
-        return "Needs Attention", None
-
-    market_date = market_timestamp.date()
-    age_days = (
-        current_date - market_date
-    ).days
-
-    if age_days > 7:
-        return "Stale", age_days
-
-    return "Ready", age_days
-
-
-def rank_watchlist_research_queue(
-    metrics_df,
-    today=None,
-):
-    if metrics_df is None or metrics_df.empty:
-        return pd.DataFrame()
-
-    ranked_df = metrics_df.copy()
-
-    classifications = ranked_df.apply(
-        lambda row: classify_watchlist_research_status(
-            row,
-            today=today,
-        ),
-        axis=1,
-    )
-
-    ranked_df["Research Status"] = [
-        result[0]
-        for result in classifications
-    ]
-
-    ranked_df["Market Age Days"] = [
-        result[1]
-        for result in classifications
-    ]
-
-    ranked_df["Research Priority"] = (
-        ranked_df["Research Status"].map(
-            RESEARCH_PRIORITY
-        )
-    )
-
-    ranked_df = ranked_df.sort_values(
-        by=[
-            "Research Priority",
-            "Market Age Days",
-            "Ticker",
-        ],
-        ascending=[
-            True,
-            False,
-            True,
-        ],
-        na_position="first",
-    ).reset_index(drop=True)
-
-    return ranked_df
 
 
 def render_watchlist_feature():
