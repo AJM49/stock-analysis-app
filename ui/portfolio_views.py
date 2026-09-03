@@ -192,41 +192,18 @@ def render_portfolio_reliability_safe_holdings(portfolio_df):
 def render_portfolio_dashboard(
     portfolio_df,
     reliability=None,
-    render_policy=None,
+    metric_gate=None,
     analytics_df=None,
 ):
     """Render portfolio analytics according to reliability policy."""
 
     st.subheader("Portfolio Analytics")
     metric_gate = metric_gate or {
-        "render_derived_analytics": True,
-        "render_caution_banner": False,
-        "gate_reason": "",
+        "mode": "full",
+        "show_derived_analytics": True,
+        "show_raw_holdings": True,
+        "show_caution": False,
     }
-
-    render_derived_analytics = bool(
-        metric_gate.get(
-            "render_derived_analytics",
-            True,
-        )
-    )
-
-    render_caution_banner = bool(
-        metric_gate.get(
-            "render_caution_banner",
-            False,
-        )
-    )
-
-    gate_reason = str(
-        metric_gate.get(
-            "gate_reason",
-            "",
-        )
-    )
-
-    if render_caution_banner and gate_reason:
-        st.warning(gate_reason)
 
     render_production_status_banner()
 
@@ -268,12 +245,7 @@ def render_portfolio_dashboard(
         )
         return
 
-    policy = render_policy or {
-        "mode": "full",
-        "show_derived_analytics": True,
-        "show_raw_holdings": True,
-        "show_caution": False,
-    }
+    policy = metric_gate
 
     mode = policy.get(
         "mode",
