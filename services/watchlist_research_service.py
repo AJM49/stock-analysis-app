@@ -4,7 +4,13 @@ from datetime import date
 from datetime import datetime
 
 
-def get_watchlist_market_data_age_days(metric_row):
+def get_watchlist_market_data_age_days(
+    metric_row,
+    today=None,
+):
+    if today is None:
+        today = date.today()
+
     market_date = metric_row.get(
         "Latest Market Date"
     )
@@ -17,7 +23,7 @@ def get_watchlist_market_data_age_days(metric_row):
 
     if isinstance(market_date, date):
         return (
-            date.today() - market_date
+            today - market_date
         ).days
 
     try:
@@ -28,11 +34,14 @@ def get_watchlist_market_data_age_days(metric_row):
         return None
 
     return (
-        date.today() - parsed_date
+        today - parsed_date
     ).days
 
 
-def classify_watchlist_research_priority(metric_row):
+def classify_watchlist_research_priority(
+    metric_row,
+    today=None,
+):
     cache_status = str(
         metric_row.get(
             "Cache Status",
@@ -48,7 +57,8 @@ def classify_watchlist_research_priority(metric_row):
         }
 
     age_days = get_watchlist_market_data_age_days(
-        metric_row
+        metric_row,
+        today=today,
     )
 
     if age_days is None:
@@ -116,7 +126,10 @@ def classify_watchlist_research_priority(metric_row):
     }
 
 
-def build_watchlist_research_queue(metric_rows):
+def build_watchlist_research_queue(
+    metric_rows,
+    today=None,
+):
     research_rows = []
 
     for metric_row in metric_rows or []:
@@ -124,7 +137,8 @@ def build_watchlist_research_queue(metric_rows):
 
         classification = (
             classify_watchlist_research_priority(
-                row
+                row,
+                today=today,
             )
         )
 
