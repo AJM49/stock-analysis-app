@@ -1,5 +1,8 @@
 from datetime import date
 
+from datetime import date
+from datetime import datetime
+
 import pandas as pd
 import streamlit as st
 
@@ -129,6 +132,137 @@ def build_prioritized_watchlist(
     )
 
     return metrics_df
+
+
+def build_watchlist_priority_row(metric_row, today=None):
+    today = today or date.today()
+
+    ticker = str(
+        metric_row.get("Ticker", "")
+    ).strip().upper()
+
+    cache_status = str(
+        metric_row.get(
+            "Cache Status",
+            "Unavailable",
+        )
+    )
+
+    cached_rows = int(
+        metric_row.get("Cached Rows", 0) or 0
+    )
+
+    daily_change = metric_row.get(
+        "Daily Change %"
+    )
+
+    latest_market_date = metric_row.get(
+        "Latest Market Date"
+    )
+
+    score = 0
+    reasons = []
+
+    if cache_status != "Cached":
+        score += 100
+        reasons.append(
+            "Missing cache (+100)"
+        )
+    else:
+        age_days = None
+
+        if latest_market_date:
+            if isinstance(
+                latest_market_date,
+                str,
+            ):
+                market_date = (
+                    datetime.strptime(
+                        latest_market_date,
+                        "%Y-%m-%d",
+                    ).date()
+                )
+            elif isinstance(
+                latest_market_date,
+                datetime,
+            ):
+                market_date = (
+                    latest_market_date.date()
+                )
+            else:
+                market_date = (
+                    latest_market_date
+                )
+
+            age_days = (
+                today - market_date
+            ).days
+
+        if (
+            age_days is not None
+            and age_days > 7
+        ):
+            score += 40
+            reasons.append(
+                f"Stale data: {age_days} days old (+40)"
+            )
+
+        if daily_change is not None:
+            move = abs(
+                float(daily_change)
+            )
+
+            if move >= 5.0:
+                score += 25
+                reasons.append(
+                    f"Large move: {float(daily_change):+.2f}% (+25)"
+                )
+            elif move >= 3.0:
+                score += 15
+                reasons.append(
+                    f"Notable move: {float(daily_change):+.2f}% (+15)"
+                )
+
+        if cached_rows < 20:
+            score += 15
+            reasons.append(
+                f"Research gap: only {cached_rows} cached observations (+15)"
+            )
+
+    if not reasons:
+        reasons.append(
+            "No elevated priority signals"
+        )
+
+    return {
+        **metric_row,
+        "Priority Score": score,
+        "Priority Reasons": reasons,
+        "Why Ranked Here": "; ".join(
+            reasons
+        ),
+    }
+
+
+def build_ranked_watchlist(
+    metric_rows,
+    today=None,
+):
+    ranked_rows = [
+        build_watchlist_priority_row(
+            row,
+            today=today,
+        )
+        for row in metric_rows
+    ]
+
+    return sorted(
+        ranked_rows,
+        key=lambda row: (
+            -row["Priority Score"],
+            row["Ticker"],
+        ),
+    )
 
 
 def render_watchlist_feature():
@@ -308,10 +442,7 @@ def render_watchlist_feature():
         high_priority_count,
     )
 
-    display_df = metrics_df.drop(
-        columns=["Research Priority"],
-        errors="ignore",
-    )
+    display_df = metrics_df.copy()
 
     st.caption(
         "Research queue priority: Needs Data → Review Now → "
@@ -332,6 +463,13 @@ def render_watchlist_feature():
         column_config={
             "Ticker": st.column_config.TextColumn(
                 "Ticker"
+            ),
+            "Priority Score": st.column_config.NumberColumn(
+                "Score",
+                format="%d",
+            ),
+            "Why Ranked Here": st.column_config.TextColumn(
+                "Why Ranked Here"
             ),
             "Research Priority": st.column_config.TextColumn(
                 "Priority"
