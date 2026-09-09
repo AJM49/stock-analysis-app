@@ -1,3 +1,5 @@
+from datetime import date
+
 import pandas as pd
 import streamlit as st
 
@@ -10,6 +12,123 @@ from services.watchlist_health_service import (
 )
 from ui_components import render_watchlist_sidebar
 from services.watchlist_research_service import build_watchlist_research_queue
+
+
+WATCHLIST_PRIORITY_ORDER = {
+    "High": 0,
+    "Medium": 1,
+    "Low": 2,
+}
+
+
+def classify_watchlist_priority(row, today=None):
+    if today is None:
+        today = date.today()
+
+    cache_status = str(
+        row.get("Cache Status", "")
+    ).strip()
+
+    if cache_status != "Cached":
+        return "High"
+
+    market_date = row.get(
+        "Latest Market Date"
+    )
+
+    if market_date:
+        try:
+            parsed_date = pd.to_datetime(
+                market_date
+            ).date()
+
+            age_days = (
+                today - parsed_date
+            ).days
+
+            if age_days > 7:
+                return "High"
+        except (TypeError, ValueError):
+            return "High"
+
+    daily_change = row.get(
+        "Daily Change %",
+        0.0,
+    )
+
+    try:
+        daily_change = float(
+            daily_change or 0.0
+        )
+    except (TypeError, ValueError):
+        daily_change = 0.0
+
+    if abs(daily_change) >= 3.0:
+        return "Medium"
+
+    return "Low"
+
+
+def build_prioritized_watchlist(
+    metric_rows,
+    high_priority_only=False,
+    today=None,
+):
+    if not metric_rows:
+        return pd.DataFrame()
+
+    metrics_df = pd.DataFrame(
+        metric_rows
+    ).copy()
+
+    metrics_df["Research Priority"] = (
+        metrics_df.apply(
+            lambda row: classify_watchlist_priority(
+                row,
+                today=today,
+            ),
+            axis=1,
+        )
+    )
+
+    metrics_df["_Priority Rank"] = (
+        metrics_df[
+            "Research Priority"
+        ].map(
+            WATCHLIST_PRIORITY_ORDER
+        )
+    )
+
+    if high_priority_only:
+        metrics_df = metrics_df[
+            metrics_df[
+                "Research Priority"
+            ] == "High"
+        ]
+
+    metrics_df = (
+        metrics_df.sort_values(
+            by=[
+                "_Priority Rank",
+                "Ticker",
+            ],
+            ascending=[
+                True,
+                True,
+            ],
+            kind="stable",
+        )
+        .drop(
+            columns=[
+                "_Priority Rank",
+            ]
+        )
+        .reset_index(
+            drop=True
+        )
+    )
+
+    return metrics_df
 
 
 def render_watchlist_feature():
@@ -166,7 +285,7 @@ def render_watchlist_feature():
 
     col1.metric(
         "Saved Tickers",
-        len(metrics_df),
+        len(all_metrics_df),
     )
 
     col2.metric(
@@ -200,6 +319,12 @@ def render_watchlist_feature():
         "appear first."
     )
 
+    if high_priority_only:
+        st.caption(
+            f"Showing {len(metrics_df)} high-priority "
+            f"ticker(s) from {len(all_metrics_df)} saved."
+        )
+
     st.dataframe(
         display_df,
         width="stretch",
@@ -207,6 +332,9 @@ def render_watchlist_feature():
         column_config={
             "Ticker": st.column_config.TextColumn(
                 "Ticker"
+            ),
+            "Research Priority": st.column_config.TextColumn(
+                "Priority"
             ),
             "Latest Close": st.column_config.NumberColumn(
                 "Latest Close",
