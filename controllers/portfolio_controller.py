@@ -298,6 +298,12 @@ def build_portfolio_metric_gate(reliability):
                 True,
             )
         ),
+        "show_caution": bool(
+            policy.get(
+                "show_caution",
+                False,
+            )
+        ),
         "mode": policy.get(
             "mode",
             "unavailable",

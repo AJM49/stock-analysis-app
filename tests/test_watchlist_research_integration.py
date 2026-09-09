@@ -1,3 +1,4 @@
+from datetime import date
 from services.watchlist_research_service import (
     build_watchlist_research_queue,
 )
@@ -12,7 +13,7 @@ def test_watchlist_research_pipeline_produces_ui_columns():
             "Ticker": "AAPL",
             "Latest Close": 200.0,
             "Daily Change %": 6.0,
-            "Latest Market Date": "2026-08-30",
+            "Latest Market Date": date.today().isoformat(),
             "Cached Rows": 100,
             "Cache Status": "Cached",
         }
