@@ -100,35 +100,6 @@ def classify_daily_move_signal(
     return "Quiet"
 
 
-def classify_research_priority(
-    freshness,
-    daily_change_pct,
-):
-    if freshness in {
-        "Missing",
-        "Stale",
-    }:
-        return "High"
-
-    try:
-        absolute_change = abs(
-            float(daily_change_pct)
-        )
-    except (TypeError, ValueError):
-        return "Medium"
-
-    if pd.isna(absolute_change):
-        return "Medium"
-
-    if absolute_change >= 3.0:
-        return "High"
-
-    if absolute_change >= 1.0:
-        return "Medium"
-
-    return "Low"
-
-
 def build_watchlist_research_signals(
     metric_rows,
     today=None,
@@ -180,3 +151,27 @@ def build_watchlist_research_signals(
         signal_rows.append(enriched)
 
     return signal_rows
+
+
+
+def classify_research_priority(
+    freshness,
+    daily_change_pct,
+):
+    if freshness in {"Missing", "Stale"}:
+        return "High"
+
+    change_pct = float(
+        daily_change_pct or 0.0
+    )
+
+    if abs(change_pct) >= 3.0:
+        return "High"
+
+    if freshness == "Delayed":
+        return "Medium"
+
+    if abs(change_pct) >= 1.0:
+        return "Medium"
+
+    return "Low"
