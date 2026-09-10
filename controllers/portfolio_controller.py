@@ -129,7 +129,8 @@ def get_portfolio_analytics_render_mode(reliability):
         return "unavailable"
 
     render_mode = reliability.get(
-        "render_mode"
+        "mode",
+        reliability.get("render_mode"),
     )
 
     if render_mode in {
@@ -173,14 +174,7 @@ def should_render_portfolio_summary_metrics(reliability):
 
 
 def build_portfolio_render_policy(reliability):
-    if not reliability:
-        return {
-            "status": "Unavailable",
-            "mode": "unavailable",
-            "show_derived_analytics": False,
-            "show_raw_holdings": True,
-            "show_caution": True,
-        }
+    reliability = reliability or {}
 
     status = str(
         reliability.get(
@@ -190,39 +184,40 @@ def build_portfolio_render_policy(reliability):
     )
 
     if status == "Reliable":
-        return {
-            "status": status,
-            "mode": "full",
-            "show_derived_analytics": True,
-            "show_raw_holdings": True,
-            "show_caution": False,
-        }
+        mode = "full"
+        allow_derived = True
+        show_caution = False
 
-    if status == "Use With Caution":
-        return {
-            "status": status,
-            "mode": "caution",
-            "show_derived_analytics": True,
-            "show_raw_holdings": True,
-            "show_caution": True,
-        }
+    elif status == "Use With Caution":
+        mode = "caution"
+        allow_derived = True
+        show_caution = True
 
-    if status == "Insufficient Data":
-        return {
-            "status": status,
-            "mode": "restricted",
-            "show_derived_analytics": False,
-            "show_raw_holdings": True,
-            "show_caution": True,
-        }
+    elif status == "Insufficient Data":
+        mode = "restricted"
+        allow_derived = False
+        show_caution = True
+
+    else:
+        status = "Unavailable"
+        mode = "unavailable"
+        allow_derived = False
+        show_caution = False
 
     return {
         "status": status,
-        "mode": "unavailable",
-        "show_derived_analytics": False,
+        "mode": mode,
+        "allow_derived_analytics": allow_derived,
+        "show_derived_analytics": allow_derived,
         "show_raw_holdings": True,
-        "show_caution": True,
+        "show_risk_analytics": allow_derived,
+        "show_performance_analytics": allow_derived,
+        "show_caution": show_caution,
     }
+
+
+
+
 
 
 def build_portfolio_snapshot_save_policy(reliability):
@@ -280,49 +275,42 @@ def build_portfolio_metric_gate(reliability):
         reliability
     )
 
-    show_derived_analytics = bool(
-        policy.get(
-            "show_derived_analytics",
-            False,
-        )
+    show_derived = bool(
+        policy["allow_derived_analytics"]
     )
 
     return {
-        "show_derived_analytics": show_derived_analytics,
-        "show_derived_metrics": show_derived_analytics,
-        "show_risk_analytics": show_derived_analytics,
-        "show_performance_analytics": show_derived_analytics,
+        "mode": policy["mode"],
+        "show_derived_metrics": show_derived,
+        "show_derived_analytics": show_derived,
+        "allow_derived_analytics": show_derived,
         "show_raw_holdings": bool(
-            policy.get(
-                "show_raw_holdings",
-                True,
-            )
+            policy["show_raw_holdings"]
+        ),
+        "show_risk_analytics": bool(
+            policy["show_risk_analytics"]
+        ),
+        "show_performance_analytics": bool(
+            policy["show_performance_analytics"]
         ),
         "show_caution": bool(
-            policy.get(
-                "show_caution",
-                False,
-            )
-        ),
-        "mode": policy.get(
-            "mode",
-            "unavailable",
+            policy["show_caution"]
         ),
     }
 
 
-def build_portfolio_analytics_render_mode(reliability):
-    return get_portfolio_analytics_render_mode(
-        reliability
-    )
+
 
 
 def build_priced_portfolio_analytics_data(portfolio_df):
-    if portfolio_df is None or portfolio_df.empty:
+    if portfolio_df is None:
         return pd.DataFrame()
 
+    if portfolio_df.empty:
+        return portfolio_df.copy()
+
     if "Price Status" not in portfolio_df.columns:
-        return pd.DataFrame()
+        return portfolio_df.copy()
 
     return (
         portfolio_df.loc[
@@ -333,55 +321,19 @@ def build_priced_portfolio_analytics_data(portfolio_df):
     )
 
 
-def should_render_portfolio_derived_analytics(
-    reliability,
-):
-    return (
-        get_portfolio_analytics_render_mode(
-            reliability
-        )
-        in {
-            "full",
-            "caution",
-        }
+
+def should_render_portfolio_derived_analytics(render_policy):
+    if not render_policy:
+        return False
+
+    mode = render_policy.get(
+        "mode",
+        render_policy.get("render_mode"),
     )
 
-
-def build_portfolio_analytics_render_policy(reliability):
-    reliability = reliability or {}
-
-    status = str(
-        reliability.get(
-            "status",
-            "Unavailable",
-        )
-    )
-
-    if status == "Reliable":
-        return {
-            "mode": "full",
-            "allow_derived_analytics": True,
-            "show_caution": False,
-        }
-
-    if status == "Use With Caution":
-        return {
-            "mode": "caution",
-            "allow_derived_analytics": True,
-            "show_caution": True,
-        }
-
-    if status == "Insufficient Data":
-        return {
-            "mode": "limited",
-            "allow_derived_analytics": False,
-            "show_caution": True,
-        }
-
-    return {
-        "mode": "unavailable",
-        "allow_derived_analytics": False,
-        "show_caution": False,
+    return mode in {
+        "full",
+        "caution",
     }
 
 
