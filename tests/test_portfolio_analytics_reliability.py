@@ -463,3 +463,72 @@ def test_render_policy_mode_controls_derived_analytics():
         )
         is False
     )
+
+
+
+def test_metric_gate_allows_reliable_analytics():
+    from controllers.portfolio_controller import (
+        build_portfolio_metric_gate,
+    )
+
+    gate = build_portfolio_metric_gate(
+        {
+            "status": "Reliable",
+        }
+    )
+
+    assert gate["mode"] == "full"
+    assert gate["show_derived_metrics"] is True
+    assert gate["show_risk_analytics"] is True
+    assert gate["show_performance_analytics"] is True
+    assert gate["show_raw_holdings"] is True
+
+
+def test_metric_gate_allows_caution_analytics():
+    from controllers.portfolio_controller import (
+        build_portfolio_metric_gate,
+    )
+
+    gate = build_portfolio_metric_gate(
+        {
+            "status": "Use With Caution",
+        }
+    )
+
+    assert gate["mode"] == "caution"
+    assert gate["show_derived_metrics"] is True
+    assert gate["show_raw_holdings"] is True
+
+
+def test_metric_gate_suppresses_insufficient_analytics():
+    from controllers.portfolio_controller import (
+        build_portfolio_metric_gate,
+    )
+
+    gate = build_portfolio_metric_gate(
+        {
+            "status": "Insufficient Data",
+        }
+    )
+
+    assert gate["mode"] == "restricted"
+    assert gate["show_derived_metrics"] is False
+    assert gate["show_risk_analytics"] is False
+    assert gate["show_performance_analytics"] is False
+    assert gate["show_raw_holdings"] is True
+
+
+def test_metric_gate_suppresses_unavailable_analytics():
+    from controllers.portfolio_controller import (
+        build_portfolio_metric_gate,
+    )
+
+    gate = build_portfolio_metric_gate(
+        {
+            "status": "Unavailable",
+        }
+    )
+
+    assert gate["mode"] == "unavailable"
+    assert gate["show_derived_metrics"] is False
+    assert gate["show_raw_holdings"] is True
