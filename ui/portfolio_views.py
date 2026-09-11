@@ -5,7 +5,6 @@ from database import save_portfolio_scenario, get_portfolio_scenarios, delete_po
 import pandas as pd
 import streamlit as st
 from controllers.portfolio_controller import (
-    build_portfolio_metric_gate,
     get_portfolio_analytics_render_mode,
     should_render_portfolio_summary_metrics,
 )
@@ -185,7 +184,7 @@ def render_portfolio_reliability_safe_holdings(portfolio_df):
 
     st.dataframe(
         make_arrow_safe(holdings_df),
-        use_container_width=True,
+        width="stretch",
     )
 
 
@@ -892,7 +891,7 @@ def render_unrealized_gain_loss_summary(
         lambda value: f"{value:.2f}%"
     )
 
-    st.dataframe(formatted_df, use_container_width=True)
+    st.dataframe(formatted_df, width="stretch")
 
 
 def get_position_weight_status(allocation_pct: float) -> tuple[str, str]:
@@ -945,7 +944,7 @@ def render_position_weight_summary(portfolio_df: pd.DataFrame) -> None:
         lambda value: f"{value:.2f}%"
     )
 
-    st.dataframe(display_df, use_container_width=True)
+    st.dataframe(display_df, width="stretch")
 
     largest_position = weight_df.iloc[0]
     largest_allocation = float(largest_position["Allocation %"])
@@ -988,7 +987,7 @@ def render_sector_exposure_summary(portfolio_df: pd.DataFrame) -> None:
         hole=0.35,
     )
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     display_df = sector_df.copy()
 
@@ -1000,7 +999,7 @@ def render_sector_exposure_summary(portfolio_df: pd.DataFrame) -> None:
         lambda value: f"{value:.2f}%"
     )
 
-    st.dataframe(display_df, use_container_width=True)
+    st.dataframe(display_df, width="stretch")
 
     largest_sector = sector_df.iloc[0]
     largest_sector_name = str(largest_sector["Sector"])
@@ -1177,7 +1176,7 @@ def render_portfolio_allocation_chart(portfolio_df: pd.DataFrame) -> None:
         hole=0.35,
     )
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     display_df = allocation_df.copy()
 
@@ -1189,7 +1188,7 @@ def render_portfolio_allocation_chart(portfolio_df: pd.DataFrame) -> None:
         lambda value: f"{value:.2f}%"
     )
 
-    st.dataframe(display_df, use_container_width=True)
+    st.dataframe(display_df, width="stretch")
 
 def render_portfolio_risk_flags(portfolio_df: pd.DataFrame) -> None:
     """Render portfolio-level risk flags."""
@@ -1223,7 +1222,7 @@ def render_portfolio_risk_flags(portfolio_df: pd.DataFrame) -> None:
 
     st.dataframe(
         make_arrow_safe(risk_flags_df),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 
@@ -1243,7 +1242,7 @@ def render_portfolio_export(portfolio_df: pd.DataFrame) -> None:
         data=csv_data,
         file_name="portfolio_summary.csv",
         mime="text/csv",
-        use_container_width=True,
+        width="stretch",
     )
 
 
@@ -1257,7 +1256,7 @@ def render_portfolio_table(portfolio_df):
 
     st.dataframe(
         make_arrow_safe(formatted_portfolio_df),
-        use_container_width=True
+        width="stretch"
     )
     sort_option = st.selectbox(
         "Sort Portfolio By",
@@ -1356,7 +1355,7 @@ def render_portfolio_snapshot_history(snapshots) -> None:
 
     st.dataframe(
         make_arrow_safe(snapshot_df),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 
@@ -1398,7 +1397,7 @@ def render_portfolio_value_history_chart(snapshots) -> None:
         data=snapshot_df,
         x="Snapshot Date",
         y="Total Current Value",
-        use_container_width=True,
+        width="stretch",
     )
 
 
@@ -1439,7 +1438,7 @@ def render_portfolio_gain_loss_history_chart(snapshots) -> None:
         data=snapshot_df,
         x="Snapshot Date",
         y="Total Gain/Loss",
-        use_container_width=True,
+        width="stretch",
     )
 
 
@@ -1485,7 +1484,7 @@ def render_portfolio_snapshot_export(snapshots) -> None:
         data=csv_data,
         file_name="portfolio_snapshot_history.csv",
         mime="text/csv",
-        use_container_width=True,
+        width="stretch",
     )
 
 
@@ -2865,7 +2864,7 @@ def render_portfolio_what_if_scenario(portfolio_df: pd.DataFrame) -> None:
     st.subheader("Scenario Baseline Comparison")
     st.dataframe(
         scenario_comparison_df,
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 
@@ -2951,7 +2950,7 @@ def render_portfolio_what_if_scenario(portfolio_df: pd.DataFrame) -> None:
     with st.expander("Scenario position table", expanded=False):
         st.dataframe(
             scenario_df,
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
         )
 
@@ -3344,7 +3343,7 @@ def render_scenario_session_history() -> None:
 
         st.dataframe(
             filtered_history_df,
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
         )
 
@@ -3571,7 +3570,7 @@ def render_database_scenario_history(limit: int = 100) -> None:
 
         st.dataframe(
             filtered_db_df,
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
         )
 
@@ -3623,21 +3622,21 @@ def render_database_scenario_history(limit: int = 100) -> None:
         with st.expander("Scenario Decision Summary", expanded=False):
             st.dataframe(
                 decision_summary_df,
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
             )
 
         with st.expander("Scenario Risk Level Summary", expanded=False):
             st.dataframe(
                 risk_summary_df,
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
             )
 
         with st.expander("Scenario Ticker Summary", expanded=False):
             st.dataframe(
                 ticker_summary_df,
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
             )
 
@@ -3770,7 +3769,7 @@ Decision: {worst_database_scenario['Scenario Decision']}
 
         st.dataframe(
             selected_delete_row,
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
         )
 
@@ -4010,7 +4009,7 @@ def render_app_health_check_panel() -> None:
 
     st.dataframe(
         pd.DataFrame(health_rows),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 
@@ -4128,7 +4127,7 @@ def render_deployment_checklist_panel() -> None:
 
     st.dataframe(
         checklist_df,
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 
@@ -4329,7 +4328,7 @@ def render_project_metadata_panel() -> None:
 
     st.dataframe(
         metadata_df,
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 
