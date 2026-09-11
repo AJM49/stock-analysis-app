@@ -1,6 +1,8 @@
 from datetime import date
 from datetime import datetime
 
+from datetime import date, datetime
+
 import pandas as pd
 import streamlit as st
 
@@ -263,6 +265,131 @@ def build_ranked_watchlist(
     )
 
 
+RESEARCH_PRIORITY_ORDER = {
+    "Critical": 4,
+    "High": 3,
+    "Medium": 2,
+    "Low": 1,
+}
+
+
+def classify_watchlist_research_priority(
+    cache_status,
+    latest_market_date,
+    as_of_date=None,
+):
+    if as_of_date is None:
+        as_of_date = date.today()
+
+    if str(cache_status).strip() != "Cached":
+        return {
+            "Research Priority": "Critical",
+            "Freshness": "Missing",
+            "Age Days": None,
+            "Research Reason": "No cached market data",
+        }
+
+    if latest_market_date is None or pd.isna(
+        latest_market_date
+    ):
+        return {
+            "Research Priority": "Critical",
+            "Freshness": "Missing",
+            "Age Days": None,
+            "Research Reason": "Cached ticker has no market date",
+        }
+
+    if isinstance(latest_market_date, datetime):
+        market_date = latest_market_date.date()
+    elif isinstance(latest_market_date, date):
+        market_date = latest_market_date
+    else:
+        try:
+            market_date = pd.to_datetime(
+                latest_market_date
+            ).date()
+        except (TypeError, ValueError):
+            return {
+                "Research Priority": "Critical",
+                "Freshness": "Missing",
+                "Age Days": None,
+                "Research Reason": "Market date is unavailable",
+            }
+
+    age_days = max(
+        (as_of_date - market_date).days,
+        0,
+    )
+
+    if age_days <= 3:
+        return {
+            "Research Priority": "Low",
+            "Freshness": "Fresh",
+            "Age Days": age_days,
+            "Research Reason": "Market data is current",
+        }
+
+    if age_days <= 7:
+        return {
+            "Research Priority": "Medium",
+            "Freshness": "Delayed",
+            "Age Days": age_days,
+            "Research Reason": "Market data is delayed",
+        }
+
+    return {
+        "Research Priority": "High",
+        "Freshness": "Stale",
+        "Age Days": age_days,
+        "Research Reason": "Market data is stale",
+    }
+
+
+def build_watchlist_research_queue(
+    metric_rows,
+    priority_filter="All",
+    as_of_date=None,
+):
+    queue_rows = []
+
+    for metric_row in metric_rows or []:
+        row = dict(metric_row)
+
+        priority = classify_watchlist_research_priority(
+            row.get("Cache Status"),
+            row.get("Latest Market Date"),
+            as_of_date=as_of_date,
+        )
+
+        row.update(priority)
+        queue_rows.append(row)
+
+    queue_rows.sort(
+        key=lambda row: (
+            -RESEARCH_PRIORITY_ORDER.get(
+                row["Research Priority"],
+                0,
+            ),
+            -(
+                row["Age Days"]
+                if row["Age Days"] is not None
+                else 1000000
+            ),
+            str(row.get("Ticker", "")),
+        )
+    )
+
+    if priority_filter != "All":
+        queue_rows = [
+            row
+            for row in queue_rows
+            if row["Research Priority"]
+            == priority_filter
+        ]
+
+    return queue_rows
+
+
 def render_watchlist_feature():
     st.header("Watchlist")
 
@@ -393,10 +520,9 @@ def render_watchlist_feature():
     ]
 
     review_now_count = int(
-        (
-            metrics_df["Research Status"]
-            == "Review Now"
-        ).sum()
+        metrics_df["Research Priority"]
+        .isin(["Critical", "High"])
+        .sum()
     )
 
     needs_data_count = int(
@@ -417,7 +543,7 @@ def render_watchlist_feature():
 
     col1.metric(
         "Visible Tickers",
-        len(metrics_df),
+        len(all_metrics_df),
         f"{len(all_metrics_df)} saved",
     )
 
@@ -455,11 +581,23 @@ def render_watchlist_feature():
             f"ticker(s) from {len(all_metrics_df)} saved."
         )
 
+    st.caption(
+        f"Research queue: {len(metrics_df)} ticker(s) shown. "
+        f"Priority filter: {priority_filter}."
+    )
+
     st.dataframe(
         display_df,
         width="stretch",
         hide_index=True,
         column_config={
+            "Freshness": st.column_config.TextColumn(
+                "Freshness"
+            ),
+            "Age Days": st.column_config.NumberColumn(
+                "Age Days",
+                format="%d",
+            ),
             "Ticker": st.column_config.TextColumn(
                 "Ticker"
             ),
@@ -508,9 +646,6 @@ def render_watchlist_feature():
             ),
             "Move Signal": st.column_config.TextColumn(
                 "Move Signal"
-            ),
-            "Research Priority": st.column_config.TextColumn(
-                "Research Priority"
             ),
         },
     )
