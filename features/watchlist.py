@@ -411,7 +411,7 @@ def render_watchlist_feature():
     high_priority_count = int(
         (
             metrics_df["Research Priority"]
-            >= 3
+            == "High"
         ).sum()
     )
 
