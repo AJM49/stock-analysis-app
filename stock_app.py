@@ -29,6 +29,7 @@ from controllers.portfolio_controller import build_portfolio_data_health
 from controllers.portfolio_controller import build_portfolio_concentration_diagnostics
 from controllers.portfolio_controller import build_portfolio_analytics_reliability
 from controllers.portfolio_controller import build_portfolio_metric_gate
+from controllers.portfolio_controller import build_portfolio_render_policy
 from controllers.portfolio_controller import build_priced_portfolio_analytics_data
 from ui_components import render_company_profile
 from ui.portfolio_views import render_portfolio_dashboard
@@ -214,8 +215,8 @@ elif active_section == "Portfolio Summary":
         )
     )
 
-    portfolio_metric_gate = (
-        build_portfolio_metric_gate(
+    portfolio_render_policy = (
+        build_portfolio_render_policy(
             portfolio_reliability
         )
     )
@@ -242,7 +243,7 @@ elif active_section == "Portfolio Summary":
     render_portfolio_dashboard(
         portfolio_df,
         portfolio_reliability,
-        portfolio_metric_gate,
+        portfolio_render_policy,
         priced_portfolio_df,
     )
 
