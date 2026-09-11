@@ -235,6 +235,122 @@ def get_portfolio_analytics_render_policy(reliability):
     }
 
 
+def render_portfolio_concentration_diagnostics(diagnostics):
+    if not diagnostics:
+        return
+
+    position_count = int(
+        diagnostics.get("position_count", 0)
+    )
+    status = str(
+        diagnostics.get(
+            "diversification_status",
+            "No Data",
+        )
+    )
+
+    st.subheader("Concentration Diagnostics")
+
+    if position_count == 0:
+        st.info(
+            "No priced portfolio positions are available "
+            "for concentration analysis."
+        )
+        return
+
+    largest_weight_pct = float(
+        diagnostics.get(
+            "largest_weight_pct",
+            0.0,
+        )
+    )
+    top_3_weight_pct = float(
+        diagnostics.get(
+            "top_3_weight_pct",
+            0.0,
+        )
+    )
+    top_5_weight_pct = float(
+        diagnostics.get(
+            "top_5_weight_pct",
+            0.0,
+        )
+    )
+    hhi = float(
+        diagnostics.get(
+            "hhi",
+            0.0,
+        )
+    )
+    effective_positions = float(
+        diagnostics.get(
+            "effective_positions",
+            0.0,
+        )
+    )
+
+    col1, col2, col3 = st.columns(3)
+
+    col1.metric(
+        "Largest Position",
+        f"{largest_weight_pct:.1f}%",
+    )
+
+    col2.metric(
+        "Top 3 Weight",
+        f"{top_3_weight_pct:.1f}%",
+    )
+
+    col3.metric(
+        "Top 5 Weight",
+        f"{top_5_weight_pct:.1f}%",
+    )
+
+    col4, col5, col6 = st.columns(3)
+
+    col4.metric(
+        "HHI",
+        f"{hhi:.3f}",
+    )
+
+    col5.metric(
+        "Effective Positions",
+        f"{effective_positions:.1f}",
+    )
+
+    col6.metric(
+        "Diversification",
+        status,
+    )
+
+    st.caption(
+        "HHI measures concentration using portfolio weights. "
+        "Higher values indicate greater concentration. "
+        "Effective positions is approximately 1 / HHI."
+    )
+
+    if status == "Highly Concentrated":
+        st.error(
+            "Portfolio concentration is high. A small number "
+            "of positions dominate current portfolio value."
+        )
+    elif status == "Concentrated":
+        st.warning(
+            "Portfolio concentration is elevated. Review "
+            "large position weights before relying on "
+            "portfolio-level diversification."
+        )
+    elif status == "Moderately Diversified":
+        st.info(
+            "Portfolio has moderate diversification, but "
+            "meaningful concentration remains."
+        )
+    elif status == "Diversified":
+        st.success(
+            "Portfolio weights are relatively diversified."
+        )
+
+
 def render_portfolio_dashboard(
     portfolio_df,
     reliability=None,
@@ -372,6 +488,34 @@ def render_portfolio_dashboard(
             )
 
         return
+
+    metric_gate = metric_gate or {
+        "mode": "full",
+        "show_derived_metrics": True,
+        "show_performance_analytics": True,
+        "show_risk_analytics": True,
+        "show_allocation_analytics": True,
+        "show_raw_holdings": True,
+    }
+
+    gate_mode = metric_gate.get(
+        "mode",
+        "full",
+    )
+
+    if gate_mode == "caution":
+        st.warning(
+            "Derived portfolio analytics are shown with caution "
+            "because some market prices are stale or missing."
+        )
+
+    if gate_mode == "restricted":
+        st.error(
+            "Derived valuation, performance, allocation, and risk "
+            "analytics are restricted because market-data quality "
+            "is insufficient. Raw portfolio information remains "
+            "available below."
+        )
 
     total_cost_basis = float(
         derived_df["Cost Basis"].sum()

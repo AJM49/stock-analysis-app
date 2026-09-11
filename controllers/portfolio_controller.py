@@ -3,6 +3,7 @@ from __future__ import annotations
 import pandas as pd
 
 from portfolio import build_portfolio_dataframe, calculate_portfolio_data_health
+from services.portfolio_analytics_service import calculate_concentration_diagnostics
 
 
 def build_portfolio_data_health(portfolio_df):
@@ -335,6 +336,12 @@ def should_render_portfolio_derived_analytics(render_policy):
         "full",
         "caution",
     }
+
+
+def build_portfolio_concentration_diagnostics(portfolio_df):
+    return calculate_concentration_diagnostics(
+        portfolio_df
+    )
 
 
 def build_portfolio_dashboard_data(portfolio_positions) -> pd.DataFrame:
