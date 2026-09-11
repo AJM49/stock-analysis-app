@@ -213,6 +213,7 @@ def build_portfolio_render_policy(reliability):
         "show_raw_holdings": True,
         "show_risk_analytics": allow_derived,
         "show_performance_analytics": allow_derived,
+        "show_allocation_analytics": allow_derived,
         "show_caution": show_caution,
     }
 
@@ -293,6 +294,9 @@ def build_portfolio_metric_gate(reliability):
         ),
         "show_performance_analytics": bool(
             policy["show_performance_analytics"]
+        ),
+        "show_allocation_analytics": bool(
+            policy["show_allocation_analytics"]
         ),
         "show_caution": bool(
             policy["show_caution"]

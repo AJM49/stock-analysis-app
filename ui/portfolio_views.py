@@ -488,34 +488,6 @@ def render_portfolio_dashboard(
 
         return
 
-    metric_gate = metric_gate or {
-        "mode": "full",
-        "show_derived_metrics": True,
-        "show_performance_analytics": True,
-        "show_risk_analytics": True,
-        "show_allocation_analytics": True,
-        "show_raw_holdings": True,
-    }
-
-    gate_mode = metric_gate.get(
-        "mode",
-        "full",
-    )
-
-    if gate_mode == "caution":
-        st.warning(
-            "Derived portfolio analytics are shown with caution "
-            "because some market prices are stale or missing."
-        )
-
-    if gate_mode == "restricted":
-        st.error(
-            "Derived valuation, performance, allocation, and risk "
-            "analytics are restricted because market-data quality "
-            "is insufficient. Raw portfolio information remains "
-            "available below."
-        )
-
     total_cost_basis = float(
         derived_df["Cost Basis"].sum()
     )
