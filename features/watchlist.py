@@ -543,7 +543,7 @@ def render_watchlist_feature():
 
     col1.metric(
         "Visible Tickers",
-        len(metrics_df),
+        len(all_metrics_df),
         f"{len(all_metrics_df)} saved",
     )
 
