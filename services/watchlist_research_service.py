@@ -167,3 +167,110 @@ def build_watchlist_research_queue(
             str(row.get("Ticker", "")),
         ),
     )
+
+
+
+RESEARCH_PRIORITY = {
+    "high": 3,
+    "medium": 2,
+    "low": 1,
+}
+
+
+def sort_watchlist_research_priorities(items):
+    return sorted(
+        items or [],
+        key=lambda item: (
+            -RESEARCH_PRIORITY.get(
+                str(item.get("priority", "low")),
+                0,
+            ),
+            str(item.get("ticker", "")),
+        ),
+    )
+
+
+def build_watchlist_research_priorities(metric_rows):
+    items = []
+
+    for metric_row in metric_rows or []:
+        ticker = str(
+            metric_row.get(
+                "Ticker",
+                "",
+            )
+        ).strip().upper()
+
+        cache_status = str(
+            metric_row.get(
+                "Cache Status",
+                "",
+            )
+        )
+
+        age_days = metric_row.get(
+            "Age Days"
+        )
+
+        daily_change = metric_row.get(
+            "Daily Change %"
+        )
+
+        if cache_status != "Cached":
+            items.append(
+                {
+                    "ticker": ticker,
+                    "priority": "high",
+                    "reason": (
+                        "Missing cached market data"
+                    ),
+                }
+            )
+            continue
+
+        try:
+            age_days = int(age_days)
+        except (TypeError, ValueError):
+            age_days = None
+
+        if (
+            age_days is not None
+            and age_days > 7
+        ):
+            items.append(
+                {
+                    "ticker": ticker,
+                    "priority": "medium",
+                    "reason": (
+                        f"Cached market data is "
+                        f"{age_days} days old"
+                    ),
+                }
+            )
+            continue
+
+        try:
+            daily_change = float(
+                daily_change
+            )
+        except (TypeError, ValueError):
+            daily_change = None
+
+        if (
+            daily_change is not None
+            and abs(daily_change) >= 5.0
+        ):
+            items.append(
+                {
+                    "ticker": ticker,
+                    "priority": "high",
+                    "reason": (
+                        f"Daily price movement is "
+                        f"{daily_change:+.2f}%"
+                    ),
+                }
+            )
+
+    return sort_watchlist_research_priorities(
+        items
+    )
