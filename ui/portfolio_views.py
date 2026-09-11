@@ -189,6 +189,52 @@ def render_portfolio_reliability_safe_holdings(portfolio_df):
     )
 
 
+def get_portfolio_analytics_render_policy(reliability):
+    status = (
+        reliability or {}
+    ).get(
+        "status",
+        "Unavailable",
+    )
+
+    if status == "Reliable":
+        return {
+            "show_derived_analytics": True,
+            "show_caution": False,
+            "message": "",
+        }
+
+    if status == "Use With Caution":
+        return {
+            "show_derived_analytics": True,
+            "show_caution": True,
+            "message": (
+                "Derived portfolio analytics are shown, but "
+                "stale or missing prices reduce confidence."
+            ),
+        }
+
+    if status == "Insufficient Data":
+        return {
+            "show_derived_analytics": False,
+            "show_caution": True,
+            "message": (
+                "Derived valuation, performance, and risk "
+                "analytics are suppressed because market-data "
+                "quality is insufficient."
+            ),
+        }
+
+    return {
+        "show_derived_analytics": False,
+        "show_caution": True,
+        "message": (
+            "Portfolio analytics are unavailable until usable "
+            "market data is available."
+        ),
+    }
+
+
 def render_portfolio_dashboard(
     portfolio_df,
     reliability=None,
@@ -262,7 +308,6 @@ def render_portfolio_dashboard(
     if (
         mode == "caution"
         and analytics_df is not None
-        and not analytics_df.empty
     ):
         derived_df = analytics_df
     else:
@@ -281,7 +326,6 @@ def render_portfolio_dashboard(
         scenario_df = (
             analytics_df
             if analytics_df is not None
-            and not analytics_df.empty
             else portfolio_df
         )
 
@@ -565,6 +609,50 @@ def render_unrealized_gain_loss_summary(
                 render_portfolio_table(
                     portfolio_df
                 )
+
+        return
+
+    reliability = reliability or {}
+    render_mode = reliability.get(
+        "render_mode",
+        "full",
+    )
+
+    if render_mode == "unavailable":
+        st.info(
+            "Portfolio analytics are unavailable until "
+            "usable market data is available."
+        )
+        return
+
+    if render_mode == "caution":
+        st.warning(
+            "Analytics are being shown with caution because "
+            "portfolio market data is stale or incomplete."
+        )
+
+    if render_mode == "restricted":
+        st.error(
+            "Derived portfolio analytics are restricted because "
+            "market-data quality is insufficient."
+        )
+
+        st.caption(
+            "Raw portfolio holdings remain available below. "
+            "Refresh stale or missing prices before relying on "
+            "valuation, performance, allocation, or risk conclusions."
+        )
+
+        with st.expander(
+            "Portfolio Table",
+            expanded=True,
+        ):
+            render_portfolio_help_text(
+                "Portfolio Table"
+            )
+            render_portfolio_table(
+                portfolio_df
+            )
 
         return
 
