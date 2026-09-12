@@ -525,12 +525,15 @@ def render_watchlist_feature():
         .sum()
     )
 
-    needs_data_count = int(
-        (
-            metrics_df["Research Status"]
-            == "Needs Data"
-        ).sum()
-    )
+    if "Research Status" in metrics_df.columns:
+        needs_data_count = int(
+            (
+                metrics_df["Research Status"]
+                == "Needs Data"
+            ).sum()
+        )
+    else:
+        needs_data_count = 0
 
     high_priority_count = int(
         (
