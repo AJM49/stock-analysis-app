@@ -26,7 +26,6 @@ def test_dashboard_renders_valid_non_empty_portfolio(monkeypatch):
         "mode": "full",
         "show_derived_analytics": True,
         "show_raw_holdings": True,
-        "show_caution": False,
     }
 
     st = MagicMock()

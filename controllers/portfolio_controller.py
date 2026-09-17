@@ -187,30 +187,23 @@ def build_portfolio_render_policy(reliability):
     if status == "Reliable":
         mode = "full"
         allow_derived = True
-        show_caution = False
 
     elif status == "Use With Caution":
         mode = "caution"
         allow_derived = True
-        show_caution = True
 
     elif status == "Insufficient Data":
         mode = "restricted"
         allow_derived = False
-        show_caution = True
 
     else:
-        status = "Unavailable"
         mode = "unavailable"
         allow_derived = False
-        show_caution = False
 
     return {
-        "status": status,
         "mode": mode,
         "show_derived_analytics": allow_derived,
         "show_raw_holdings": True,
-        "show_caution": show_caution,
     }
 
 
