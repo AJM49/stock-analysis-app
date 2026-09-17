@@ -208,12 +208,8 @@ def build_portfolio_render_policy(reliability):
     return {
         "status": status,
         "mode": mode,
-        "allow_derived_analytics": allow_derived,
         "show_derived_analytics": allow_derived,
         "show_raw_holdings": True,
-        "show_risk_analytics": allow_derived,
-        "show_performance_analytics": allow_derived,
-        "show_allocation_analytics": allow_derived,
         "show_caution": show_caution,
     }
 

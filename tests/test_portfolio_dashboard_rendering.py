@@ -26,9 +26,6 @@ def test_dashboard_renders_valid_non_empty_portfolio(monkeypatch):
         "mode": "full",
         "show_derived_analytics": True,
         "show_raw_holdings": True,
-        "show_risk_analytics": True,
-        "show_performance_analytics": True,
-        "show_allocation_analytics": True,
         "show_caution": False,
     }
 

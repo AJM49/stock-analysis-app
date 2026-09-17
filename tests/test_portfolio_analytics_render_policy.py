@@ -11,7 +11,7 @@ def test_reliable_analytics_render_fully():
     )
 
     assert policy["mode"] == "full"
-    assert policy["allow_derived_analytics"] is True
+    assert policy["show_derived_analytics"] is True
     assert policy["show_caution"] is False
 
 
@@ -23,7 +23,7 @@ def test_caution_analytics_still_render():
     )
 
     assert policy["mode"] == "caution"
-    assert policy["allow_derived_analytics"] is True
+    assert policy["show_derived_analytics"] is True
     assert policy["show_caution"] is True
 
 
@@ -35,7 +35,7 @@ def test_insufficient_data_suppresses_derived_analytics():
     )
 
     assert policy["mode"] == "restricted"
-    assert policy["allow_derived_analytics"] is False
+    assert policy["show_derived_analytics"] is False
     assert policy["show_caution"] is True
 
 
@@ -47,5 +47,5 @@ def test_unavailable_analytics_are_suppressed():
     )
 
     assert policy["mode"] == "unavailable"
-    assert policy["allow_derived_analytics"] is False
+    assert policy["show_derived_analytics"] is False
     assert policy["show_caution"] is False
