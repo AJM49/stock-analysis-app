@@ -1,6 +1,5 @@
 from controllers.portfolio_controller import (
     build_portfolio_analytics_reliability,
-    build_portfolio_metric_gate,
     get_portfolio_analytics_render_mode,
     should_render_portfolio_summary_metrics,
     build_priced_portfolio_analytics_data,
@@ -136,32 +135,6 @@ def test_insufficient_analytics_suppress_summary_metrics():
 
 
 
-def test_insufficient_data_gate_suppresses_derived_analytics():
-    gate = build_portfolio_metric_gate(
-        {
-            "status": "Insufficient Data",
-        }
-    )
-
-    assert gate["mode"] == "restricted"
-    assert gate["show_derived_metrics"] is False
-    assert gate["show_risk_analytics"] is False
-    assert gate["show_performance_analytics"] is False
-    assert gate["show_raw_holdings"] is True
-
-
-def test_caution_gate_keeps_derived_analytics_visible():
-    gate = build_portfolio_metric_gate(
-        {
-            "status": "Use With Caution",
-        }
-    )
-
-    assert gate["mode"] == "caution"
-    assert gate["show_derived_metrics"] is True
-    assert gate["show_raw_holdings"] is True
-
-
 def test_priced_analytics_exclude_missing_price_positions():
     import pandas as pd
 
@@ -190,61 +163,6 @@ def test_priced_analytics_exclude_missing_price_positions():
         "AAPL",
         "MSFT",
     ]
-
-
-
-def test_missing_reliability_fails_closed():
-    from controllers.portfolio_controller import (
-        build_portfolio_metric_gate,
-    )
-
-    policy = build_portfolio_metric_gate(None)
-    gate = build_portfolio_metric_gate(None)
-
-    assert policy["mode"] == "unavailable"
-    assert policy["show_derived_analytics"] is False
-    assert policy["show_raw_holdings"] is True
-    assert policy["show_caution"] is False
-
-    assert gate["show_derived_metrics"] is False
-    assert gate["show_risk_analytics"] is False
-    assert gate["show_performance_analytics"] is False
-    assert gate["show_raw_holdings"] is True
-
-
-
-def test_caution_metric_gate_keeps_derived_analytics_visible():
-    gate = build_portfolio_metric_gate(
-        {"status": "Use With Caution"}
-    )
-
-    assert gate["mode"] == "caution"
-    assert gate["show_derived_metrics"] is True
-    assert gate["show_risk_analytics"] is True
-    assert gate["show_performance_analytics"] is True
-    assert gate["show_raw_holdings"] is True
-
-
-def test_insufficient_metric_gate_suppresses_derived_analytics():
-    gate = build_portfolio_metric_gate(
-        {"status": "Insufficient Data"}
-    )
-
-    assert gate["mode"] == "restricted"
-    assert gate["show_derived_metrics"] is False
-    assert gate["show_risk_analytics"] is False
-    assert gate["show_performance_analytics"] is False
-    assert gate["show_raw_holdings"] is True
-
-
-def test_unavailable_metric_gate_preserves_raw_holdings_only():
-    gate = build_portfolio_metric_gate(
-        {"status": "Unavailable"}
-    )
-
-    assert gate["mode"] == "unavailable"
-    assert gate["show_derived_metrics"] is False
-    assert gate["show_raw_holdings"] is True
 
 
 
@@ -463,72 +381,3 @@ def test_render_policy_mode_controls_derived_analytics():
         )
         is False
     )
-
-
-
-def test_metric_gate_allows_reliable_analytics():
-    from controllers.portfolio_controller import (
-        build_portfolio_metric_gate,
-    )
-
-    gate = build_portfolio_metric_gate(
-        {
-            "status": "Reliable",
-        }
-    )
-
-    assert gate["mode"] == "full"
-    assert gate["show_derived_metrics"] is True
-    assert gate["show_risk_analytics"] is True
-    assert gate["show_performance_analytics"] is True
-    assert gate["show_raw_holdings"] is True
-
-
-def test_metric_gate_allows_caution_analytics():
-    from controllers.portfolio_controller import (
-        build_portfolio_metric_gate,
-    )
-
-    gate = build_portfolio_metric_gate(
-        {
-            "status": "Use With Caution",
-        }
-    )
-
-    assert gate["mode"] == "caution"
-    assert gate["show_derived_metrics"] is True
-    assert gate["show_raw_holdings"] is True
-
-
-def test_metric_gate_suppresses_insufficient_analytics():
-    from controllers.portfolio_controller import (
-        build_portfolio_metric_gate,
-    )
-
-    gate = build_portfolio_metric_gate(
-        {
-            "status": "Insufficient Data",
-        }
-    )
-
-    assert gate["mode"] == "restricted"
-    assert gate["show_derived_metrics"] is False
-    assert gate["show_risk_analytics"] is False
-    assert gate["show_performance_analytics"] is False
-    assert gate["show_raw_holdings"] is True
-
-
-def test_metric_gate_suppresses_unavailable_analytics():
-    from controllers.portfolio_controller import (
-        build_portfolio_metric_gate,
-    )
-
-    gate = build_portfolio_metric_gate(
-        {
-            "status": "Unavailable",
-        }
-    )
-
-    assert gate["mode"] == "unavailable"
-    assert gate["show_derived_metrics"] is False
-    assert gate["show_raw_holdings"] is True

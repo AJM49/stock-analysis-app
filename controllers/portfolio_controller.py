@@ -272,41 +272,6 @@ def build_portfolio_snapshot_save_policy(reliability):
     }
 
 
-def build_portfolio_metric_gate(reliability):
-    policy = build_portfolio_render_policy(
-        reliability
-    )
-
-    show_derived = bool(
-        policy["allow_derived_analytics"]
-    )
-
-    return {
-        "mode": policy["mode"],
-        "show_derived_metrics": show_derived,
-        "show_derived_analytics": show_derived,
-        "allow_derived_analytics": show_derived,
-        "show_raw_holdings": bool(
-            policy["show_raw_holdings"]
-        ),
-        "show_risk_analytics": bool(
-            policy["show_risk_analytics"]
-        ),
-        "show_performance_analytics": bool(
-            policy["show_performance_analytics"]
-        ),
-        "show_allocation_analytics": bool(
-            policy["show_allocation_analytics"]
-        ),
-        "show_caution": bool(
-            policy["show_caution"]
-        ),
-    }
-
-
-
-
-
 def build_priced_portfolio_analytics_data(portfolio_df):
     if portfolio_df is None:
         return pd.DataFrame()
