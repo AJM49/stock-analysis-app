@@ -1673,71 +1673,68 @@ def render_portfolio_risk_alert_banner(portfolio_df: pd.DataFrame) -> None:
 
     alerts = []
 
-    if "Allocation %" in portfolio_df.columns and "Ticker" in portfolio_df.columns:
-        largest_position = portfolio_df.sort_values(
-            by="Allocation %",
-            ascending=False,
-        ).iloc[0]
-
-        largest_ticker = str(largest_position["Ticker"])
-        largest_allocation = float(largest_position["Allocation %"])
-
-        if largest_allocation >= 50:
-            alerts.append(
-                {
-                    "level": "high",
-                    "message": (
-                        f"High position concentration: {largest_ticker} is "
-                        f"{largest_allocation:.2f}% of the portfolio."
-                    ),
-                }
-            )
-        elif largest_allocation >= 25:
-            alerts.append(
-                {
-                    "level": "medium",
-                    "message": (
-                        f"Medium position concentration: {largest_ticker} is "
-                        f"{largest_allocation:.2f}% of the portfolio."
-                    ),
-                }
-            )
-
     try:
         sector_df = build_sector_exposure_dataframe(portfolio_df)
     except Exception:
         sector_df = pd.DataFrame()
 
-    if sector_df is not None and not sector_df.empty:
-        if "Sector" in sector_df.columns and "Exposure %" in sector_df.columns:
-            largest_sector = sector_df.sort_values(
-                by="Exposure %",
-                ascending=False,
-            ).iloc[0]
+    risk_flags = build_portfolio_risk_flags(
+        portfolio_df=portfolio_df,
+        sector_df=sector_df,
+    )
 
-            sector = str(largest_sector["Sector"])
-            exposure_pct = float(largest_sector["Exposure %"])
+    position_flag = next(
+        (
+            flag
+            for flag in risk_flags
+            if flag["Risk"] == "Single-position concentration"
+        ),
+        None,
+    )
+    if position_flag is not None:
+        largest_position = portfolio_df.sort_values(
+            by="Allocation %",
+            ascending=False,
+        ).iloc[0]
+        largest_ticker = str(largest_position["Ticker"])
+        largest_allocation = float(largest_position["Allocation %"])
 
-            if exposure_pct >= 50:
-                alerts.append(
-                    {
-                        "level": "high",
-                        "message": (
-                            f"High sector concentration: {sector} is "
-                            f"{exposure_pct:.2f}% of the portfolio."
-                        ),
-                    }
-                )
-            elif exposure_pct >= 35:
-                alerts.append(
-                    {
-                        "level": "medium",
-                        "message": (
-                            f"Medium sector concentration: {sector} is "
-                            f"{exposure_pct:.2f}% of the portfolio."
-                        ),
-                    }
-                )
+        alerts.append(
+            {
+                "level": position_flag["Level"].lower(),
+                "message": (
+                    f"{position_flag['Level']} position concentration: "
+                    f"{largest_ticker} is {largest_allocation:.2f}% "
+                    "of the portfolio."
+                ),
+            }
+        )
+
+    sector_flag = next(
+        (
+            flag
+            for flag in risk_flags
+            if flag["Risk"] == "Sector concentration"
+        ),
+        None,
+    )
+    if sector_flag is not None:
+        largest_sector = sector_df.sort_values(
+            by="Exposure %",
+            ascending=False,
+        ).iloc[0]
+        sector = str(largest_sector["Sector"])
+        exposure_pct = float(largest_sector["Exposure %"])
+
+        alerts.append(
+            {
+                "level": sector_flag["Level"].lower(),
+                "message": (
+                    f"{sector_flag['Level']} sector concentration: "
+                    f"{sector} is {exposure_pct:.2f}% of the portfolio."
+                ),
+            }
+        )
 
     if "Price Status" in portfolio_df.columns:
         missing_price_count = int(
