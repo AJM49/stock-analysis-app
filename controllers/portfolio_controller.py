@@ -55,9 +55,6 @@ def build_portfolio_analytics_reliability(portfolio_health):
         return {
             "status": "Unavailable",
             "severity": "info",
-            "analytics_mode": "unavailable",
-            "render_mode": "unavailable",
-            "display_mode": "unavailable",
             "decision_ready": False,
             "quality_score": quality_score,
             "coverage_pct": coverage_pct,
@@ -75,9 +72,6 @@ def build_portfolio_analytics_reliability(portfolio_health):
         return {
             "status": "Reliable",
             "severity": "success",
-            "analytics_mode": "full",
-            "render_mode": "full",
-            "display_mode": "full",
             "decision_ready": True,
             "quality_score": quality_score,
             "coverage_pct": coverage_pct,
@@ -92,9 +86,6 @@ def build_portfolio_analytics_reliability(portfolio_health):
         return {
             "status": "Use With Caution",
             "severity": "warning",
-            "analytics_mode": "caution",
-            "render_mode": "caution",
-            "display_mode": "caution",
             "decision_ready": False,
             "quality_score": quality_score,
             "coverage_pct": coverage_pct,
@@ -110,9 +101,6 @@ def build_portfolio_analytics_reliability(portfolio_health):
     return {
         "status": "Insufficient Data",
         "severity": "error",
-        "analytics_mode": "restricted",
-        "render_mode": "restricted",
-        "display_mode": "restricted",
         "decision_ready": False,
         "quality_score": quality_score,
         "coverage_pct": coverage_pct,
@@ -123,55 +111,6 @@ def build_portfolio_analytics_reliability(portfolio_health):
             "conclusions."
         ),
     }
-
-
-def get_portfolio_analytics_render_mode(reliability):
-    if not reliability:
-        return "unavailable"
-
-    render_mode = reliability.get(
-        "mode",
-        reliability.get("render_mode"),
-    )
-
-    if render_mode in {
-        "full",
-        "caution",
-        "restricted",
-        "unavailable",
-    }:
-        return render_mode
-
-    status = str(
-        reliability.get(
-            "status",
-            "Unavailable",
-        )
-    )
-
-    if status == "Reliable":
-        return "full"
-
-    if status == "Use With Caution":
-        return "caution"
-
-    if status == "Insufficient Data":
-        return "restricted"
-
-    return "unavailable"
-
-
-def should_render_portfolio_summary_metrics(reliability):
-    return (
-        get_portfolio_analytics_render_mode(
-            reliability
-        )
-        in {
-            "full",
-            "caution",
-        }
-    )
-
 
 
 def build_portfolio_render_policy(reliability):
@@ -279,21 +218,6 @@ def build_priced_portfolio_analytics_data(portfolio_df):
         .reset_index(drop=True)
     )
 
-
-
-def should_render_portfolio_derived_analytics(render_policy):
-    if not render_policy:
-        return False
-
-    mode = render_policy.get(
-        "mode",
-        render_policy.get("render_mode"),
-    )
-
-    return mode in {
-        "full",
-        "caution",
-    }
 
 
 def build_portfolio_concentration_diagnostics(portfolio_df):
