@@ -793,20 +793,30 @@ def render_position_weight_summary(portfolio_df: pd.DataFrame) -> None:
     largest_allocation = float(largest_position["Allocation %"])
     largest_ticker = str(largest_position["Ticker"])
 
-    if largest_allocation >= 50:
+    risk_flags = build_portfolio_risk_flags(portfolio_df)
+    position_flag = next(
+        (
+            flag
+            for flag in risk_flags
+            if flag["Risk"] == "Single-position concentration"
+        ),
+        None,
+    )
+
+    if position_flag is None:
+        st.success("No major single-position concentration risk detected.")
+    elif position_flag["Level"] == "High":
         st.warning(
             "Concentration risk detected: "
             + largest_ticker
             + " is more than 50% of the portfolio."
         )
-    elif largest_allocation >= 25:
+    else:
         st.info(
             "Largest position watch: "
             + largest_ticker
             + " is above 25% of the portfolio."
         )
-    else:
-        st.success("No major single-position concentration risk detected.")
 
 def render_sector_exposure_summary(portfolio_df: pd.DataFrame) -> None:
     """Render portfolio sector exposure summary."""
