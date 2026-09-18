@@ -1875,66 +1875,85 @@ def render_portfolio_risk_score(portfolio_df: pd.DataFrame) -> None:
         st.success("No major risk score drivers detected.")
 
 
-def render_portfolio_risk_recommendations(portfolio_df: pd.DataFrame) -> None:
+def render_portfolio_risk_recommendations(
+    portfolio_df: pd.DataFrame,
+) -> None:
     """Render action recommendations based on portfolio risk conditions."""
     if portfolio_df is None or portfolio_df.empty:
         return
 
     recommendations = []
 
-    if "Allocation %" in portfolio_df.columns and "Ticker" in portfolio_df.columns:
-        largest_position = portfolio_df.sort_values(
-            by="Allocation %",
-            ascending=False,
-        ).iloc[0]
-
-        ticker = str(largest_position["Ticker"])
-        allocation_pct = float(largest_position["Allocation %"])
-
-        if allocation_pct >= 50:
-            recommendations.append(
-                f"Review concentration risk in {ticker}. It represents "
-                f"{allocation_pct:.2f}% of the portfolio. Consider reducing "
-                "position size or adding other holdings."
-            )
-        elif allocation_pct >= 25:
-            recommendations.append(
-                f"Monitor {ticker}. It represents {allocation_pct:.2f}% of "
-                "the portfolio and may become a concentration risk."
-            )
-
     try:
         sector_df = build_sector_exposure_dataframe(portfolio_df)
     except Exception:
         sector_df = pd.DataFrame()
 
-    if sector_df is not None and not sector_df.empty:
-        if "Sector" in sector_df.columns and "Exposure %" in sector_df.columns:
-            largest_sector = sector_df.sort_values(
-                by="Exposure %",
-                ascending=False,
-            ).iloc[0]
+    risk_flags = build_portfolio_risk_flags(
+        portfolio_df=portfolio_df,
+        sector_df=sector_df,
+    )
 
-            sector = str(largest_sector["Sector"])
-            exposure_pct = float(largest_sector["Exposure %"])
+    position_flag = next(
+        (
+            flag
+            for flag in risk_flags
+            if flag["Risk"] == "Single-position concentration"
+        ),
+        None,
+    )
+    if position_flag is not None:
+        largest_position = portfolio_df.sort_values(
+            by="Allocation %",
+            ascending=False,
+        ).iloc[0]
+        ticker = str(largest_position["Ticker"])
+        allocation_pct = float(largest_position["Allocation %"])
 
-            if exposure_pct >= 50:
-                recommendations.append(
-                    f"Review sector exposure. {sector} represents "
-                    f"{exposure_pct:.2f}% of the portfolio. Consider adding "
-                    "holdings from other sectors."
-                )
-            elif exposure_pct >= 35:
-                recommendations.append(
-                    f"Monitor {sector} exposure. It represents "
-                    f"{exposure_pct:.2f}% of the portfolio."
-                )
+        if position_flag["Level"] == "High":
+            recommendations.append(
+                f"Review concentration risk in {ticker}. It represents "
+                f"{allocation_pct:.2f}% of the portfolio. Consider reducing "
+                "position size or adding other holdings."
+            )
+        else:
+            recommendations.append(
+                f"Monitor {ticker}. It represents {allocation_pct:.2f}% of "
+                "the portfolio and may become a concentration risk."
+            )
+
+    sector_flag = next(
+        (
+            flag
+            for flag in risk_flags
+            if flag["Risk"] == "Sector concentration"
+        ),
+        None,
+    )
+    if sector_flag is not None:
+        largest_sector = sector_df.sort_values(
+            by="Exposure %",
+            ascending=False,
+        ).iloc[0]
+        sector = str(largest_sector["Sector"])
+        exposure_pct = float(largest_sector["Exposure %"])
+
+        if sector_flag["Level"] == "High":
+            recommendations.append(
+                f"Review sector exposure. {sector} represents "
+                f"{exposure_pct:.2f}% of the portfolio. Consider adding "
+                "holdings from other sectors."
+            )
+        else:
+            recommendations.append(
+                f"Monitor {sector} exposure. It represents "
+                f"{exposure_pct:.2f}% of the portfolio."
+            )
 
     if "Price Status" in portfolio_df.columns:
         missing_price_count = int(
             (portfolio_df["Price Status"] == "Missing").sum()
         )
-
         if missing_price_count > 0:
             recommendations.append(
                 f"Fix missing price data for {missing_price_count} position(s). "
@@ -1943,7 +1962,6 @@ def render_portfolio_risk_recommendations(portfolio_df: pd.DataFrame) -> None:
 
     if "Gain/Loss" in portfolio_df.columns:
         total_gain_loss = float(portfolio_df["Gain/Loss"].sum())
-
         if total_gain_loss < 0:
             recommendations.append(
                 "Review losing positions. Compare current losses against your "
