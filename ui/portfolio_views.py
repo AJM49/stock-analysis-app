@@ -763,32 +763,6 @@ def render_unrealized_gain_loss_summary(
     st.dataframe(formatted_df, width="stretch")
 
 
-def get_position_weight_status(allocation_pct: float) -> tuple[str, str]:
-    """Return position weight label and risk note."""
-    if allocation_pct >= 50:
-        return (
-            "Concentrated risk",
-            "This position is more than half of the portfolio.",
-        )
-
-    if allocation_pct >= 25:
-        return (
-            "Heavy position",
-            "This position has meaningful concentration risk.",
-        )
-
-    if allocation_pct >= 10:
-        return (
-            "Moderate position",
-            "This position is within a normal active range.",
-        )
-
-    return (
-        "Small position",
-        "This position has limited portfolio impact.",
-    )
-
-
 def render_position_weight_summary(portfolio_df: pd.DataFrame) -> None:
     """Render portfolio position weight by ticker."""
     st.subheader("Position Weight by Ticker")
