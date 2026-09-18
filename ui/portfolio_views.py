@@ -1527,20 +1527,33 @@ def render_sector_concentration_warning(portfolio_df: pd.DataFrame) -> None:
     sector = str(largest_sector["Sector"])
     exposure_pct = float(largest_sector["Exposure %"])
 
-    if exposure_pct >= 50:
+    risk_flags = build_portfolio_risk_flags(
+        portfolio_df=portfolio_df,
+        sector_df=sector_df,
+    )
+    sector_flag = next(
+        (
+            flag
+            for flag in risk_flags
+            if flag["Risk"] == "Sector concentration"
+        ),
+        None,
+    )
+
+    if sector_flag is None:
+        st.success(
+            f"No major sector concentration detected. Largest sector: "
+            f"{sector} at {exposure_pct:.2f}%."
+        )
+    elif sector_flag["Level"] == "High":
         st.error(
             f"High sector concentration: {sector} is {exposure_pct:.2f}% "
             "of the portfolio."
         )
-    elif exposure_pct >= 35:
+    else:
         st.warning(
             f"Medium sector concentration: {sector} is {exposure_pct:.2f}% "
             "of the portfolio."
-        )
-    else:
-        st.success(
-            f"No major sector concentration detected. Largest sector: "
-            f"{sector} at {exposure_pct:.2f}%."
         )
 
 
