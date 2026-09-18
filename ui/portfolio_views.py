@@ -1438,20 +1438,30 @@ def render_portfolio_concentration_score(portfolio_df: pd.DataFrame) -> None:
     ticker = str(largest_position["Ticker"])
     allocation_pct = float(largest_position["Allocation %"])
 
-    if allocation_pct >= 50:
+    risk_flags = build_portfolio_risk_flags(portfolio_df)
+    concentration_flag = next(
+        (
+            flag
+            for flag in risk_flags
+            if flag["Risk"] == "Single-position concentration"
+        ),
+        None,
+    )
+
+    if concentration_flag is None:
+        concentration_level = "Low"
+        concentration_note = (
+            "The portfolio is reasonably diversified by position weight."
+        )
+    elif concentration_flag["Level"] == "High":
         concentration_level = "High"
         concentration_note = (
             "The portfolio is highly concentrated in one position."
         )
-    elif allocation_pct >= 25:
+    else:
         concentration_level = "Medium"
         concentration_note = (
             "The portfolio has meaningful single-position concentration."
-        )
-    else:
-        concentration_level = "Low"
-        concentration_note = (
-            "The portfolio is reasonably diversified by position weight."
         )
 
     col1, col2, col3 = st.columns(3)
