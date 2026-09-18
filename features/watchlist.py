@@ -421,8 +421,8 @@ def render_watchlist_feature():
 
     col1.metric(
         "Visible Tickers",
-        len(all_metrics_df),
-        f"{len(all_metrics_df)} saved",
+        len(metrics_df),
+        f"{len(metrics_df)} saved",
     )
 
     col2.metric(
@@ -453,15 +453,8 @@ def render_watchlist_feature():
         "appear first."
     )
 
-    if high_priority_only:
-        st.caption(
-            f"Showing {len(metrics_df)} high-priority "
-            f"ticker(s) from {len(all_metrics_df)} saved."
-        )
-
     st.caption(
-        f"Research queue: {len(metrics_df)} ticker(s) shown. "
-        f"Priority filter: {priority_filter}."
+        f"Research queue: {len(metrics_df)} ticker(s) shown."
     )
 
     st.dataframe(
