@@ -104,4 +104,3 @@ def test_signal_builder_enriches_watchlist_rows():
     assert signals[1][
         "Data Freshness"
     ] == "Stale"
-
