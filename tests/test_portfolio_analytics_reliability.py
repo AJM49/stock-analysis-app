@@ -17,7 +17,6 @@ def test_good_portfolio_health_is_reliable():
 
     assert reliability["status"] == "Reliable"
     assert reliability["severity"] == "success"
-    assert reliability["decision_ready"] is True
 
 
 def test_fair_portfolio_health_requires_caution():
@@ -33,7 +32,6 @@ def test_fair_portfolio_health_requires_caution():
 
     assert reliability["status"] == "Use With Caution"
     assert reliability["severity"] == "warning"
-    assert reliability["decision_ready"] is False
 
 
 def test_poor_portfolio_health_is_insufficient():
@@ -49,7 +47,6 @@ def test_poor_portfolio_health_is_insufficient():
 
     assert reliability["status"] == "Insufficient Data"
     assert reliability["severity"] == "error"
-    assert reliability["decision_ready"] is False
 
 
 def test_empty_portfolio_health_is_unavailable():
@@ -65,7 +62,6 @@ def test_empty_portfolio_health_is_unavailable():
 
     assert reliability["status"] == "Unavailable"
     assert reliability["severity"] == "info"
-    assert reliability["decision_ready"] is False
 
 
 

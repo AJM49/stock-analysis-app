@@ -55,7 +55,6 @@ def build_portfolio_analytics_reliability(portfolio_health):
         return {
             "status": "Unavailable",
             "severity": "info",
-            "decision_ready": False,
             "quality_score": quality_score,
             "coverage_pct": coverage_pct,
             "freshness_pct": freshness_pct,
@@ -72,7 +71,6 @@ def build_portfolio_analytics_reliability(portfolio_health):
         return {
             "status": "Reliable",
             "severity": "success",
-            "decision_ready": True,
             "quality_score": quality_score,
             "coverage_pct": coverage_pct,
             "freshness_pct": freshness_pct,
@@ -86,7 +84,6 @@ def build_portfolio_analytics_reliability(portfolio_health):
         return {
             "status": "Use With Caution",
             "severity": "warning",
-            "decision_ready": False,
             "quality_score": quality_score,
             "coverage_pct": coverage_pct,
             "freshness_pct": freshness_pct,
@@ -101,7 +98,6 @@ def build_portfolio_analytics_reliability(portfolio_health):
     return {
         "status": "Insufficient Data",
         "severity": "error",
-        "decision_ready": False,
         "quality_score": quality_score,
         "coverage_pct": coverage_pct,
         "freshness_pct": freshness_pct,
