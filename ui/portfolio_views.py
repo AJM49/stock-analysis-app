@@ -349,17 +349,16 @@ def render_portfolio_concentration_diagnostics(diagnostics):
 def render_portfolio_dashboard(
     portfolio_df,
     reliability=None,
-    metric_gate=None,
+    render_policy=None,
     analytics_df=None,
 ):
     """Render portfolio analytics according to reliability policy."""
 
     st.subheader("Portfolio Analytics")
-    metric_gate = metric_gate or {
+    render_policy = render_policy or {
         "mode": "full",
         "show_derived_analytics": True,
         "show_raw_holdings": True,
-        "show_caution": False,
     }
 
     render_production_status_banner()
@@ -402,7 +401,7 @@ def render_portfolio_dashboard(
         )
         return
 
-    policy = metric_gate
+    policy = render_policy
 
     mode = policy.get(
         "mode",

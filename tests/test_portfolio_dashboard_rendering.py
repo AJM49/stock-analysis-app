@@ -66,7 +66,7 @@ def test_dashboard_renders_valid_non_empty_portfolio(monkeypatch):
     portfolio_views.render_portfolio_dashboard(
         portfolio_df,
         reliability=None,
-        metric_gate=render_policy,
+        render_policy=render_policy,
         analytics_df=portfolio_df,
     )
 

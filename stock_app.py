@@ -224,15 +224,19 @@ elif active_section == "Portfolio Summary":
         portfolio_reliability
     )
 
-    portfolio_concentration = (
-        build_portfolio_concentration_diagnostics(
-            priced_portfolio_df
+    if portfolio_render_policy.get(
+        "show_derived_analytics",
+        False,
+    ):
+        portfolio_concentration = (
+            build_portfolio_concentration_diagnostics(
+                priced_portfolio_df
+            )
         )
-    )
 
-    render_portfolio_concentration_diagnostics(
-        portfolio_concentration
-    )
+        render_portfolio_concentration_diagnostics(
+            portfolio_concentration
+        )
 
     render_save_portfolio_snapshot_control(
         portfolio_df,
