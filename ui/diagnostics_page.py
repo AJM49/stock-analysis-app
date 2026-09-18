@@ -107,7 +107,7 @@ def render_cache_admin_tools(admin_actions_enabled: bool):
         return
 
     cache_df = pd.DataFrame(cache_summary)
-    st.dataframe(cache_df, use_container_width=True)
+    st.dataframe(cache_df, width="stretch")
 
     cached_tickers = [item["ticker"] for item in cache_summary]
 
@@ -147,7 +147,7 @@ def render_portfolio_admin_tools(admin_actions_enabled: bool):
 
     portfolio_rows = portfolio_positions_to_rows(portfolio_positions)
     portfolio_df = pd.DataFrame(portfolio_rows)
-    st.dataframe(portfolio_df, use_container_width=True)
+    st.dataframe(portfolio_df, width="stretch")
 
     selectable_rows = []
 
@@ -250,7 +250,7 @@ def render_table_count_summary():
         ]
     )
 
-    st.dataframe(counts, use_container_width=True)
+    st.dataframe(counts, width="stretch")
 
 
 
@@ -600,7 +600,7 @@ def render_data_quality_checks_panel():
         return
 
     checks_df = pd.DataFrame(checks)
-    st.dataframe(checks_df, use_container_width=True)
+    st.dataframe(checks_df, width="stretch")
 
     failed_checks = [
         check for check in checks if not check["status"]
@@ -615,7 +615,7 @@ def render_data_quality_checks_panel():
 
     if ticker_summary:
         ticker_df = pd.DataFrame(ticker_summary)
-        st.dataframe(ticker_df, use_container_width=True)
+        st.dataframe(ticker_df, width="stretch")
     else:
         st.info("No cached ticker rows available yet.")
 
@@ -631,7 +631,7 @@ def render_migration_status_panel():
 
     migration_df = pd.DataFrame(migration_rows)
 
-    st.dataframe(migration_df, use_container_width=True)
+    st.dataframe(migration_df, width="stretch")
 
     missing_items = [
         row for row in migration_rows if not row["exists"]
@@ -704,7 +704,7 @@ def render_cache_freshness_policy_panel():
         return
 
     freshness_df = pd.DataFrame(freshness_rows)
-    st.dataframe(freshness_df, use_container_width=True)
+    st.dataframe(freshness_df, width="stretch")
 
     stale_tickers = [
         row["ticker"]

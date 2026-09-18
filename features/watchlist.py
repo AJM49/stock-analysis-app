@@ -1,3 +1,5 @@
+from datetime import date, datetime
+
 import pandas as pd
 import streamlit as st
 
@@ -9,6 +11,9 @@ from services.watchlist_health_service import (
     build_watchlist_research_reliability,
 )
 from ui_components import render_watchlist_sidebar
+from services.watchlist_research_service import build_watchlist_research_queue
+
+
 
 
 def render_watchlist_feature():
@@ -57,7 +62,13 @@ def render_watchlist_feature():
         metric_rows
     )
 
-    metrics_df = pd.DataFrame(signal_rows)
+    research_rows = build_watchlist_research_queue(
+        signal_rows
+    )
+
+    metrics_df = pd.DataFrame(
+        research_rows
+    )
 
     watchlist_health = build_watchlist_data_health(
         signal_rows
@@ -134,18 +145,33 @@ def render_watchlist_feature():
         "missing_count"
     ]
 
-    high_priority_count = int(
+    review_now_count = int(
         (
-            metrics_df["Research Priority"]
-            == "High"
+            metrics_df["Research Status"]
+            == "Review Now"
         ).sum()
     )
 
-    col1, col2, col3, col4 = st.columns(4)
+    needs_data_count = int(
+        (
+            metrics_df["Research Status"]
+            == "Needs Data"
+        ).sum()
+    )
+
+    high_priority_count = int(
+        (
+            metrics_df["Research Priority"]
+            >= 3
+        ).sum()
+    )
+
+    col1, col2, col3, col4, col5 = st.columns(5)
 
     col1.metric(
-        "Saved Tickers",
+        "Visible Tickers",
         len(metrics_df),
+        f"{len(metrics_df)} saved",
     )
 
     col2.metric(
@@ -154,22 +180,50 @@ def render_watchlist_feature():
     )
 
     col3.metric(
-        "Unavailable",
-        unavailable_count,
+        "Review Now",
+        review_now_count,
     )
 
     col4.metric(
+        "Needs Data",
+        needs_data_count,
+    )
+
+    col5.metric(
         "High Priority",
         high_priority_count,
     )
 
+    display_df = metrics_df.copy()
+
+    st.caption(
+        "Research queue priority: Needs Data → Review Now → "
+        "Monitor → Stable. Higher-priority research items "
+        "appear first."
+    )
+
+    st.caption(
+        f"Research queue: {len(metrics_df)} ticker(s) shown."
+    )
+
     st.dataframe(
-        metrics_df,
+        display_df,
         width="stretch",
         hide_index=True,
         column_config={
+            "Freshness": st.column_config.TextColumn(
+                "Freshness"
+            ),
+            "Age Days": st.column_config.NumberColumn(
+                "Age Days",
+                format="%d",
+            ),
             "Ticker": st.column_config.TextColumn(
                 "Ticker"
+            ),
+            "Research Priority": st.column_config.NumberColumn(
+                "Priority",
+                format="%d",
             ),
             "Latest Close": st.column_config.NumberColumn(
                 "Latest Close",
@@ -191,6 +245,12 @@ def render_watchlist_feature():
             "Cache Status": st.column_config.TextColumn(
                 "Cache Status"
             ),
+            "Research Status": st.column_config.TextColumn(
+                "Research Status"
+            ),
+            "Research Reason": st.column_config.TextColumn(
+                "Research Reason"
+            ),
             "Market Age Days": st.column_config.NumberColumn(
                 "Age (Days)",
                 format="%d",
@@ -200,9 +260,6 @@ def render_watchlist_feature():
             ),
             "Move Signal": st.column_config.TextColumn(
                 "Move Signal"
-            ),
-            "Research Priority": st.column_config.TextColumn(
-                "Research Priority"
             ),
         },
     )

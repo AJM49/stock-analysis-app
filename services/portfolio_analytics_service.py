@@ -130,6 +130,100 @@ def build_sector_exposure_dataframe(portfolio_df: pd.DataFrame) -> pd.DataFrame:
     return grouped_df
 
 
+def calculate_concentration_diagnostics(
+    portfolio_df: pd.DataFrame,
+) -> dict:
+    """Calculate portfolio concentration and diversification diagnostics."""
+
+    empty_result = {
+        "position_count": 0,
+        "largest_weight_pct": 0.0,
+        "top_3_weight_pct": 0.0,
+        "top_5_weight_pct": 0.0,
+        "hhi": 0.0,
+        "effective_positions": 0.0,
+        "diversification_status": "No Data",
+    }
+
+    if portfolio_df is None or portfolio_df.empty:
+        return empty_result
+
+    if "Allocation %" not in portfolio_df.columns:
+        raise ValueError(
+            "Portfolio dataframe is missing required column: Allocation %"
+        )
+
+    weights_pct = (
+        pd.to_numeric(
+            portfolio_df["Allocation %"],
+            errors="coerce",
+        )
+        .fillna(0.0)
+        .clip(lower=0.0)
+        .sort_values(ascending=False)
+    )
+
+    positive_weights_pct = weights_pct[
+        weights_pct > 0
+    ]
+
+    if positive_weights_pct.empty:
+        return {
+            **empty_result,
+            "position_count": len(portfolio_df),
+        }
+
+    total_weight_pct = float(
+        positive_weights_pct.sum()
+    )
+
+    weights = (
+        positive_weights_pct
+        / total_weight_pct
+    )
+
+    largest_weight_pct = float(
+        positive_weights_pct.iloc[0]
+    )
+
+    top_3_weight_pct = float(
+        positive_weights_pct.head(3).sum()
+    )
+
+    top_5_weight_pct = float(
+        positive_weights_pct.head(5).sum()
+    )
+
+    hhi = float(
+        (weights ** 2).sum()
+    )
+
+    effective_positions = (
+        1.0 / hhi
+        if hhi > 0
+        else 0.0
+    )
+
+    if hhi >= 0.25:
+        diversification_status = "Highly Concentrated"
+    elif hhi >= 0.15:
+        diversification_status = "Concentrated"
+    elif hhi >= 0.10:
+        diversification_status = "Moderately Diversified"
+    else:
+        diversification_status = "Diversified"
+
+    return {
+        "position_count": len(positive_weights_pct),
+        "largest_weight_pct": largest_weight_pct,
+        "top_3_weight_pct": top_3_weight_pct,
+        "top_5_weight_pct": top_5_weight_pct,
+        "hhi": hhi,
+        "effective_positions": effective_positions,
+        "diversification_status": diversification_status,
+    }
+
+
 def build_portfolio_risk_flags(
     portfolio_df: pd.DataFrame,
     sector_df: pd.DataFrame | None = None,

@@ -26,13 +26,14 @@ from market_data import load_stock_data
 from market_data import validate_ticker
 from controllers.portfolio_controller import build_portfolio_dashboard_data
 from controllers.portfolio_controller import build_portfolio_data_health
+from controllers.portfolio_controller import build_portfolio_concentration_diagnostics
 from controllers.portfolio_controller import build_portfolio_analytics_reliability
 from controllers.portfolio_controller import build_portfolio_render_policy
-from controllers.portfolio_controller import build_portfolio_metric_gate
 from controllers.portfolio_controller import build_priced_portfolio_analytics_data
 from ui_components import render_company_profile
 from ui.portfolio_views import render_portfolio_dashboard
 from ui.portfolio_views import render_portfolio_data_health
+from ui.portfolio_views import render_portfolio_concentration_diagnostics
 from ui.portfolio_views import render_portfolio_analytics_reliability
 from ui.portfolio_views import render_portfolio_snapshot_history
 from ui.portfolio_views import render_portfolio_snapshot_export
@@ -213,8 +214,8 @@ elif active_section == "Portfolio Summary":
         )
     )
 
-    portfolio_metric_gate = (
-        build_portfolio_metric_gate(
+    portfolio_render_policy = (
+        build_portfolio_render_policy(
             portfolio_reliability
         )
     )
@@ -222,6 +223,20 @@ elif active_section == "Portfolio Summary":
     render_portfolio_analytics_reliability(
         portfolio_reliability
     )
+
+    if portfolio_render_policy.get(
+        "show_derived_analytics",
+        False,
+    ):
+        portfolio_concentration = (
+            build_portfolio_concentration_diagnostics(
+                priced_portfolio_df
+            )
+        )
+
+        render_portfolio_concentration_diagnostics(
+            portfolio_concentration
+        )
 
     render_save_portfolio_snapshot_control(
         portfolio_df,
@@ -231,7 +246,7 @@ elif active_section == "Portfolio Summary":
     render_portfolio_dashboard(
         portfolio_df,
         portfolio_reliability,
-        portfolio_metric_gate,
+        portfolio_render_policy,
         priced_portfolio_df,
     )
 

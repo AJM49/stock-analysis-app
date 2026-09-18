@@ -52,3 +52,28 @@ def test_priced_portfolio_handles_empty_input():
     )
 
     assert result.empty
+
+
+
+def test_priced_analytics_excludes_missing_price_positions():
+    portfolio_df = pd.DataFrame(
+        [
+            {
+                "Ticker": "AAPL",
+                "Price Status": "Available",
+                "Current Value": 1000.0,
+            },
+            {
+                "Ticker": "ADVB",
+                "Price Status": "Missing",
+                "Current Value": 0.0,
+            },
+        ]
+    )
+
+    result = build_priced_portfolio_analytics_data(
+        portfolio_df
+    )
+
+    assert result["Ticker"].tolist() == ["AAPL"]
+    assert result["Current Value"].sum() == 1000.0

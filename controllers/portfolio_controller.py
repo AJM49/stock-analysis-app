@@ -3,6 +3,7 @@ from __future__ import annotations
 import pandas as pd
 
 from portfolio import build_portfolio_dataframe, calculate_portfolio_data_health
+from services.portfolio_analytics_service import calculate_concentration_diagnostics
 
 
 def build_portfolio_data_health(portfolio_df):
@@ -54,9 +55,6 @@ def build_portfolio_analytics_reliability(portfolio_health):
         return {
             "status": "Unavailable",
             "severity": "info",
-            "render_mode": "unavailable",
-            "display_mode": "unavailable",
-            "decision_ready": False,
             "quality_score": quality_score,
             "coverage_pct": coverage_pct,
             "freshness_pct": freshness_pct,
@@ -73,9 +71,6 @@ def build_portfolio_analytics_reliability(portfolio_health):
         return {
             "status": "Reliable",
             "severity": "success",
-            "render_mode": "full",
-            "display_mode": "full",
-            "decision_ready": True,
             "quality_score": quality_score,
             "coverage_pct": coverage_pct,
             "freshness_pct": freshness_pct,
@@ -89,9 +84,6 @@ def build_portfolio_analytics_reliability(portfolio_health):
         return {
             "status": "Use With Caution",
             "severity": "warning",
-            "render_mode": "caution",
-            "display_mode": "caution",
-            "decision_ready": False,
             "quality_score": quality_score,
             "coverage_pct": coverage_pct,
             "freshness_pct": freshness_pct,
@@ -106,9 +98,6 @@ def build_portfolio_analytics_reliability(portfolio_health):
     return {
         "status": "Insufficient Data",
         "severity": "error",
-        "render_mode": "restricted",
-        "display_mode": "restricted",
-        "decision_ready": False,
         "quality_score": quality_score,
         "coverage_pct": coverage_pct,
         "freshness_pct": freshness_pct,
@@ -120,63 +109,8 @@ def build_portfolio_analytics_reliability(portfolio_health):
     }
 
 
-def get_portfolio_analytics_render_mode(reliability):
-    if not reliability:
-        return "unavailable"
-
-    render_mode = reliability.get(
-        "render_mode"
-    )
-
-    if render_mode in {
-        "full",
-        "caution",
-        "restricted",
-        "unavailable",
-    }:
-        return render_mode
-
-    status = str(
-        reliability.get(
-            "status",
-            "Unavailable",
-        )
-    )
-
-    if status == "Reliable":
-        return "full"
-
-    if status == "Use With Caution":
-        return "caution"
-
-    if status == "Insufficient Data":
-        return "restricted"
-
-    return "unavailable"
-
-
-def should_render_portfolio_summary_metrics(reliability):
-    return (
-        get_portfolio_analytics_render_mode(
-            reliability
-        )
-        in {
-            "full",
-            "caution",
-        }
-    )
-
-
-
 def build_portfolio_render_policy(reliability):
-    if not reliability:
-        return {
-            "status": "Unavailable",
-            "mode": "unavailable",
-            "show_derived_analytics": False,
-            "show_raw_holdings": True,
-            "show_caution": True,
-        }
+    reliability = reliability or {}
 
     status = str(
         reliability.get(
@@ -186,39 +120,30 @@ def build_portfolio_render_policy(reliability):
     )
 
     if status == "Reliable":
-        return {
-            "status": status,
-            "mode": "full",
-            "show_derived_analytics": True,
-            "show_raw_holdings": True,
-            "show_caution": False,
-        }
+        mode = "full"
+        allow_derived = True
 
-    if status == "Use With Caution":
-        return {
-            "status": status,
-            "mode": "caution",
-            "show_derived_analytics": True,
-            "show_raw_holdings": True,
-            "show_caution": True,
-        }
+    elif status == "Use With Caution":
+        mode = "caution"
+        allow_derived = True
 
-    if status == "Insufficient Data":
-        return {
-            "status": status,
-            "mode": "restricted",
-            "show_derived_analytics": False,
-            "show_raw_holdings": True,
-            "show_caution": True,
-        }
+    elif status == "Insufficient Data":
+        mode = "restricted"
+        allow_derived = False
+
+    else:
+        mode = "unavailable"
+        allow_derived = False
 
     return {
-        "status": status,
-        "mode": "unavailable",
-        "show_derived_analytics": False,
+        "mode": mode,
+        "show_derived_analytics": allow_derived,
         "show_raw_holdings": True,
-        "show_caution": True,
     }
+
+
+
+
 
 
 def build_portfolio_snapshot_save_policy(reliability):
@@ -271,48 +196,15 @@ def build_portfolio_snapshot_save_policy(reliability):
     }
 
 
-def build_portfolio_metric_gate(reliability):
-    policy = build_portfolio_render_policy(
-        reliability
-    )
-
-    show_derived_analytics = bool(
-        policy.get(
-            "show_derived_analytics",
-            False,
-        )
-    )
-
-    return {
-        "show_derived_analytics": show_derived_analytics,
-        "show_derived_metrics": show_derived_analytics,
-        "show_risk_analytics": show_derived_analytics,
-        "show_performance_analytics": show_derived_analytics,
-        "show_raw_holdings": bool(
-            policy.get(
-                "show_raw_holdings",
-                True,
-            )
-        ),
-        "mode": policy.get(
-            "mode",
-            "unavailable",
-        ),
-    }
-
-
-def build_portfolio_analytics_render_mode(reliability):
-    return get_portfolio_analytics_render_mode(
-        reliability
-    )
-
-
 def build_priced_portfolio_analytics_data(portfolio_df):
-    if portfolio_df is None or portfolio_df.empty:
+    if portfolio_df is None:
         return pd.DataFrame()
+
+    if portfolio_df.empty:
+        return portfolio_df.copy()
 
     if "Price Status" not in portfolio_df.columns:
-        return pd.DataFrame()
+        return portfolio_df.copy()
 
     return (
         portfolio_df.loc[
@@ -320,6 +212,13 @@ def build_priced_portfolio_analytics_data(portfolio_df):
         ]
         .copy()
         .reset_index(drop=True)
+    )
+
+
+
+def build_portfolio_concentration_diagnostics(portfolio_df):
+    return calculate_concentration_diagnostics(
+        portfolio_df
     )
 
 

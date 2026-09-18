@@ -4,11 +4,6 @@ from database import save_portfolio_scenario, get_portfolio_scenarios, delete_po
 
 import pandas as pd
 import streamlit as st
-from controllers.portfolio_controller import (
-    build_portfolio_metric_gate,
-    get_portfolio_analytics_render_mode,
-    should_render_portfolio_summary_metrics,
-)
 
 REPORT_SPRINT_VERSION = "Sprint 64"
 REPORT_FEATURE_LABEL = "Portfolio Reporting and Decision Support"
@@ -185,8 +180,170 @@ def render_portfolio_reliability_safe_holdings(portfolio_df):
 
     st.dataframe(
         make_arrow_safe(holdings_df),
-        use_container_width=True,
+        width="stretch",
     )
+
+
+def get_portfolio_analytics_render_policy(reliability):
+    status = (
+        reliability or {}
+    ).get(
+        "status",
+        "Unavailable",
+    )
+
+    if status == "Reliable":
+        return {
+            "show_derived_analytics": True,
+            "show_caution": False,
+            "message": "",
+        }
+
+    if status == "Use With Caution":
+        return {
+            "show_derived_analytics": True,
+            "show_caution": True,
+            "message": (
+                "Derived portfolio analytics are shown, but "
+                "stale or missing prices reduce confidence."
+            ),
+        }
+
+    if status == "Insufficient Data":
+        return {
+            "show_derived_analytics": False,
+            "show_caution": True,
+            "message": (
+                "Derived valuation, performance, and risk "
+                "analytics are suppressed because market-data "
+                "quality is insufficient."
+            ),
+        }
+
+    return {
+        "show_derived_analytics": False,
+        "show_caution": True,
+        "message": (
+            "Portfolio analytics are unavailable until usable "
+            "market data is available."
+        ),
+    }
+
+
+def render_portfolio_concentration_diagnostics(diagnostics):
+    if not diagnostics:
+        return
+
+    position_count = int(
+        diagnostics.get("position_count", 0)
+    )
+    status = str(
+        diagnostics.get(
+            "diversification_status",
+            "No Data",
+        )
+    )
+
+    st.subheader("Concentration Diagnostics")
+
+    if position_count == 0:
+        st.info(
+            "No priced portfolio positions are available "
+            "for concentration analysis."
+        )
+        return
+
+    largest_weight_pct = float(
+        diagnostics.get(
+            "largest_weight_pct",
+            0.0,
+        )
+    )
+    top_3_weight_pct = float(
+        diagnostics.get(
+            "top_3_weight_pct",
+            0.0,
+        )
+    )
+    top_5_weight_pct = float(
+        diagnostics.get(
+            "top_5_weight_pct",
+            0.0,
+        )
+    )
+    hhi = float(
+        diagnostics.get(
+            "hhi",
+            0.0,
+        )
+    )
+    effective_positions = float(
+        diagnostics.get(
+            "effective_positions",
+            0.0,
+        )
+    )
+
+    col1, col2, col3 = st.columns(3)
+
+    col1.metric(
+        "Largest Position",
+        f"{largest_weight_pct:.1f}%",
+    )
+
+    col2.metric(
+        "Top 3 Weight",
+        f"{top_3_weight_pct:.1f}%",
+    )
+
+    col3.metric(
+        "Top 5 Weight",
+        f"{top_5_weight_pct:.1f}%",
+    )
+
+    col4, col5, col6 = st.columns(3)
+
+    col4.metric(
+        "HHI",
+        f"{hhi:.3f}",
+    )
+
+    col5.metric(
+        "Effective Positions",
+        f"{effective_positions:.1f}",
+    )
+
+    col6.metric(
+        "Diversification",
+        status,
+    )
+
+    st.caption(
+        "HHI measures concentration using portfolio weights. "
+        "Higher values indicate greater concentration. "
+        "Effective positions is approximately 1 / HHI."
+    )
+
+    if status == "Highly Concentrated":
+        st.error(
+            "Portfolio concentration is high. A small number "
+            "of positions dominate current portfolio value."
+        )
+    elif status == "Concentrated":
+        st.warning(
+            "Portfolio concentration is elevated. Review "
+            "large position weights before relying on "
+            "portfolio-level diversification."
+        )
+    elif status == "Moderately Diversified":
+        st.info(
+            "Portfolio has moderate diversification, but "
+            "meaningful concentration remains."
+        )
+    elif status == "Diversified":
+        st.success(
+            "Portfolio weights are relatively diversified."
+        )
 
 
 def render_portfolio_dashboard(
@@ -198,6 +355,12 @@ def render_portfolio_dashboard(
     """Render portfolio analytics according to reliability policy."""
 
     st.subheader("Portfolio Analytics")
+    render_policy = render_policy or {
+        "mode": "full",
+        "show_derived_analytics": True,
+        "show_raw_holdings": True,
+    }
+
     render_production_status_banner()
 
     with st.expander(
@@ -238,12 +401,7 @@ def render_portfolio_dashboard(
         )
         return
 
-    policy = render_policy or {
-        "mode": "full",
-        "show_derived_analytics": True,
-        "show_raw_holdings": True,
-        "show_caution": False,
-    }
+    policy = render_policy
 
     mode = policy.get(
         "mode",
@@ -257,41 +415,44 @@ def render_portfolio_dashboard(
         )
     )
 
-    derived_df = portfolio_df
+    if (
+        mode == "caution"
+        and analytics_df is not None
+    ):
+        derived_df = analytics_df
+    else:
+        derived_df = portfolio_df
 
     if mode == "caution":
         st.warning(
             "Derived portfolio analytics are being shown "
             "with caution because some market prices are "
-            "stale or missing."
+            "stale or missing. Positions without available "
+            "prices are excluded from derived valuation, "
+            "performance, allocation, and risk analytics."
         )
 
-    scenario_df = (
-        analytics_df
-        if analytics_df is not None
-        and not analytics_df.empty
-        else portfolio_df
-    )
-
-    with st.expander(
-        "Portfolio What-If Scenario Planner",
-        expanded=False,
-    ):
-        if mode == "caution":
-            st.warning(
-                "Scenario outputs use the best available "
-                "priced positions, but some portfolio market "
-                "data is stale or missing."
-            )
-        elif mode == "restricted":
-            st.error(
-                "Scenario outputs are exploratory only because "
-                "portfolio market-data reliability is insufficient."
-            )
-
-        render_portfolio_what_if_scenario(
-            scenario_df
+    if show_derived_analytics:
+        scenario_df = (
+            analytics_df
+            if analytics_df is not None
+            else portfolio_df
         )
+
+        with st.expander(
+            "Portfolio What-If Scenario Planner",
+            expanded=False,
+        ):
+            if mode == "caution":
+                st.warning(
+                    "Scenario outputs use the best available "
+                    "priced positions, but some portfolio market "
+                    "data is stale or missing."
+                )
+
+            render_portfolio_what_if_scenario(
+                scenario_df
+            )
 
     if not show_derived_analytics:
         if mode == "restricted":
@@ -479,7 +640,6 @@ def render_missing_price_warning(portfolio_df: pd.DataFrame) -> None:
 
 def render_unrealized_gain_loss_summary(
     portfolio_df: pd.DataFrame,
-    metric_gate=None,
 ) -> None:
     """Render unrealized gain/loss portfolio summary."""
     st.subheader("Unrealized Gain/Loss")
@@ -506,59 +666,6 @@ def render_unrealized_gain_loss_summary(
             "Portfolio gain/loss data is missing required columns: "
             + ", ".join(missing_columns)
         )
-        return
-
-    metric_gate = metric_gate or {
-        "show_derived_metrics": True,
-        "show_risk_analytics": True,
-        "show_performance_analytics": True,
-        "show_raw_holdings": True,
-        "mode": "full",
-    }
-
-    gate_mode = metric_gate.get(
-        "mode",
-        "full",
-    )
-
-    if gate_mode == "caution":
-        st.warning(
-            "Derived portfolio analytics are being shown with caution "
-            "because some underlying market prices are stale or missing."
-        )
-
-    if not metric_gate.get(
-        "show_derived_metrics",
-        True,
-    ):
-        if gate_mode == "restricted":
-            st.error(
-                "Derived valuation, performance, and risk analytics "
-                "are suppressed because portfolio market-data quality "
-                "is insufficient."
-            )
-        else:
-            st.info(
-                "Derived portfolio analytics are unavailable until "
-                "usable market data is available."
-            )
-
-        render_missing_price_warning(
-            portfolio_df
-        )
-
-        if metric_gate.get(
-            "show_raw_holdings",
-            True,
-        ):
-            with st.expander(
-                "Portfolio Holdings",
-                expanded=True,
-            ):
-                render_portfolio_table(
-                    portfolio_df
-                )
-
         return
 
     total_cost_basis = float(portfolio_df["Cost Basis"].sum())
@@ -653,7 +760,7 @@ def render_unrealized_gain_loss_summary(
         lambda value: f"{value:.2f}%"
     )
 
-    st.dataframe(formatted_df, use_container_width=True)
+    st.dataframe(formatted_df, width="stretch")
 
 
 def get_position_weight_status(allocation_pct: float) -> tuple[str, str]:
@@ -706,7 +813,7 @@ def render_position_weight_summary(portfolio_df: pd.DataFrame) -> None:
         lambda value: f"{value:.2f}%"
     )
 
-    st.dataframe(display_df, use_container_width=True)
+    st.dataframe(display_df, width="stretch")
 
     largest_position = weight_df.iloc[0]
     largest_allocation = float(largest_position["Allocation %"])
@@ -749,7 +856,7 @@ def render_sector_exposure_summary(portfolio_df: pd.DataFrame) -> None:
         hole=0.35,
     )
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     display_df = sector_df.copy()
 
@@ -761,7 +868,7 @@ def render_sector_exposure_summary(portfolio_df: pd.DataFrame) -> None:
         lambda value: f"{value:.2f}%"
     )
 
-    st.dataframe(display_df, use_container_width=True)
+    st.dataframe(display_df, width="stretch")
 
     largest_sector = sector_df.iloc[0]
     largest_sector_name = str(largest_sector["Sector"])
@@ -938,7 +1045,7 @@ def render_portfolio_allocation_chart(portfolio_df: pd.DataFrame) -> None:
         hole=0.35,
     )
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     display_df = allocation_df.copy()
 
@@ -950,7 +1057,7 @@ def render_portfolio_allocation_chart(portfolio_df: pd.DataFrame) -> None:
         lambda value: f"{value:.2f}%"
     )
 
-    st.dataframe(display_df, use_container_width=True)
+    st.dataframe(display_df, width="stretch")
 
 def render_portfolio_risk_flags(portfolio_df: pd.DataFrame) -> None:
     """Render portfolio-level risk flags."""
@@ -984,7 +1091,7 @@ def render_portfolio_risk_flags(portfolio_df: pd.DataFrame) -> None:
 
     st.dataframe(
         make_arrow_safe(risk_flags_df),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 
@@ -1004,7 +1111,7 @@ def render_portfolio_export(portfolio_df: pd.DataFrame) -> None:
         data=csv_data,
         file_name="portfolio_summary.csv",
         mime="text/csv",
-        use_container_width=True,
+        width="stretch",
     )
 
 
@@ -1018,7 +1125,7 @@ def render_portfolio_table(portfolio_df):
 
     st.dataframe(
         make_arrow_safe(formatted_portfolio_df),
-        use_container_width=True
+        width="stretch"
     )
     sort_option = st.selectbox(
         "Sort Portfolio By",
@@ -1117,7 +1224,7 @@ def render_portfolio_snapshot_history(snapshots) -> None:
 
     st.dataframe(
         make_arrow_safe(snapshot_df),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 
@@ -1159,7 +1266,7 @@ def render_portfolio_value_history_chart(snapshots) -> None:
         data=snapshot_df,
         x="Snapshot Date",
         y="Total Current Value",
-        use_container_width=True,
+        width="stretch",
     )
 
 
@@ -1200,7 +1307,7 @@ def render_portfolio_gain_loss_history_chart(snapshots) -> None:
         data=snapshot_df,
         x="Snapshot Date",
         y="Total Gain/Loss",
-        use_container_width=True,
+        width="stretch",
     )
 
 
@@ -1246,7 +1353,7 @@ def render_portfolio_snapshot_export(snapshots) -> None:
         data=csv_data,
         file_name="portfolio_snapshot_history.csv",
         mime="text/csv",
-        use_container_width=True,
+        width="stretch",
     )
 
 
@@ -2626,7 +2733,7 @@ def render_portfolio_what_if_scenario(portfolio_df: pd.DataFrame) -> None:
     st.subheader("Scenario Baseline Comparison")
     st.dataframe(
         scenario_comparison_df,
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 
@@ -2712,7 +2819,7 @@ def render_portfolio_what_if_scenario(portfolio_df: pd.DataFrame) -> None:
     with st.expander("Scenario position table", expanded=False):
         st.dataframe(
             scenario_df,
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
         )
 
@@ -3105,7 +3212,7 @@ def render_scenario_session_history() -> None:
 
         st.dataframe(
             filtered_history_df,
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
         )
 
@@ -3332,7 +3439,7 @@ def render_database_scenario_history(limit: int = 100) -> None:
 
         st.dataframe(
             filtered_db_df,
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
         )
 
@@ -3384,21 +3491,21 @@ def render_database_scenario_history(limit: int = 100) -> None:
         with st.expander("Scenario Decision Summary", expanded=False):
             st.dataframe(
                 decision_summary_df,
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
             )
 
         with st.expander("Scenario Risk Level Summary", expanded=False):
             st.dataframe(
                 risk_summary_df,
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
             )
 
         with st.expander("Scenario Ticker Summary", expanded=False):
             st.dataframe(
                 ticker_summary_df,
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
             )
 
@@ -3531,7 +3638,7 @@ Decision: {worst_database_scenario['Scenario Decision']}
 
         st.dataframe(
             selected_delete_row,
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
         )
 
@@ -3771,7 +3878,7 @@ def render_app_health_check_panel() -> None:
 
     st.dataframe(
         pd.DataFrame(health_rows),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 
@@ -3889,7 +3996,7 @@ def render_deployment_checklist_panel() -> None:
 
     st.dataframe(
         checklist_df,
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 
@@ -4090,7 +4197,7 @@ def render_project_metadata_panel() -> None:
 
     st.dataframe(
         metadata_df,
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 
