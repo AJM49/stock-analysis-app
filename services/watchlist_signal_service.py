@@ -141,37 +141,7 @@ def build_watchlist_research_signals(
             )
         )
 
-        enriched["Research Priority"] = (
-            classify_research_priority(
-                freshness,
-                daily_change_pct,
-            )
-        )
 
         signal_rows.append(enriched)
 
     return signal_rows
-
-
-
-def classify_research_priority(
-    freshness,
-    daily_change_pct,
-):
-    if freshness in {"Missing", "Stale"}:
-        return "High"
-
-    change_pct = float(
-        daily_change_pct or 0.0
-    )
-
-    if abs(change_pct) >= 3.0:
-        return "High"
-
-    if freshness == "Delayed":
-        return "Medium"
-
-    if abs(change_pct) >= 1.0:
-        return "Medium"
-
-    return "Low"

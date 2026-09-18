@@ -3,7 +3,6 @@ from datetime import date
 from services.watchlist_signal_service import (
     build_watchlist_research_signals,
     classify_daily_move_signal,
-    classify_research_priority,
     classify_watchlist_data_freshness,
 )
 
@@ -63,23 +62,6 @@ def test_daily_move_signals():
     ) == "Sharp Move Down"
 
 
-def test_stale_data_receives_high_research_priority():
-    priority = classify_research_priority(
-        "Stale",
-        0.1,
-    )
-
-    assert priority == "High"
-
-
-def test_large_fresh_move_receives_high_priority():
-    priority = classify_research_priority(
-        "Fresh",
-        -3.5,
-    )
-
-    assert priority == "High"
-
 
 def test_signal_builder_enriches_watchlist_rows():
     rows = [
@@ -118,14 +100,8 @@ def test_signal_builder_enriches_watchlist_rows():
         "Move Signal"
     ] == "Sharp Move Up"
 
-    assert signals[0][
-        "Research Priority"
-    ] == "High"
 
     assert signals[1][
         "Data Freshness"
     ] == "Stale"
 
-    assert signals[1][
-        "Research Priority"
-    ] == "High"
