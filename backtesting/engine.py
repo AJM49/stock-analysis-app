@@ -44,8 +44,7 @@ class BacktestEngine:
         trades: list[Trade] = []
         completed_trade_rows: list[dict[str, Any]] = []
         equity_rows: list[dict[str, Any]] = []
-        open_trade_price: float | None = None
-        open_trade_shares: float = 0.0
+        position_cost_basis = 0.0
 
         for _, row in signals.iterrows():
             date = row["Date"]
@@ -59,8 +58,7 @@ class BacktestEngine:
                 shares += shares_to_buy
                 cash -= cash_to_use
 
-                open_trade_price = close_price
-                open_trade_shares = shares_to_buy
+                position_cost_basis += cash_to_use
 
                 trades.append(
                     Trade(
@@ -84,13 +82,16 @@ class BacktestEngine:
                 pnl = 0.0
                 pnl_pct = 0.0
 
-                if open_trade_price is not None and open_trade_price > 0:
-                    pnl = (close_price - open_trade_price) * shares_sold
-                    pnl_pct = ((close_price - open_trade_price) / open_trade_price) * 100
-
+                if position_cost_basis > 0 and shares_sold > 0:
+                    average_entry_price = position_cost_basis / shares_sold
+                    pnl = cash_from_sale - position_cost_basis
+                    pnl_pct = (
+                        (close_price - average_entry_price)
+                        / average_entry_price
+                    ) * 100
                     completed_trade_rows.append(
                         {
-                            "entry_price": open_trade_price,
+                            "entry_price": average_entry_price,
                             "exit_price": close_price,
                             "shares": shares_sold,
                             "pnl": pnl,
@@ -99,9 +100,7 @@ class BacktestEngine:
                             "ticker": self.ticker,
                         }
                     )
-
-                open_trade_price = None
-                open_trade_shares = 0.0
+                position_cost_basis = 0.0
 
                 trades.append(
                     Trade(

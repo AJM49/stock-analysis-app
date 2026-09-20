@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pandas as pd
+import pytest
 
 from backtesting.engine import BacktestEngine
 from strategies.moving_average import MovingAverageCrossoverStrategy
@@ -99,3 +100,110 @@ def test_backtest_engine_rejects_empty_data() -> None:
         assert "price_data cannot be empty" in str(error)
     else:
         raise AssertionError("Expected ValueError for empty price data")
+
+
+class RepeatedBuyStrategy:
+    """Generate two buys followed by one full-position sell."""
+
+    name = "Repeated Buy Test Strategy"
+
+    def generate_signals(self, price_data: pd.DataFrame) -> pd.DataFrame:
+        signals = price_data.copy()
+        signals["signal"] = [1, 1, -1]
+        return signals
+
+
+def test_backtest_engine_uses_weighted_cost_basis_for_repeated_buys() -> None:
+    price_data = pd.DataFrame(
+        {
+            "Date": pd.date_range("2026-01-01", periods=3, freq="D"),
+            "Open": [100.0, 120.0, 130.0],
+            "High": [101.0, 121.0, 131.0],
+            "Low": [99.0, 119.0, 129.0],
+            "Close": [100.0, 120.0, 130.0],
+            "Volume": [1_000_000, 1_000_000, 1_000_000],
+        }
+    )
+
+    engine = BacktestEngine(
+        strategy=RepeatedBuyStrategy(),
+        ticker="AAPL",
+        starting_cash=1_000.0,
+        trade_size_pct=0.5,
+    )
+
+    result = engine.run(price_data)
+
+    completed = result["completed_trade_details"]
+
+    assert len(completed) == 1
+
+    # First buy: $500 / $100 = 5 shares.
+    # Second buy: $250 / $120 = 2.083333 shares.
+    # Total cost basis = $750 across 7.083333 shares.
+    expected_shares = 5.0 + (250.0 / 120.0)
+    expected_cost_basis = 750.0 / expected_shares
+    expected_pnl = (130.0 * expected_shares) - 750.0
+    expected_pnl_pct = (
+        (130.0 - expected_cost_basis) / expected_cost_basis
+    ) * 100
+
+    assert completed.iloc[0]["shares"] == pytest.approx(expected_shares)
+    assert completed.iloc[0]["entry_price"] == pytest.approx(
+        expected_cost_basis
+    )
+    assert completed.iloc[0]["exit_price"] == pytest.approx(130.0)
+    assert completed.iloc[0]["pnl"] == pytest.approx(expected_pnl)
+    assert completed.iloc[0]["pnl_pct"] == pytest.approx(expected_pnl_pct)
+
+    assert result["ending_value"] == pytest.approx(
+        1_000.0 + expected_pnl
+    )
+
+
+class SingleTradeStrategy:
+    """Generate one buy followed by one full-position sell."""
+
+    name = "Single Trade Test Strategy"
+
+    def generate_signals(self, price_data: pd.DataFrame) -> pd.DataFrame:
+        signals = price_data.copy()
+        signals["signal"] = [1, 0, -1]
+        return signals
+
+
+def test_backtest_engine_preserves_single_entry_trade_accounting() -> None:
+    price_data = pd.DataFrame(
+        {
+            "Date": pd.date_range("2026-01-01", periods=3, freq="D"),
+            "Open": [100.0, 110.0, 120.0],
+            "High": [101.0, 111.0, 121.0],
+            "Low": [99.0, 109.0, 119.0],
+            "Close": [100.0, 110.0, 120.0],
+            "Volume": [1_000_000, 1_000_000, 1_000_000],
+        }
+    )
+
+    engine = BacktestEngine(
+        strategy=SingleTradeStrategy(),
+        ticker="AAPL",
+        starting_cash=1_000.0,
+        trade_size_pct=1.0,
+    )
+
+    result = engine.run(price_data)
+
+    completed = result["completed_trade_details"]
+
+    assert len(completed) == 1
+    assert completed.iloc[0]["entry_price"] == pytest.approx(100.0)
+    assert completed.iloc[0]["exit_price"] == pytest.approx(120.0)
+    assert completed.iloc[0]["shares"] == pytest.approx(10.0)
+    assert completed.iloc[0]["pnl"] == pytest.approx(200.0)
+    assert completed.iloc[0]["pnl_pct"] == pytest.approx(20.0)
+
+    assert result["starting_cash"] == pytest.approx(1_000.0)
+    assert result["ending_value"] == pytest.approx(1_200.0)
+    assert result["total_return_pct"] == pytest.approx(20.0)
+    assert result["completed_trades"] == 1
+    assert result["win_rate_pct"] == pytest.approx(100.0)
