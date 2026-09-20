@@ -163,6 +163,34 @@ class BacktestEngine:
 
         risk_metrics = build_risk_metric_summary(equity_curve)
 
+        has_open_position = shares > 0
+
+        if has_open_position:
+            final_close_price = float(equity_curve["Close"].iloc[-1])
+            open_position_shares = float(shares)
+            open_position_cost_basis = float(position_cost_basis)
+            open_position_average_entry_price = (
+                open_position_cost_basis / open_position_shares
+            )
+            open_position_market_value = (
+                open_position_shares * final_close_price
+            )
+            open_position_unrealized_pnl = (
+                open_position_market_value - open_position_cost_basis
+            )
+            open_position_unrealized_pnl_pct = (
+                open_position_unrealized_pnl
+                / open_position_cost_basis
+                * 100
+            )
+        else:
+            open_position_shares = 0.0
+            open_position_cost_basis = 0.0
+            open_position_average_entry_price = 0.0
+            open_position_market_value = 0.0
+            open_position_unrealized_pnl = 0.0
+            open_position_unrealized_pnl_pct = 0.0
+
         result = {
             "ticker": self.ticker,
             "strategy_name": self.strategy.name,
@@ -178,6 +206,17 @@ class BacktestEngine:
             "best_trade": metrics["best_trade"],
             "worst_trade": metrics["worst_trade"],
             "exposure_pct": metrics["exposure_pct"],
+            "has_open_position": has_open_position,
+            "open_position_shares": open_position_shares,
+            "open_position_cost_basis": open_position_cost_basis,
+            "open_position_average_entry_price": (
+                open_position_average_entry_price
+            ),
+            "open_position_market_value": open_position_market_value,
+            "open_position_unrealized_pnl": open_position_unrealized_pnl,
+            "open_position_unrealized_pnl_pct": (
+                open_position_unrealized_pnl_pct
+            ),
             "benchmark_name": benchmark_result["benchmark_name"],
             "benchmark_ending_value": benchmark_result["benchmark_ending_value"],
             "benchmark_total_return_pct": benchmark_result["benchmark_total_return_pct"],

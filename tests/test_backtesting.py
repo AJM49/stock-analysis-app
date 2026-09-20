@@ -207,3 +207,59 @@ def test_backtest_engine_preserves_single_entry_trade_accounting() -> None:
     assert result["total_return_pct"] == pytest.approx(20.0)
     assert result["completed_trades"] == 1
     assert result["win_rate_pct"] == pytest.approx(100.0)
+
+    assert result["has_open_position"] is False
+    assert result["open_position_shares"] == pytest.approx(0.0)
+    assert result["open_position_cost_basis"] == pytest.approx(0.0)
+    assert result["open_position_average_entry_price"] == pytest.approx(0.0)
+    assert result["open_position_market_value"] == pytest.approx(0.0)
+    assert result["open_position_unrealized_pnl"] == pytest.approx(0.0)
+    assert result["open_position_unrealized_pnl_pct"] == pytest.approx(0.0)
+
+
+class OpenPositionStrategy:
+    """Buy once and leave the position open through the final bar."""
+
+    name = "Open Position Test Strategy"
+
+    def generate_signals(self, price_data: pd.DataFrame) -> pd.DataFrame:
+        signals = price_data.copy()
+        signals["signal"] = [1, 0, 0]
+        return signals
+
+
+def test_backtest_engine_reports_terminal_open_position() -> None:
+    price_data = pd.DataFrame(
+        {
+            "Date": pd.date_range("2026-01-01", periods=3, freq="D"),
+            "Open": [100.0, 110.0, 130.0],
+            "High": [101.0, 111.0, 131.0],
+            "Low": [99.0, 109.0, 129.0],
+            "Close": [100.0, 110.0, 130.0],
+            "Volume": [1_000_000, 1_000_000, 1_000_000],
+        }
+    )
+
+    engine = BacktestEngine(
+        strategy=OpenPositionStrategy(),
+        ticker="AAPL",
+        starting_cash=1_000.0,
+        trade_size_pct=1.0,
+    )
+
+    result = engine.run(price_data)
+
+    assert result["has_open_position"] is True
+    assert result["open_position_shares"] == pytest.approx(10.0)
+    assert result["open_position_cost_basis"] == pytest.approx(1_000.0)
+    assert result["open_position_average_entry_price"] == pytest.approx(100.0)
+    assert result["open_position_market_value"] == pytest.approx(1_300.0)
+    assert result["open_position_unrealized_pnl"] == pytest.approx(300.0)
+    assert result["open_position_unrealized_pnl_pct"] == pytest.approx(30.0)
+
+    # Terminal mark-to-market affects portfolio return but does not
+    # manufacture a completed trade.
+    assert result["ending_value"] == pytest.approx(1_300.0)
+    assert result["total_return_pct"] == pytest.approx(30.0)
+    assert result["completed_trades"] == 0
+    assert result["win_rate_pct"] == pytest.approx(0.0)
