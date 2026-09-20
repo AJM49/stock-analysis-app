@@ -44,8 +44,7 @@ class BacktestEngine:
         trades: list[Trade] = []
         completed_trade_rows: list[dict[str, Any]] = []
         equity_rows: list[dict[str, Any]] = []
-        open_trade_price: float | None = None
-        open_trade_shares: float = 0.0
+        position_cost_basis = 0.0
 
         for _, row in signals.iterrows():
             date = row["Date"]
@@ -59,8 +58,7 @@ class BacktestEngine:
                 shares += shares_to_buy
                 cash -= cash_to_use
 
-                open_trade_price = close_price
-                open_trade_shares = shares_to_buy
+                position_cost_basis += cash_to_use
 
                 trades.append(
                     Trade(
@@ -84,13 +82,16 @@ class BacktestEngine:
                 pnl = 0.0
                 pnl_pct = 0.0
 
-                if open_trade_price is not None and open_trade_price > 0:
-                    pnl = (close_price - open_trade_price) * shares_sold
-                    pnl_pct = ((close_price - open_trade_price) / open_trade_price) * 100
-
+                if position_cost_basis > 0 and shares_sold > 0:
+                    average_entry_price = position_cost_basis / shares_sold
+                    pnl = cash_from_sale - position_cost_basis
+                    pnl_pct = (
+                        (close_price - average_entry_price)
+                        / average_entry_price
+                    ) * 100
                     completed_trade_rows.append(
                         {
-                            "entry_price": open_trade_price,
+                            "entry_price": average_entry_price,
                             "exit_price": close_price,
                             "shares": shares_sold,
                             "pnl": pnl,
@@ -99,9 +100,7 @@ class BacktestEngine:
                             "ticker": self.ticker,
                         }
                     )
-
-                open_trade_price = None
-                open_trade_shares = 0.0
+                position_cost_basis = 0.0
 
                 trades.append(
                     Trade(
@@ -164,6 +163,34 @@ class BacktestEngine:
 
         risk_metrics = build_risk_metric_summary(equity_curve)
 
+        has_open_position = shares > 0
+
+        if has_open_position:
+            final_close_price = float(equity_curve["Close"].iloc[-1])
+            open_position_shares = float(shares)
+            open_position_cost_basis = float(position_cost_basis)
+            open_position_average_entry_price = (
+                open_position_cost_basis / open_position_shares
+            )
+            open_position_market_value = (
+                open_position_shares * final_close_price
+            )
+            open_position_unrealized_pnl = (
+                open_position_market_value - open_position_cost_basis
+            )
+            open_position_unrealized_pnl_pct = (
+                open_position_unrealized_pnl
+                / open_position_cost_basis
+                * 100
+            )
+        else:
+            open_position_shares = 0.0
+            open_position_cost_basis = 0.0
+            open_position_average_entry_price = 0.0
+            open_position_market_value = 0.0
+            open_position_unrealized_pnl = 0.0
+            open_position_unrealized_pnl_pct = 0.0
+
         result = {
             "ticker": self.ticker,
             "strategy_name": self.strategy.name,
@@ -179,6 +206,17 @@ class BacktestEngine:
             "best_trade": metrics["best_trade"],
             "worst_trade": metrics["worst_trade"],
             "exposure_pct": metrics["exposure_pct"],
+            "has_open_position": has_open_position,
+            "open_position_shares": open_position_shares,
+            "open_position_cost_basis": open_position_cost_basis,
+            "open_position_average_entry_price": (
+                open_position_average_entry_price
+            ),
+            "open_position_market_value": open_position_market_value,
+            "open_position_unrealized_pnl": open_position_unrealized_pnl,
+            "open_position_unrealized_pnl_pct": (
+                open_position_unrealized_pnl_pct
+            ),
             "benchmark_name": benchmark_result["benchmark_name"],
             "benchmark_ending_value": benchmark_result["benchmark_ending_value"],
             "benchmark_total_return_pct": benchmark_result["benchmark_total_return_pct"],
