@@ -291,45 +291,6 @@ def format_portfolio_dataframe(portfolio_df):
     return formatted_df
 
 
-def calculate_portfolio_risk_score(portfolio_df):
-    if portfolio_df.empty:
-        return 0, "No portfolio data"
-
-    max_allocation = portfolio_df["Allocation %"].max()
-    average_volatility = portfolio_df["Volatility %"].mean()
-    position_count = len(portfolio_df)
-
-    score = 0
-
-    if max_allocation >= 50:
-        score += 40
-    elif max_allocation >= 35:
-        score += 25
-    elif max_allocation >= 20:
-        score += 10
-
-    if average_volatility >= 3:
-        score += 40
-    elif average_volatility >= 2:
-        score += 25
-    elif average_volatility >= 1:
-        score += 10
-
-    if position_count <= 2:
-        score += 20
-    elif position_count <= 4:
-        score += 10
-
-    if score >= 70:
-        label = "High Risk"
-    elif score >= 40:
-        label = "Moderate Risk"
-    else:
-        label = "Lower Risk"
-
-    return score, label
-
-
 def calculate_stop_loss(current_price, stop_loss_pct):
     stop_price = current_price * (1 - stop_loss_pct / 100)
     return stop_price
