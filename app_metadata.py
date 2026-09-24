@@ -2,7 +2,7 @@ from __future__ import annotations
 
 APP_NAME = "Stock Analysis Dashboard"
 
-APP_VERSION = "0.4.3"
+APP_VERSION = "0.4.4"
 
 RELEASE_LABEL = "Company Research and Portfolio Intelligence"
 
