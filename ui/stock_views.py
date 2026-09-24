@@ -6,41 +6,11 @@ from datetime import date
 import pandas as pd
 import streamlit as st
 
-from indicators import get_volatility_signal
-
-def get_rsi_signal(rsi_value):
-    if rsi_value is None:
-        return "Neutral"
-
-    try:
-        rsi_value = float(rsi_value)
-    except (TypeError, ValueError):
-        return "Neutral"
-
-    if rsi_value >= 70:
-        return "Overbought"
-    if rsi_value <= 30:
-        return "Oversold"
-
-    return "Neutral"
-
-
-def get_macd_signal(macd_value, signal_value):
-    if macd_value is None or signal_value is None:
-        return "Neutral"
-
-    try:
-        macd_value = float(macd_value)
-        signal_value = float(signal_value)
-    except (TypeError, ValueError):
-        return "Neutral"
-
-    if macd_value > signal_value:
-        return "Bullish"
-    if macd_value < signal_value:
-        return "Bearish"
-
-    return "Neutral"
+from indicators import (
+    get_macd_signal,
+    get_rsi_signal,
+    get_volatility_signal,
+)
 
 
 def get_moving_average_signal(current_price, moving_average):
