@@ -1,5 +1,7 @@
 """Portfolio allocation drift and rebalance recommendations."""
 
+from core.ticker import clean_ticker_symbol
+
 from math import floor
 from math import isfinite
 
@@ -38,9 +40,9 @@ def clamp(value, minimum, maximum):
 
 
 def normalize_ticker(value):
-    """Normalize a ticker symbol."""
+    """Normalize a ticker symbol using the canonical core helper."""
 
-    return str(value or "").strip().upper()
+    return clean_ticker_symbol(value)
 
 
 def normalize_rebalance_settings(settings=None):

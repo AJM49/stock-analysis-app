@@ -1,5 +1,7 @@
 """Validation and audit helpers for paper-trading positions."""
 
+from core.ticker import clean_ticker_symbol
+
 import re
 from math import isfinite
 
@@ -30,9 +32,9 @@ def safe_float(value, default=0.0):
 
 
 def normalize_ticker(value):
-    """Normalize a ticker symbol."""
+    """Normalize a ticker symbol using the canonical core helper."""
 
-    return str(value or "").strip().upper()
+    return clean_ticker_symbol(value)
 
 
 def validate_ticker_format(value):
