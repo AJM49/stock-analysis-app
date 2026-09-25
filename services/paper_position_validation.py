@@ -1,9 +1,9 @@
 """Validation and audit helpers for paper-trading positions."""
 
+from core.numbers import safe_float
 from core.ticker import clean_ticker_symbol
 
 import re
-from math import isfinite
 
 
 FLOAT_TOLERANCE = 1e-9
@@ -15,20 +15,6 @@ MINIMUM_VALID_PRICE = 0.01
 TICKER_PATTERN = re.compile(
     r"^[A-Z]{1,5}(?:[.-][A-Z]{1,2})?$"
 )
-
-
-def safe_float(value, default=0.0):
-    """Convert a value to a finite float."""
-
-    try:
-        number = float(value)
-    except (TypeError, ValueError):
-        return float(default)
-
-    if not isfinite(number):
-        return float(default)
-
-    return number
 
 
 def normalize_ticker(value):

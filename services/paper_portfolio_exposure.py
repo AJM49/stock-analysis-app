@@ -1,8 +1,8 @@
 """Portfolio exposure and concentration analytics."""
 
-from math import isfinite
 
 
+from core.numbers import safe_float
 MONEY_PRECISION = 2
 PERCENT_PRECISION = 2
 FLOAT_TOLERANCE = 1e-9
@@ -12,20 +12,6 @@ DEFAULT_EXPOSURE_SETTINGS = {
     "warning_position_value_pct": 15.0,
     "minimum_cash_reserve_pct": 10.0,
 }
-
-
-def safe_float(value, default=0.0):
-    """Convert a value to a finite float."""
-
-    try:
-        number = float(value)
-    except (TypeError, ValueError):
-        return float(default)
-
-    if not isfinite(number):
-        return float(default)
-
-    return number
 
 
 def clamp(value, minimum, maximum):

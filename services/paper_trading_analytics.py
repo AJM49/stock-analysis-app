@@ -1,7 +1,7 @@
 """Closed-trade analytics for paper-trading accounts."""
 
+from core.numbers import safe_float
 from collections import defaultdict
-from math import isfinite
 
 from database import PaperTrade
 from database import get_database_session
@@ -10,20 +10,6 @@ from database import get_database_session
 MONEY_PRECISION = 2
 PERCENT_PRECISION = 2
 FLOAT_TOLERANCE = 1e-9
-
-
-def safe_float(value, default=0.0):
-    """Convert a value to a finite float."""
-
-    try:
-        number = float(value)
-    except (TypeError, ValueError):
-        return float(default)
-
-    if not isfinite(number):
-        return float(default)
-
-    return number
 
 
 def classify_trade_result(realized_profit_loss):
