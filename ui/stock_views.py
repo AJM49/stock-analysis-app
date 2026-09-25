@@ -11,6 +11,7 @@ from indicators import (
     get_rsi_signal,
     get_volatility_signal,
 )
+from ui.charts import make_arrow_safe
 
 
 def get_moving_average_signal(current_price, moving_average):

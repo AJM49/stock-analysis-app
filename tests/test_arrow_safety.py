@@ -41,3 +41,11 @@ def test_make_arrow_safe_returns_empty_dataframe_for_none() -> None:
 
     assert isinstance(result, pd.DataFrame)
     assert result.empty
+
+
+def test_stock_views_uses_canonical_arrow_safe_helper() -> None:
+    import ui.stock_views as stock_views
+
+    from ui.charts import make_arrow_safe
+
+    assert stock_views.make_arrow_safe is make_arrow_safe
