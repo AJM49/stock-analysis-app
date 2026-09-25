@@ -1,5 +1,7 @@
 """Paper-trading order validation and execution service."""
 
+from core.ticker import clean_ticker_symbol
+
 from datetime import UTC
 from datetime import datetime
 from math import isfinite
@@ -31,9 +33,9 @@ FLOAT_TOLERANCE = 1e-9
 
 
 def normalize_ticker(ticker):
-    """Return a normalized stock ticker."""
+    """Normalize a ticker symbol using the canonical core helper."""
 
-    return str(ticker or "").strip().upper()
+    return clean_ticker_symbol(ticker)
 
 
 def normalize_side(side):
