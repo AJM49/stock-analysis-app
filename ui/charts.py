@@ -117,6 +117,9 @@ def render_comparison_chart(
     st.line_chart(chart_data[[ticker, comparison_ticker]])
 
 def make_arrow_safe(dataframe):
+    if dataframe is None:
+        return pd.DataFrame()
+
     safe_dataframe = dataframe.copy()
 
     for column in safe_dataframe.columns:
