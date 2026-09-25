@@ -1,7 +1,7 @@
 """Guarded execution workflow for rebalance recommendations."""
 
-from math import isfinite
 
+from core.numbers import safe_float
 from database import PaperPosition
 from database import get_database_session
 from services.paper_position_validation import (
@@ -28,20 +28,6 @@ ALLOWED_ACTIONS = {"BUY", "SELL"}
 QUANTITY_PRECISION = 6
 MONEY_PRECISION = 2
 FLOAT_TOLERANCE = 1e-9
-
-
-def safe_float(value, default=0.0):
-    """Convert a value to a finite float."""
-
-    try:
-        number = float(value)
-    except (TypeError, ValueError):
-        return float(default)
-
-    if not isfinite(number):
-        return float(default)
-
-    return number
 
 
 def normalize_action(value):

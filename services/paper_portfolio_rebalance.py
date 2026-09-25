@@ -1,9 +1,9 @@
 """Portfolio allocation drift and rebalance recommendations."""
 
+from core.numbers import safe_float
 from core.ticker import clean_ticker_symbol
 
 from math import floor
-from math import isfinite
 
 
 MONEY_PRECISION = 2
@@ -17,20 +17,6 @@ DEFAULT_REBALANCE_SETTINGS = {
     "minimum_cash_reserve_pct": 10.0,
     "allow_fractional_shares": True,
 }
-
-
-def safe_float(value, default=0.0):
-    """Convert a value to a finite float."""
-
-    try:
-        number = float(value)
-    except (TypeError, ValueError):
-        return float(default)
-
-    if not isfinite(number):
-        return float(default)
-
-    return number
 
 
 def clamp(value, minimum, maximum):
