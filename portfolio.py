@@ -261,36 +261,6 @@ def calculate_portfolio_data_health(portfolio_df):
     }
 
 
-def format_portfolio_dataframe(portfolio_df):
-    formatted_df = portfolio_df.copy()
-
-    money_columns = [
-        "Buy Price",
-        "Current Price",
-        "Cost Basis",
-        "Current Value",
-        "Gain/Loss"
-    ]
-
-    for column in money_columns:
-        formatted_df[column] = formatted_df[column].map(
-            lambda value: f"${value:,.2f}"
-        )
-
-    percent_columns = [
-        "Gain/Loss %",
-        "Allocation %",
-        "Volatility %"
-    ]
-
-    for column in percent_columns:
-        formatted_df[column] = formatted_df[column].map(
-            lambda value: f"{value:.2f}%"
-        )
-
-    return formatted_df
-
-
 def calculate_stop_loss(current_price, stop_loss_pct):
     stop_price = current_price * (1 - stop_loss_pct / 100)
     return stop_price
