@@ -5,6 +5,8 @@ from database import save_portfolio_scenario, get_portfolio_scenarios, delete_po
 import pandas as pd
 import streamlit as st
 
+from ui.charts import make_arrow_safe
+
 REPORT_SPRINT_VERSION = "Sprint 64"
 REPORT_FEATURE_LABEL = "Portfolio Reporting and Decision Support"
 import plotly.express as px
@@ -12,20 +14,6 @@ from services.portfolio_analytics_service import build_portfolio_risk_flags, bui
 from portfolio import calculate_target_price
 from portfolio import calculate_stop_loss
 from portfolio import calculate_risk_reward
-
-def make_arrow_safe(dataframe: pd.DataFrame) -> pd.DataFrame:
-    """Return dataframe copy that is safe for Streamlit Arrow rendering."""
-    if dataframe is None:
-        return pd.DataFrame()
-
-    safe_df = dataframe.copy()
-
-    for column in safe_df.columns:
-        if safe_df[column].dtype == "object":
-            safe_df[column] = safe_df[column].astype(str)
-
-    return safe_df
-
 
 def format_portfolio_dataframe(portfolio_df: pd.DataFrame) -> pd.DataFrame:
     """Format portfolio dataframe for display."""
