@@ -1,5 +1,6 @@
 """Portfolio allocation drift and rebalance recommendations."""
 
+from core.numbers import clamp
 from core.numbers import safe_float
 from core.ticker import clean_ticker_symbol
 
@@ -17,12 +18,6 @@ DEFAULT_REBALANCE_SETTINGS = {
     "minimum_cash_reserve_pct": 10.0,
     "allow_fractional_shares": True,
 }
-
-
-def clamp(value, minimum, maximum):
-    """Clamp a numeric value to a fixed range."""
-
-    return max(minimum, min(maximum, value))
 
 
 def normalize_ticker(value):

@@ -12,3 +12,8 @@ def safe_float(value, default=0.0):
         return float(default)
 
     return number
+
+
+def clamp(value, minimum, maximum):
+    """Clamp a numeric value to a fixed range."""
+    return max(minimum, min(maximum, value))

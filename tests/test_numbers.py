@@ -16,3 +16,13 @@ from core.numbers import safe_float
 )
 def test_safe_float(value, default, expected):
     assert safe_float(value, default) == expected
+
+
+def test_clamp_limits_value_to_inclusive_range():
+    from core.numbers import clamp
+
+    assert clamp(5.0, 0.0, 10.0) == 5.0
+    assert clamp(-1.0, 0.0, 10.0) == 0.0
+    assert clamp(11.0, 0.0, 10.0) == 10.0
+    assert clamp(0.0, 0.0, 10.0) == 0.0
+    assert clamp(10.0, 0.0, 10.0) == 10.0
