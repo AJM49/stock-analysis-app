@@ -1,8 +1,8 @@
 import pytest
 
+from core.ticker import clean_ticker_symbol
 from services.paper_position_validation import (
     audit_position_record,
-    normalize_ticker,
     safe_float,
     validate_ticker_format,
 )
@@ -24,8 +24,8 @@ def issue_codes(result):
         (None, ""),
     ],
 )
-def test_normalize_ticker(raw_ticker, expected):
-    assert normalize_ticker(raw_ticker) == expected
+def test_clean_ticker_symbol(raw_ticker, expected):
+    assert clean_ticker_symbol(raw_ticker) == expected
 
 
 @pytest.mark.parametrize(
@@ -66,7 +66,7 @@ def test_invalid_ticker_formats_are_rejected(ticker):
     )
 
     assert valid is False
-    assert normalized == normalize_ticker(ticker)
+    assert normalized == clean_ticker_symbol(ticker)
     assert error
 
 

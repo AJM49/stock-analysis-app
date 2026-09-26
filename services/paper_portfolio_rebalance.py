@@ -20,12 +20,6 @@ DEFAULT_REBALANCE_SETTINGS = {
 }
 
 
-def normalize_ticker(value):
-    """Normalize a ticker symbol using the canonical core helper."""
-
-    return clean_ticker_symbol(value)
-
-
 def normalize_rebalance_settings(settings=None):
     """Return validated rebalance settings."""
 
@@ -87,7 +81,7 @@ def normalize_target_allocations(target_allocations):
     for raw_ticker, raw_weight in (
         target_allocations or {}
     ).items():
-        ticker = normalize_ticker(raw_ticker)
+        ticker = clean_ticker_symbol(raw_ticker)
 
         if not ticker:
             continue
@@ -199,7 +193,7 @@ def calculate_rebalance_plan(
     current_positions = {}
 
     for raw_row in position_rows or []:
-        ticker = normalize_ticker(
+        ticker = clean_ticker_symbol(
             raw_row.get("ticker")
             or raw_row.get("Ticker")
         )
