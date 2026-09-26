@@ -16,14 +16,14 @@ from services.paper_trading_performance import save_automatic_equity_snapshot
 from services.paper_position_validation import validate_ticker_format
 
 
+from core.paper_trading_constants import FLOAT_TOLERANCE
+from core.paper_trading_constants import MONEY_PRECISION
+from core.paper_trading_constants import QUANTITY_PRECISION
 VALID_ORDER_SIDES = {"BUY", "SELL"}
 MARKET_ORDER_TYPE = "MARKET"
 FILLED_STATUS = "FILLED"
 REJECTED_STATUS = "REJECTED"
 
-MONEY_PRECISION = 2
-QUANTITY_PRECISION = 6
-FLOAT_TOLERANCE = 1e-9
 
 
 def normalize_ticker(ticker):

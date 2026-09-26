@@ -7,9 +7,9 @@ from database import PaperTrade
 from database import get_database_session
 
 
-MONEY_PRECISION = 2
+from core.paper_trading_constants import FLOAT_TOLERANCE
+from core.paper_trading_constants import MONEY_PRECISION
 PERCENT_PRECISION = 2
-FLOAT_TOLERANCE = 1e-9
 
 
 def classify_trade_result(realized_profit_loss):

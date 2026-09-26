@@ -4,6 +4,9 @@
 from core.numbers import safe_float
 from database import PaperPosition
 from database import get_database_session
+from core.paper_trading_constants import FLOAT_TOLERANCE
+from core.paper_trading_constants import MONEY_PRECISION
+from core.paper_trading_constants import QUANTITY_PRECISION
 from services.paper_position_validation import (
     validate_ticker_format,
 )
@@ -25,9 +28,6 @@ from services.paper_rebalance_audit import (
 
 
 ALLOWED_ACTIONS = {"BUY", "SELL"}
-QUANTITY_PRECISION = 6
-MONEY_PRECISION = 2
-FLOAT_TOLERANCE = 1e-9
 
 
 def normalize_action(value):

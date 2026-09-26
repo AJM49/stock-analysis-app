@@ -6,7 +6,7 @@ from core.ticker import clean_ticker_symbol
 import re
 
 
-FLOAT_TOLERANCE = 1e-9
+from core.paper_trading_constants import FLOAT_TOLERANCE
 MINIMUM_VALID_PRICE = 0.01
 
 # Standard application-supported format:
