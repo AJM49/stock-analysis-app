@@ -9,6 +9,7 @@ from database import PaperOrder
 from database import PaperPosition
 
 
+from core.paper_trading_constants import FLOAT_TOLERANCE
 DEFAULT_RISK_SETTINGS = {
     "max_order_value_pct": 10.0,
     "max_position_value_pct": 20.0,
@@ -24,7 +25,6 @@ BLOCKING_LEVEL = "BLOCK"
 WARNING_LEVEL = "WARNING"
 PASS_LEVEL = "PASS"
 
-FLOAT_TOLERANCE = 1e-9
 
 
 def build_risk_result(

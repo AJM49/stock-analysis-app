@@ -7,10 +7,10 @@ from core.ticker import clean_ticker_symbol
 from math import floor
 
 
-MONEY_PRECISION = 2
+from core.paper_trading_constants import FLOAT_TOLERANCE
+from core.paper_trading_constants import MONEY_PRECISION
+from core.paper_trading_constants import QUANTITY_PRECISION
 PERCENT_PRECISION = 2
-SHARE_PRECISION = 6
-FLOAT_TOLERANCE = 1e-9
 
 DEFAULT_REBALANCE_SETTINGS = {
     "drift_warning_pct": 2.0,
@@ -152,7 +152,7 @@ def round_share_adjustment(
     shares = safe_float(share_adjustment)
 
     if allow_fractional_shares:
-        return round(shares, SHARE_PRECISION)
+        return round(shares, QUANTITY_PRECISION)
 
     if shares > 0:
         return float(floor(shares))
@@ -235,7 +235,7 @@ def calculate_rebalance_plan(
             "ticker": ticker,
             "quantity": round(
                 max(quantity, 0.0),
-                SHARE_PRECISION,
+                QUANTITY_PRECISION,
             ),
             "current_price": round(
                 max(current_price, 0.0),
@@ -443,7 +443,7 @@ def calculate_rebalance_plan(
                 ),
                 "raw_share_adjustment": round(
                     raw_share_adjustment,
-                    SHARE_PRECISION,
+                    QUANTITY_PRECISION,
                 ),
                 "suggested_adjustment_value": round(
                     suggested_adjustment_value,

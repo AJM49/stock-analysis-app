@@ -12,8 +12,8 @@ from database import PaperTrade
 from database import get_database_session
 
 
+from core.paper_trading_constants import MONEY_PRECISION
 DEFAULT_STARTING_CASH = 100000.0
-MONEY_PRECISION = 2
 PERCENT_PRECISION = 4
 
 

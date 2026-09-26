@@ -4,9 +4,9 @@
 
 from core.numbers import clamp
 from core.numbers import safe_float
-MONEY_PRECISION = 2
+from core.paper_trading_constants import FLOAT_TOLERANCE
+from core.paper_trading_constants import MONEY_PRECISION
 PERCENT_PRECISION = 2
-FLOAT_TOLERANCE = 1e-9
 
 DEFAULT_EXPOSURE_SETTINGS = {
     "max_position_value_pct": 20.0,
