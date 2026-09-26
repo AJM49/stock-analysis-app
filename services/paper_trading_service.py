@@ -26,12 +26,6 @@ REJECTED_STATUS = "REJECTED"
 
 
 
-def normalize_ticker(ticker):
-    """Normalize a ticker symbol using the canonical core helper."""
-
-    return clean_ticker_symbol(ticker)
-
-
 def normalize_side(side):
     """Return a normalized order side."""
 
@@ -58,7 +52,7 @@ def validate_positive_number(value, field_name):
 def validate_order_inputs(ticker, side, quantity, execution_price):
     """Validate common paper-order inputs."""
 
-    clean_ticker = normalize_ticker(ticker)
+    clean_ticker = clean_ticker_symbol(ticker)
     clean_side = normalize_side(side)
 
     ticker_valid, clean_ticker, ticker_error = (
@@ -166,7 +160,7 @@ def create_rejected_order(
 ):
     """Persist a rejected order for audit history."""
 
-    clean_ticker = normalize_ticker(ticker)
+    clean_ticker = clean_ticker_symbol(ticker)
     clean_side = normalize_side(side)
 
     try:

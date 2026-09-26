@@ -73,33 +73,3 @@ def test_is_valid_ticker_format_rejects_invalid_characters(raw_ticker) -> None:
 
     assert valid is False
     assert error == "Ticker contains invalid characters."
-
-
-@pytest.mark.parametrize(
-    "raw_ticker",
-    [
-        "AAPL",
-        " aapl ",
-        "BRK.B",
-        "brk-b",
-        "",
-        "   ",
-        None,
-    ],
-)
-def test_permissive_paper_trading_normalizers_match_core(raw_ticker) -> None:
-    from services.paper_portfolio_rebalance import (
-        normalize_ticker as normalize_rebalance_ticker,
-    )
-    from services.paper_position_validation import (
-        normalize_ticker as normalize_position_ticker,
-    )
-    from services.paper_trading_service import (
-        normalize_ticker as normalize_trading_ticker,
-    )
-
-    expected = clean_ticker_symbol(raw_ticker)
-
-    assert normalize_rebalance_ticker(raw_ticker) == expected
-    assert normalize_position_ticker(raw_ticker) == expected
-    assert normalize_trading_ticker(raw_ticker) == expected

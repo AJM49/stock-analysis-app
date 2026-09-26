@@ -17,12 +17,6 @@ TICKER_PATTERN = re.compile(
 )
 
 
-def normalize_ticker(value):
-    """Normalize a ticker symbol using the canonical core helper."""
-
-    return clean_ticker_symbol(value)
-
-
 def validate_ticker_format(value):
     """
     Validate an application-supported ticker format.
@@ -34,7 +28,7 @@ def validate_ticker_format(value):
             error message
     """
 
-    ticker = normalize_ticker(value)
+    ticker = clean_ticker_symbol(value)
 
     if not ticker:
         return False, ticker, "Ticker cannot be empty."
@@ -60,7 +54,7 @@ def audit_position_record(
 ):
     """Audit one paper-position record without modifying it."""
 
-    clean_ticker = normalize_ticker(ticker)
+    clean_ticker = clean_ticker_symbol(ticker)
     clean_quantity = safe_float(quantity)
     clean_average_cost = safe_float(average_cost)
 
