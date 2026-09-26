@@ -1,15 +1,9 @@
 """Pre-trade risk controls for simulated paper orders."""
 
-from datetime import UTC
-from datetime import datetime
 from datetime import timedelta
 from math import isfinite
 
-def utc_now():
-    """Return naive UTC for existing timestamp columns."""
-
-    return datetime.now(UTC).replace(tzinfo=None)
-
+from core.time import utc_now
 
 from database import PaperOrder
 from database import PaperPosition

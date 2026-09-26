@@ -1,22 +1,14 @@
 """Persistence service for rebalance execution audit records."""
 
 import json
-from datetime import UTC
-from datetime import datetime
 from uuid import uuid4
 
+from core.time import utc_now
 from database import PaperPosition
 from database import PaperRebalanceBatch
 from database import PaperRebalanceItem
 from database import get_database_session
 
-
-def utc_now():
-    """
-    Return naive UTC for existing timestamp-without-timezone columns.
-    """
-
-    return datetime.now(UTC).replace(tzinfo=None)
 
 
 BATCH_STATUSES = {

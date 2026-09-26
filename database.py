@@ -1,6 +1,4 @@
 import os
-from datetime import UTC
-from datetime import datetime
 
 import streamlit as st
 from sqlalchemy import Boolean
@@ -16,19 +14,10 @@ from sqlalchemy import inspect
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker
 
+from core.time import utc_now
+
 
 LOCAL_DATABASE_URL = "sqlite:///stocks.db"
-
-
-def utc_now():
-    """
-    Return naive UTC for existing timestamp-without-timezone columns.
-
-    utc_now() is deprecated in Python 3.14.
-    """
-
-    return datetime.now(UTC).replace(tzinfo=None)
-
 
 def normalize_database_url(database_url):
     if database_url.startswith("postgres://"):

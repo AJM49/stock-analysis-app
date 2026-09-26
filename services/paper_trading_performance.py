@@ -1,14 +1,8 @@
 """Paper-trading equity history, drawdown, and account reset service."""
 
-from datetime import UTC
-from datetime import datetime
 from math import isfinite
 
-def utc_now():
-    """Return naive UTC for existing timestamp columns."""
-
-    return datetime.now(UTC).replace(tzinfo=None)
-
+from core.time import utc_now
 
 from database import PaperAccount
 from database import PaperEquitySnapshot
