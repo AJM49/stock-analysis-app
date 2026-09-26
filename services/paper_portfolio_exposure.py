@@ -2,6 +2,7 @@
 
 
 
+from core.numbers import clamp
 from core.numbers import safe_float
 MONEY_PRECISION = 2
 PERCENT_PRECISION = 2
@@ -12,12 +13,6 @@ DEFAULT_EXPOSURE_SETTINGS = {
     "warning_position_value_pct": 15.0,
     "minimum_cash_reserve_pct": 10.0,
 }
-
-
-def clamp(value, minimum, maximum):
-    """Clamp a numeric value to a fixed range."""
-
-    return max(minimum, min(maximum, value))
 
 
 def normalize_exposure_settings(settings=None):
