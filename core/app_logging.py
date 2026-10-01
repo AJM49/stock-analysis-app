@@ -56,13 +56,3 @@ def log_warning(message: str, context: str = "") -> None:
         logger.warning("%s | %s", context, message)
     else:
         logger.warning(message)
-
-
-def log_app_error(error: Exception, context: str) -> None:
-    """Backward-compatible app error logger."""
-    log_error(error=error, context=context)
-
-
-def log_app_info(message: str) -> None:
-    """Backward-compatible app info logger."""
-    log_info(message)

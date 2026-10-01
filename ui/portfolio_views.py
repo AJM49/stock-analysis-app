@@ -1,5 +1,5 @@
 from __future__ import annotations
-from core.app_logging import log_app_error
+from core.app_logging import log_error
 from database import save_portfolio_scenario, get_portfolio_scenarios, delete_portfolio_scenario, ensure_portfolio_scenario_table, get_portfolio_scenario_database_health, delete_duplicate_portfolio_scenarios, get_app_database_health
 
 import pandas as pd
@@ -3821,7 +3821,7 @@ def render_app_health_check_panel() -> None:
 
 def render_safe_error(message: str, error: Exception, context: str) -> None:
     """Show user-friendly error and log technical details."""
-    log_app_error(error, context)
+    log_error(error, context)
     st.error(message)
     st.caption(
         "Technical details were logged for debugging. "
