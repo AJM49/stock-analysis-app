@@ -3,31 +3,6 @@ import pandas as pd
 
 from database import get_latest_cached_prices
 
-def get_latest_price_for_ticker(ticker: str) -> float:
-    """Return latest cached close price for a ticker."""
-    from services.market_data_service import get_stock_data
-
-    result = get_stock_data(ticker, cache_only=True)
-
-    if isinstance(result, tuple):
-        history = result[0]
-    else:
-        history = getattr(result, "history", None)
-
-    if history is None or history.empty:
-        return 0.0
-
-    if "Close" not in history.columns:
-        return 0.0
-
-    latest_close = history["Close"].dropna()
-
-    if latest_close.empty:
-        return 0.0
-
-    return float(latest_close.iloc[-1])
-
-
 def empty_portfolio_dataframe():
     return pd.DataFrame(columns=PORTFOLIO_COLUMNS)
 
