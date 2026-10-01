@@ -689,10 +689,6 @@ def get_current_price(ticker: object) -> float | None:
     return float(history["Close"].iloc[-1])
 
 
-def get_latest_price(ticker: object) -> float | None:
-    return get_current_price(ticker)
-
-
 def calculate_price_change(history: pd.DataFrame) -> tuple[float, float]:
     if history is None or history.empty:
         return 0, 0
