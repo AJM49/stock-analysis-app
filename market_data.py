@@ -13,7 +13,6 @@ from services.market_data_service import fetch_alpha_vantage_daily_data
 from services.market_data_service import fetch_stock_data
 from services.market_data_service import get_alpha_vantage_key
 from services.market_data_service import get_current_price
-from services.market_data_service import get_latest_price
 from services.market_data_service import get_market_data
 from services.market_data_service import get_stock_data
 from services.market_data_service import get_stock_volatility
