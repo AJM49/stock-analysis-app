@@ -10,6 +10,7 @@ from database import get_database_session
 from core.paper_trading_constants import FLOAT_TOLERANCE
 from core.paper_trading_constants import MONEY_PRECISION
 PERCENT_PRECISION = 2
+RATIO_PRECISION = 2
 
 
 def classify_trade_result(realized_profit_loss):
@@ -106,7 +107,7 @@ def calculate_profit_factor(gross_profit, gross_loss):
 
     return round(
         clean_profit / clean_loss,
-        PERCENT_PRECISION,
+        RATIO_PRECISION,
     )
 
 
