@@ -9,7 +9,6 @@ from market_data import calculate_price_change
 from market_data import is_provider_quota_error
 from market_data import load_stock_data
 from market_data import set_market_data_quota_limited
-from market_data import validate_ticker
 
 
 @dataclass
@@ -22,10 +21,6 @@ class StockLoadResult:
     is_quota_error: bool
     price_change: float
     price_change_pct: float
-
-
-def validate_stock_ticker(ticker: str) -> tuple[bool, str]:
-    return validate_ticker(ticker)
 
 
 def load_stock_dashboard_data(
