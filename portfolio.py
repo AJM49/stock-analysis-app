@@ -3,10 +3,6 @@ import pandas as pd
 
 from database import get_latest_cached_prices
 
-def empty_portfolio_dataframe():
-    return pd.DataFrame(columns=PORTFOLIO_COLUMNS)
-
-
 
 
 def classify_cached_price_freshness(price_date):
