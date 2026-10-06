@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import sys
-from datetime import date, datetime
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -12,30 +11,8 @@ if str(PROJECT_ROOT) not in sys.path:
 from core.cache_policy import CACHE_REFRESH_TARGET_TICKERS
 from core.cache_policy import FRESH_CACHE_DAYS
 from core.cache_policy import STALE_CACHE_DAYS
+from core.time import get_age_days, parse_last_fetched
 from database import get_market_data_cache_summary
-
-
-def parse_last_fetched(value: object) -> datetime | None:
-    if value is None:
-        return None
-
-    if isinstance(value, datetime):
-        return value
-
-    if isinstance(value, date):
-        return datetime.combine(value, datetime.min.time())
-
-    try:
-        return datetime.fromisoformat(str(value))
-    except ValueError:
-        return None
-
-
-def get_age_days(last_fetched: datetime | None) -> int | None:
-    if last_fetched is None:
-        return None
-
-    return (datetime.now() - last_fetched).days
 
 
 def get_status(age_days: int | None) -> str:
