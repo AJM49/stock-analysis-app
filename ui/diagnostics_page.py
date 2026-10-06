@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import json
-import os
 import platform
 import sys
 
 import pandas as pd
 import streamlit as st
+
+from core.runtime_config import get_env_status, get_secret_status
 
 from sqlalchemy import text
 
@@ -26,19 +27,6 @@ from market_data import is_provider_quota_error
 from market_data import fetch_alpha_vantage_daily_data
 from market_data import is_market_data_quota_limited
 from services.health_check_service import run_production_health_check
-
-
-def get_secret_status(secret_name: str) -> bool:
-    try:
-        value = st.secrets.get(secret_name)
-    except Exception:
-        value = None
-
-    return bool(value)
-
-
-def get_env_status(env_name: str) -> bool:
-    return bool(os.getenv(env_name))
 
 
 
