@@ -24,6 +24,7 @@ from market_data import load_stock_data
 from market_data import validate_ticker
 from controllers.portfolio_controller import build_portfolio_dashboard_data
 from ui_components import render_company_profile
+from ui.valuation_views import render_cached_valuation_research
 from ui.portfolio_views import render_portfolio_dashboard
 from ui.portfolio_views import render_portfolio_snapshot_history
 from ui.portfolio_views import render_portfolio_snapshot_export
@@ -329,6 +330,8 @@ try:
         info,
         show_company_overview
     )
+
+    render_cached_valuation_research(ticker, current_price)
 
     render_technical_indicators(
         history,
