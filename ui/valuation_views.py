@@ -66,3 +66,19 @@ def render_cached_valuation_research(ticker: str, price: float) -> None:
         st.warning("Valuation unavailable: profile lookup or calculation failed.")
         return
     render_valuation_result(result)
+
+
+
+def render_valuation_unavailable() -> None:
+    """Show missing-price state without fetching fundamentals."""
+    st.subheader("Valuation Research")
+    st.caption("Descriptive ratios only. No investment score or recommendation.")
+
+    left, right = st.columns(2)
+    left.metric("Calculated trailing P/E", "N/A")
+    right.metric("Free cash flow yield", "N/A")
+
+    st.warning(
+        "Valuation unavailable: a valid market price is required. "
+        "No valuation calculation or fundamentals lookup was performed."
+    )
