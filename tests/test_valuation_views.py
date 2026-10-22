@@ -79,3 +79,35 @@ def test_lookup_errors_do_not_crash_dashboard(monkeypatch, error):
     valuation_views.render_cached_valuation_research("AAPL", 100)
     assert mock_st.warning.called
     assert "Valuation unavailable" in mock_st.warning.call_args.args[0]
+
+
+def test_missing_price_displays_unavailable_metrics(monkeypatch):
+    mock_st = MagicMock()
+    mock_st.columns.return_value = (MagicMock(), MagicMock())
+    monkeypatch.setattr(valuation_views, "st", mock_st)
+
+    valuation_views.render_valuation_unavailable()
+
+    left, right = mock_st.columns.return_value
+    left.metric.assert_called_once_with(
+        "Calculated trailing P/E", "N/A"
+    )
+    right.metric.assert_called_once_with(
+        "Free cash flow yield", "N/A"
+    )
+    assert "valid market price" in mock_st.warning.call_args.args[0]
+
+
+def test_missing_price_does_not_query_fundamentals(monkeypatch):
+    mock_st = MagicMock()
+    mock_st.columns.return_value = (MagicMock(), MagicMock())
+    monkeypatch.setattr(valuation_views, "st", mock_st)
+
+    lookup = MagicMock()
+    monkeypatch.setattr(
+        valuation_views, "calculate_cached_valuation", lookup
+    )
+
+    valuation_views.render_valuation_unavailable()
+
+    lookup.assert_not_called()
