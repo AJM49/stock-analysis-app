@@ -24,6 +24,10 @@ from market_data import load_stock_data
 from market_data import validate_ticker
 from controllers.portfolio_controller import build_portfolio_dashboard_data
 from ui_components import render_company_profile
+from ui.valuation_views import (
+    render_cached_valuation_research,
+    render_valuation_unavailable,
+)
 from ui.portfolio_views import render_portfolio_dashboard
 from ui.portfolio_views import render_portfolio_snapshot_history
 from ui.portfolio_views import render_portfolio_snapshot_export
@@ -300,13 +304,16 @@ try:
                 "Try a ticker already saved in market_data_cache, "
                 "or refresh again tomorrow when the API quota resets."
             )
+            render_valuation_unavailable()
             st.stop()
 
         st.error(safe_error_message)
+        render_valuation_unavailable()
         st.stop()
 
     if history is None or history.empty:
         st.error("No price history is available for " + ticker + ".")
+        render_valuation_unavailable()
         st.stop()
 
     history, volatility = add_technical_indicators(history)
@@ -315,6 +322,7 @@ try:
 
     if current_price is None:
         st.error("Not enough price data to analyze " + ticker + ".")
+        render_valuation_unavailable()
         st.stop()
 
     render_stock_header(
@@ -329,6 +337,8 @@ try:
         info,
         show_company_overview
     )
+
+    render_cached_valuation_research(ticker, current_price)
 
     render_technical_indicators(
         history,
