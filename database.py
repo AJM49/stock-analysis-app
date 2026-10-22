@@ -653,6 +653,8 @@ class CompanyProfileCache(Base):
     fifty_two_week_high = Column(Float)
     fifty_two_week_low = Column(Float)
     trailing_pe = Column(Float)
+    eps = Column(Float, nullable=True)
+    shares_outstanding = Column(Float, nullable=True)
     dividend_yield = Column(Float)
     beta = Column(Float)
     source = Column(String)
@@ -675,8 +677,39 @@ class CompanyProfileCache(Base):
 
 
 
+def ensure_company_profile_valuation_columns() -> None:
+    """Add nullable valuation inputs to an existing profile cache table."""
+    dialect = engine.dialect.name
+    if dialect not in {"sqlite", "postgresql"}:
+        raise RuntimeError(f"Unsupported database dialect: {dialect}")
+
+    with engine.begin() as connection:
+        inspector = inspect(connection)
+        if not inspector.has_table("company_profile_cache"):
+            return
+
+        if dialect == "postgresql":
+            for column in ("eps", "shares_outstanding"):
+                connection.exec_driver_sql(
+                    "ALTER TABLE company_profile_cache "
+                    f"ADD COLUMN IF NOT EXISTS {column} DOUBLE PRECISION"
+                )
+        else:
+            existing = {
+                column["name"]
+                for column in inspector.get_columns("company_profile_cache")
+            }
+            for column in ("eps", "shares_outstanding"):
+                if column not in existing:
+                    connection.exec_driver_sql(
+                        "ALTER TABLE company_profile_cache "
+                        f"ADD COLUMN {column} FLOAT"
+                    )
+
+
 def init_database():
     Base.metadata.create_all(bind=engine)
+    ensure_company_profile_valuation_columns()
 
 
 def get_database_session():
@@ -945,6 +978,8 @@ def company_profile_row_to_dict(profile_row):
             profile_row.fifty_two_week_low
         ),
         "trailingPE": profile_row.trailing_pe,
+        "eps": profile_row.eps,
+        "sharesOutstanding": profile_row.shares_outstanding,
         "dividendYield": profile_row.dividend_yield,
         "beta": profile_row.beta,
         "source": (
@@ -1000,6 +1035,10 @@ def save_company_profile_cache(ticker, profile):
         )
         cached_profile.trailing_pe = profile.get(
             "trailingPE"
+        )
+        cached_profile.eps = profile.get("eps")
+        cached_profile.shares_outstanding = profile.get(
+            "sharesOutstanding"
         )
         cached_profile.dividend_yield = profile.get(
             "dividendYield"

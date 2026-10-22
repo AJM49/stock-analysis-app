@@ -54,6 +54,8 @@ def apple_profile():
         "fiftyTwoWeekHigh": 250.0,
         "fiftyTwoWeekLow": 165.0,
         "trailingPE": 31.25,
+        "eps": 6.5,
+        "sharesOutstanding": 15_000_000_000.0,
         "dividendYield": 0.0045,
         "beta": 1.2,
         "source": "Alpha Vantage Company Overview",
@@ -96,6 +98,8 @@ def test_save_and_load_company_profile_cache(
     assert cached_row.sector == "Technology"
     assert cached_row.industry == "Consumer Electronics"
     assert cached_row.market_cap == 3_000_000_000_000.0
+    assert cached_row.eps == 6.5
+    assert cached_row.shares_outstanding == 15_000_000_000.0
 
 
 def test_company_profile_row_converts_to_ui_dictionary(
@@ -119,6 +123,8 @@ def test_company_profile_row_converts_to_ui_dictionary(
     assert profile["fiftyTwoWeekHigh"] == 250.0
     assert profile["fiftyTwoWeekLow"] == 165.0
     assert profile["trailingPE"] == 31.25
+    assert profile["eps"] == 6.5
+    assert profile["sharesOutstanding"] == 15_000_000_000.0
     assert profile["dividendYield"] == 0.0045
     assert profile["beta"] == 1.2
     assert profile["profileFetchedAt"] is not None
@@ -266,3 +272,41 @@ def test_provider_quota_error_preserves_cached_profile(
     assert info["sector"] == "Technology"
     assert info["fiftyTwoWeekHigh"] == 250.0
     assert loaded_history.equals(history)
+
+
+def test_company_profile_migration_preserves_legacy_rows(isolated_profile_database):
+    from sqlalchemy import inspect
+
+    engine = isolated_profile_database
+    with engine.begin() as connection:
+        connection.exec_driver_sql("DROP TABLE company_profile_cache")
+        connection.exec_driver_sql(
+            "CREATE TABLE company_profile_cache ("
+            "id INTEGER PRIMARY KEY, ticker VARCHAR NOT NULL, "
+            "company_name VARCHAR)"
+        )
+        connection.exec_driver_sql(
+            "INSERT INTO company_profile_cache "
+            "(ticker, company_name) VALUES ('AAPL', 'Apple Inc')"
+        )
+
+    database.ensure_company_profile_valuation_columns()
+    database.ensure_company_profile_valuation_columns()
+
+    columns = {
+        column["name"]
+        for column in inspect(engine).get_columns("company_profile_cache")
+    }
+    assert {"eps", "shares_outstanding"} <= columns
+    with engine.connect() as connection:
+        row = connection.exec_driver_sql(
+            "SELECT ticker, company_name, eps, shares_outstanding "
+            "FROM company_profile_cache"
+        ).one()
+    assert tuple(row) == ("AAPL", "Apple Inc", None, None)
+
+
+def test_company_profile_migration_handles_missing_table(isolated_profile_database):
+    with isolated_profile_database.begin() as connection:
+        connection.exec_driver_sql("DROP TABLE company_profile_cache")
+    database.ensure_company_profile_valuation_columns()
