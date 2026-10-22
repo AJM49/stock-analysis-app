@@ -55,3 +55,20 @@ def test_parse_company_overview_rejects_empty_payload():
 
     assert profile == {}
     assert error == "No company overview found for AAPL"
+
+
+def test_parse_company_overview_maps_valuation_inputs():
+    payload = {
+        "Symbol": "AAPL",
+        "EPS": "6.50",
+        "SharesOutstanding": "15000000000",
+    }
+
+    profile, error = parse_alpha_vantage_company_overview(
+        payload,
+        "AAPL",
+    )
+
+    assert error is None
+    assert profile["eps"] == 6.50
+    assert profile["sharesOutstanding"] == 15000000000.0

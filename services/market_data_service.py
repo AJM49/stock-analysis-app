@@ -391,6 +391,10 @@ def parse_alpha_vantage_company_overview(
         "trailingPE": safe_optional_float(
             data.get("PERatio")
         ),
+        "eps": safe_optional_float(data.get("EPS")),
+        "sharesOutstanding": safe_optional_float(
+            data.get("SharesOutstanding")
+        ),
         "dividendYield": safe_optional_float(
             data.get("DividendYield")
         ),
